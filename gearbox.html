@@ -5,109 +5,75 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b0e14">
 <title>Gearbox — Auto Lab</title>
-<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="app.css">
 <style>
   /* ═══════════════════════════════════════════════════════════
-     TORQUE VISUALIZER — bottom-left, always visible
+     WIDGET INTERIOR — Torque visualizer (bottom-left)
      ═══════════════════════════════════════════════════════════ */
-  #torque-panel {
-    position: fixed;
-    left: 14px;
-    bottom: 14px;
-    right: auto;
+  .tq-panel {
     width: 220px;
     background: rgba(11, 14, 20, 0.92);
-    border: 1px solid rgba(255, 255, 255, 0.10);
+    border: 1px solid var(--border, rgba(255,255,255,.10));
     border-radius: 12px;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    z-index: 22;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
     overflow: hidden;
-    color: #e6e9ef;
+    color: var(--text, #e6e9ef);
     font: 11px/1.35 system-ui, -apple-system, sans-serif;
     box-shadow: 0 8px 32px rgba(0,0,0,0.45);
     user-select: none;
   }
-  html.light-theme #torque-panel {
+  html.light-theme .tq-panel {
     background: rgba(255,255,255,.95);
     border-color: rgba(15,23,42,.14);
     color: #0a0d13;
     box-shadow: 0 8px 32px rgba(15,23,42,.15);
   }
 
-  #torque-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  .tq-header {
+    display: flex; justify-content: space-between; align-items: center;
     padding: 8px 10px;
-    border-bottom: 1px solid rgba(255,255,255,0.07);
+    border-bottom: 1px solid var(--border, rgba(255,255,255,.07));
     gap: 8px;
   }
-  html.light-theme #torque-header { border-bottom-color: rgba(15,23,42,.08); }
+  html.light-theme .tq-header { border-bottom-color: rgba(15,23,42,.08); }
 
-  #tq-live {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    flex: 1;
-    min-width: 0;
-  }
-  #tq-gear {
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: .02em;
-    color: #22c55e;
-    line-height: 1;
+  .tq-live { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+  .tq-gear {
+    font-size: 12px; font-weight: 800; letter-spacing: .02em;
+    color: #22c55e; line-height: 1;
     transition: color .2s;
   }
-  #tq-gear.shifting { color: #38bdf8; }
-  #tq-rpm {
+  .tq-gear.shifting { color: #38bdf8; }
+  .tq-rpm {
     font-size: 9.5px;
     font-family: ui-monospace, Menlo, Consolas, monospace;
-    color: #94a3b8;
+    color: var(--text-dim, #94a3b8);
     font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  html.light-theme #tq-rpm { color: #64748b; }
+  html.light-theme .tq-rpm { color: #64748b; }
 
-  #tq-status {
-    font-weight: 700;
-    font-size: 9px;
-    letter-spacing: .06em;
-    color: #38bdf8;
-    opacity: 0;
-    transition: opacity .15s;
-    padding: 2px 6px;
-    border-radius: 4px;
+  .tq-status {
+    font-weight: 700; font-size: 9px; letter-spacing: .06em;
+    color: #38bdf8; opacity: 0; transition: opacity .15s;
+    padding: 2px 6px; border-radius: 4px;
     background: rgba(56,189,248,.15);
-    text-transform: uppercase;
-    flex: 0 0 auto;
+    text-transform: uppercase; flex: 0 0 auto;
   }
-  #tq-status.on { opacity: 1; }
+  .tq-status.on { opacity: 1; }
 
-  #torque-toggle {
-    background: none;
-    border: none;
-    color: #9aa3b2;
-    cursor: pointer;
-    font-size: 14px;
-    line-height: 1;
-    padding: 0 2px;
-    border-radius: 4px;
-    flex: 0 0 auto;
+  .tq-toggle {
+    background: none; border: none;
+    color: var(--text-dim, #9aa3b2);
+    cursor: pointer; font-size: 14px; line-height: 1;
+    padding: 0 2px; border-radius: 4px; flex: 0 0 auto;
   }
-  #torque-toggle:hover { color: #fff; background: rgba(255,255,255,0.08); }
-  html.light-theme #torque-toggle { color: #64748b; }
-  html.light-theme #torque-toggle:hover { color: #0a0d13; background: rgba(15,23,42,.08); }
+  .tq-toggle:hover { color: #fff; background: rgba(255,255,255,0.08); }
+  html.light-theme .tq-toggle { color: #64748b; }
+  html.light-theme .tq-toggle:hover { color: #0a0d13; background: rgba(15,23,42,.08); }
 
-  #torque-canvas {
-    display: block;
-    width: 100%;
-    height: 110px;
-  }
-  #torque-panel.collapsed #torque-canvas { display: none; }
+  .tq-canvas { display: block; width: 100%; height: 110px; }
+  .tq-panel.collapsed .tq-canvas { display: none; }
 
   .ratio-badge {
     display: inline-block;
@@ -122,18 +88,10 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
-     H-PATTERN GEAR SHIFTER — bottom-right overlay
+     WIDGET INTERIOR — H-pattern gear shifter (bottom-right)
      ═══════════════════════════════════════════════════════════ */
   #gear-shifter-overlay {
-    position: fixed;
-    right: calc(14px + var(--safe-r, 0px));
-    bottom: calc(80px + var(--safe-b, 0px));
-    z-index: 20;
-    pointer-events: none;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
   }
 
   #gear-shifter {
@@ -142,8 +100,7 @@
     pointer-events: auto;
     cursor: grab;
     touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
+    user-select: none; -webkit-user-select: none;
     filter: drop-shadow(0 10px 20px rgba(0,0,0,.62));
     transition: filter .2s;
   }
@@ -157,9 +114,7 @@
     transition: transform .16s cubic-bezier(.32,.72,0,1);
     will-change: transform;
   }
-  #gear-shifter.grabbing #gs-knob {
-    transition: none;
-  }
+  #gear-shifter.grabbing #gs-knob { transition: none; }
 
   .gs-bg {
     fill: rgba(10,14,20,.86);
@@ -182,18 +137,14 @@
   }
 
   .gs-title {
-    fill: #64748b;
-    font-size: 8px;
-    font-weight: 800;
+    fill: #64748b; font-size: 8px; font-weight: 800;
     letter-spacing: 1.6px;
     font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   }
   html.light-theme .gs-title { fill: #94a3b8; }
 
   .gs-label {
-    fill: #94a3b8;
-    font-size: 12px;
-    font-weight: 800;
+    fill: #94a3b8; font-size: 12px; font-weight: 800;
     font-family: ui-monospace, Menlo, Consolas, monospace;
     transition: fill .2s;
   }
@@ -201,54 +152,32 @@
   html.light-theme .gs-label { fill: #475569; }
   html.light-theme .gs-label.active { fill: #2563eb; }
 
-  .gs-gate {
-    fill: rgba(148,163,184,.32);
-    transition: fill .2s;
-  }
+  .gs-gate { fill: rgba(148,163,184,.32); transition: fill .2s; }
   .gs-gate.active { fill: #38bdf8; }
   html.light-theme .gs-gate { fill: rgba(15,23,42,.22); }
   html.light-theme .gs-gate.active { fill: #2563eb; }
 
-  .gs-knob-shadow {
-    fill: rgba(0,0,0,.55);
-  }
+  .gs-knob-shadow { fill: rgba(0,0,0,.55); }
   .gs-knob {
-    fill: #3b4656;
-    stroke: #a8b4c4;
-    stroke-width: 1.6;
+    fill: #3b4656; stroke: #a8b4c4; stroke-width: 1.6;
     transition: fill .15s, stroke .15s;
   }
-  .gs-knob-hi {
-    fill: rgba(255,255,255,.18);
-    transition: fill .15s;
-  }
-  #gear-shifter.grabbing .gs-knob {
-    stroke: #38bdf8;
-    fill: #4b5a72;
-  }
-  #gear-shifter.grabbing .gs-knob-hi {
-    fill: rgba(56,189,248,.28);
-  }
-  html.light-theme .gs-knob {
-    fill: #cbd5e1;
-    stroke: #334155;
-  }
+  .gs-knob-hi { fill: rgba(255,255,255,.18); transition: fill .15s; }
+  #gear-shifter.grabbing .gs-knob { stroke: #38bdf8; fill: #4b5a72; }
+  #gear-shifter.grabbing .gs-knob-hi { fill: rgba(56,189,248,.28); }
+  html.light-theme .gs-knob { fill: #cbd5e1; stroke: #334155; }
   html.light-theme .gs-knob-hi { fill: rgba(255,255,255,.7); }
   html.light-theme .gs-knob-shadow { fill: rgba(15,23,42,.20); }
 
   #gear-shifter-label {
     margin-top: 2px;
-    color: #aab4c3;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: .55px;
+    color: var(--text-dim, #aab4c3);
+    font-size: 10px; font-weight: 700; letter-spacing: .55px;
     text-transform: uppercase;
     background: rgba(10,14,20,.78);
-    padding: 4px 10px;
-    border-radius: 20px;
-    backdrop-filter: blur(9px);
-    -webkit-backdrop-filter: blur(9px);
-    border: 1px solid rgba(255,255,255,.08);
+    padding: 4px 10px; border-radius: 20px;
+    backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px);
+    border: 1px solid var(--border, rgba(255,255,255,.08));
     pointer-events: none;
     transition: color .15s, border-color .15s;
     white-space: nowrap;
@@ -259,171 +188,45 @@
     color: #475569;
   }
   #gear-shifter-label.active {
-    color: #38bdf8;
-    border-color: rgba(56,189,248,.38);
+    color: #38bdf8; border-color: rgba(56,189,248,.38);
   }
 
   /* ═══════════════════════════════════════════════════════════
-     EMBED MODE ADJUSTMENTS
+     TOOLBAR EXTRAS — gearbox config switcher (prev / label / next)
      ═══════════════════════════════════════════════════════════ */
-  body.embedded #torque-panel {
-    left: 12px !important;
-    right: auto !important;
-    bottom: calc(80px + var(--safe-b, 0px)) !important;
-    width: 200px !important;
-    z-index: 18 !important;
+  .cfg-group {
+    display: flex; align-items: center; gap: 4px;
+    padding-left: 8px; margin-left: 4px;
+    border-left: 1px solid var(--border, rgba(255,255,255,.10));
   }
-  body.embedded #torque-canvas { height: 100px !important; }
-
-  body.embedded #gear-shifter-overlay {
-    position: absolute !important;
-    bottom: calc(80px + var(--safe-b, 0px)) !important;
-    right: 12px !important;
-    z-index: 20 !important;
+  .cfg-arrow {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: none; background: rgba(255,255,255,.08);
+    color: var(--text, #e5e7eb); font-size: 14px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-family: inherit; padding: 0;
+    transition: background var(--dur-fast, .15s) var(--ease-out, ease),
+                color var(--dur-fast, .15s) var(--ease-out, ease);
   }
-
-  @media (max-width: 520px) {
-    body.embedded #torque-panel { width: 176px !important; }
-    body.embedded #torque-canvas { height: 90px !important; }
-    #gear-shifter { width: 108px; height: 150px; }
+  .cfg-arrow:hover, .cfg-arrow:active { background: var(--accent, #22c55e); color: #0b0e14; }
+  #cfg-label {
+    min-width: 108px; text-align: center; white-space: nowrap;
+    font-size: 10.5px; font-weight: 700; letter-spacing: .02em;
+    color: var(--text, #e5e7eb);
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+  html.light-theme .cfg-arrow { background: rgba(15,23,42,.08); color: #0a0d13; }
+  html.light-theme .cfg-arrow:hover { background: var(--accent, #22c55e); color: #fff; }
+  html.light-theme #cfg-label { color: #0a0d13; }
+  @media (max-width: 600px) {
+    .cfg-arrow { width: 19px; height: 19px; font-size: 12px; }
+    #cfg-label { min-width: 84px; font-size: 9px; }
   }
 </style>
 </head>
 <body>
   <div id="canvas-wrap"></div>
-
-  <div id="edu-panel" class="panel">
-    <div id="panel-head">
-      <div>
-        <h1 id="module-kicker">Transmission</h1>
-        <div id="module-title">Manual Gearbox Working Principle</div>
-      </div>
-      <button id="panel-toggle" aria-label="Toggle info" aria-expanded="false">
-        <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
-      </button>
-    </div>
-    <div id="panel-body">
-      <div id="stroke-badge" style="background:rgba(34,197,94,.18);color:#22c55e">
-        <span class="dot" style="background:#22c55e"></span><span>Gearbox</span>
-      </div>
-      <div id="module-extra-gb">
-        <div class="extra-label">Gear selection</div>
-        <div class="gear-row">
-          <button class="gear-btn active" data-gear="0">N</button>
-          <button class="gear-btn" data-gear="1">1st<span class="ratio-badge">3.50</span></button>
-          <button class="gear-btn" data-gear="2">2nd<span class="ratio-badge">2.00</span></button>
-          <button class="gear-btn" data-gear="3">3rd<span class="ratio-badge">1.40</span></button>
-          <button class="gear-btn" data-gear="4">4th<span class="ratio-badge">1.00</span></button>
-          <button class="gear-btn" data-gear="5">R<span class="ratio-badge">3.60</span></button>
-        </div>
-        <div class="gb-readout">
-          <div class="gb-row"><span>Input</span><b><span id="gb-rpm-in">1000</span> rpm</b></div>
-          <div class="gb-row"><span>Output</span><b><span id="gb-rpm-out">0</span> rpm</b></div>
-          <div class="gb-row"><span>Ratio</span><b id="gb-ratio">—</b></div>
-        </div>
-        <div class="gb-current">Selected: <b id="gb-current-gear">Neutral</b></div>
-      </div>
-      <div id="stroke-desc" style="margin-top:12px">
-        <strong>Gearbox.</strong> The input shaft drives the countershaft through a single gear pair. Fixed gears on the countershaft
-        always spin at the same rate. Each output gear is free on the output shaft until its synchro hub locks it — the selected
-        gear then forces the output shaft to turn at that gear's ratio. Reverse uses an extra idler gear to flip the output direction.
-        <div style="margin-top:8px;font-size:11px;color:#9aa3b2">
-          Watch the hub, not just the colour: only the engaged gear's synchro hub slides over and the gear turns fully solid with a
-          glowing ring. Every other gear stays dim and semi-transparent — it's still spinning, but it isn't locked to the output
-          shaft, so it isn't transmitting any power.
-        </div>
-        <div style="margin-top:8px;font-size:11px;color:#9aa3b2">
-          Typical passenger car ratios — 1st&nbsp;3.50:1 · 2nd&nbsp;2.00:1 · 3rd&nbsp;1.40:1 · 4th&nbsp;1.00:1 (direct) · R&nbsp;3.60:1
-        </div>
-        <div style="margin-top:10px;font-size:11.5px;color:#94a3b8">
-          <strong style="color:#e2e8f0">Or use the gear stick</strong> (bottom-right) — drag the knob through the H-pattern grooves to select a gear.
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="module-controls" class="panel">
-    <button class="ctrl-btn" id="btn-play" aria-label="Pause">
-      <svg id="icon-play" viewBox="0 0 24 24" style="display:none"><path d="M8 5v14l11-7z"/></svg>
-      <svg id="icon-pause" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
-    </button>
-    <button class="ctrl-btn" id="btn-reset" aria-label="Reset">
-      <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
-    </button>
-    <div class="slider-group">
-      <span>Speed</span>
-      <input type="range" id="speed" min="0.15" max="2.5" step="0.05" value="0.85" aria-label="Speed">
-      <span id="rpm-label">~900 rpm</span>
-    </div>
-    <label class="toggle"><input type="checkbox" id="chk-labels" checked> Labels</label>
-    <label class="toggle"><input type="checkbox" id="chk-gas" checked> Flow</label>
-  </div>
-
-  <div id="hint">Drag the gear stick · Drag to orbit · Pinch to zoom</div>
   <div id="labels-root"></div>
-
-  <!-- ═══════════════════════════════════════════════════════════
-       TORQUE VISUALIZER (bottom-left) with live gear readout
-       ═══════════════════════════════════════════════════════════ -->
-  <div id="torque-panel">
-    <div id="torque-header">
-      <div id="tq-live">
-        <div id="tq-gear">Neutral</div>
-        <div id="tq-rpm">900 → 0 rpm</div>
-      </div>
-      <span id="tq-status">SHIFT</span>
-      <button id="torque-toggle" aria-label="Toggle chart">−</button>
-    </div>
-    <canvas id="torque-canvas"></canvas>
-  </div>
-
-  <!-- ═══════════════════════════════════════════════════════════
-       H-PATTERN GEAR SHIFTER (bottom-right)
-       ═══════════════════════════════════════════════════════════ -->
-  <div id="gear-shifter-overlay">
-    <svg id="gear-shifter" viewBox="0 0 130 180" aria-label="Gear stick">
-      <!-- Background panel -->
-      <rect class="gs-bg" x="2" y="2" width="126" height="176" rx="20"/>
-
-      <!-- Title -->
-      <text class="gs-title" x="65" y="22" text-anchor="middle">GEAR STICK</text>
-
-      <!-- Grooves (channels) — drawn as soft rounded rects -->
-      <!-- Neutral horizontal bar -->
-      <rect class="gs-groove" x="20" y="80" width="90" height="20" rx="10"/>
-      <!-- Left vertical channel -->
-      <rect class="gs-groove" x="20" y="37" width="20" height="106" rx="10"/>
-      <!-- Middle vertical channel -->
-      <rect class="gs-groove" x="55" y="37" width="20" height="106" rx="10"/>
-      <!-- Right vertical channel -->
-      <rect class="gs-groove" x="90" y="37" width="20" height="106" rx="10"/>
-
-      <!-- Gate dots at each position -->
-      <circle class="gs-gate" data-gate="1" cx="30"  cy="48"  r="3"/>
-      <circle class="gs-gate" data-gate="N" cx="30"  cy="90"  r="3"/>
-      <circle class="gs-gate" data-gate="2" cx="30"  cy="132" r="3"/>
-      <circle class="gs-gate" data-gate="3" cx="65"  cy="48"  r="3"/>
-      <circle class="gs-gate" data-gate="N" cx="65"  cy="90"  r="3"/>
-      <circle class="gs-gate" data-gate="4" cx="65"  cy="132" r="3"/>
-      <circle class="gs-gate" data-gate="R" cx="100" cy="48"  r="3"/>
-      <circle class="gs-gate" data-gate="N" cx="100" cy="90"  r="3"/>
-
-      <!-- Gear labels -->
-      <text class="gs-label" data-label="1" x="30"  y="36" text-anchor="middle">1</text>
-      <text class="gs-label" data-label="2" x="30"  y="150" text-anchor="middle">2</text>
-      <text class="gs-label" data-label="3" x="65"  y="36" text-anchor="middle">3</text>
-      <text class="gs-label" data-label="4" x="65"  y="150" text-anchor="middle">4</text>
-      <text class="gs-label" data-label="R" x="100" y="36" text-anchor="middle">R</text>
-
-      <!-- Knob (moved via transform) -->
-      <g id="gs-knob" transform="translate(65 90)">
-        <circle class="gs-knob-shadow" cx="0" cy="3" r="14"/>
-        <circle class="gs-knob" cx="0" cy="0" r="13"/>
-        <circle class="gs-knob-hi" cx="0" cy="-4" r="8"/>
-      </g>
-    </svg>
-    <div id="gear-shifter-label">Neutral · drag knob</div>
-  </div>
 
   <script type="importmap">
   { "imports": {
@@ -434,14 +237,12 @@
 
   <script type="module">
   import * as THREE from 'three';
-  import * as Base from './module-base.js';
+  import * as Base from './kit.js';
+  import { UI } from './kit.js';
 
   /* ═══════════════════════════════════════════════════════════
-     SHELL DETECTION + ADAPTIVE QUALITY
+     ADAPTIVE QUALITY
      ═══════════════════════════════════════════════════════════ */
-  const IS_EMBEDDED = window.parent && window.parent !== window;
-  if (IS_EMBEDDED) document.body.classList.add('embedded');
-
   const isCoarse = matchMedia('(pointer: coarse)').matches;
   const cores    = navigator.hardwareConcurrency || 4;
   const mem      = navigator.deviceMemory || 4;
@@ -451,7 +252,10 @@
   const CYL_SEGS = isLowEnd ? 20 : 32;
   const TORUS_SEGS = isLowEnd ? 6 : 10;
 
-  const { scene, camera, renderer, controls, wrap } = Base.buildScene({
+  /* ═══════════════════════════════════════════════════════════
+     SCENE
+     ═══════════════════════════════════════════════════════════ */
+  const { scene, camera, renderer, controls, wrap, viewManager } = Base.buildScene({
     fov: 42,
     camPos: isCoarse ? [1.0, 2.2, 3.6] : [1.2, 2.6, 4.4],
     target: [0.9, 0, 0],
@@ -461,6 +265,9 @@
   const labels = Base.createLabelSystem();
   const state = Base.createUIState();
 
+  /* ═══════════════════════════════════════════════════════════
+     MATERIALS
+     ═══════════════════════════════════════════════════════════ */
   const gbMats = {
     shaft:    new THREE.MeshStandardMaterial({ color:0x8a93a5, metalness:0.85, roughness:0.30 }),
     gearFix:  new THREE.MeshStandardMaterial({ color:0xa8b0be, metalness:0.85, roughness:0.28 }),
@@ -514,6 +321,9 @@
   const IDLER_Y = SH_Y_BOT + _idler_h;
   const IDLER_Z = 0;
 
+  /* ═══════════════════════════════════════════════════════════
+     MAIN GROUP — MANUAL GEARBOX
+     ═══════════════════════════════════════════════════════════ */
   const gearboxGroup = new THREE.Group();
   scene.add(gearboxGroup);
 
@@ -572,9 +382,6 @@
 
   function freeGear(x, r, markerColor) {
     const g = new THREE.Group(); g.position.set(x, SH_Y_TOP, 0);
-    /* Each free gear gets its OWN material clone (not the shared gbMats.gearFry) so it can be
-       dimmed independently — only the engaged gear stays fully solid; the rest read as "not
-       transmitting power" instead of all looking equally meshed. */
     const matBody  = gbMats.gearFry.clone();  matBody.transparent  = true; matBody.opacity  = 0.4;
     const matTooth = gbMats.gearFryT.clone(); matTooth.transparent = true; matTooth.opacity = 0.4;
     const cog = Base.makeCog(r, 0.10, teethFor(r), r*0.15, r*0.12, matBody, matTooth);
@@ -607,7 +414,6 @@
     freeGear(GR_X, R_GR_TOP, 0xef4444)
   ];
 
-  /* How far off-center the hub slides to physically "lock" onto a gear (in scene units). */
   const HUB_ENGAGE_OFFSET = 0.17;
 
   function addHub(xNeutral, xLeftGear, xRightGear) {
@@ -628,12 +434,11 @@
     return {
       group: g, fork,
       xNeutral,
-      xLeft:  xLeftGear  + HUB_ENGAGE_OFFSET,   /* slid toward the left-hand gear = "locked" */
-      xRight: xRightGear - HUB_ENGAGE_OFFSET,   /* slid toward the right-hand gear = "locked" */
+      xLeft:  xLeftGear  + HUB_ENGAGE_OFFSET,
+      xRight: xRightGear - HUB_ENGAGE_OFFSET,
       curX: xNeutral
     };
   }
-  /* hub12 straddles 1st/2nd, hub34 straddles 3rd/4th — exactly like a real H-pattern box */
   const gbHub12 = addHub(HUB12_X, G1_X, G2_X);
   const gbHub34 = addHub(HUB34_X, G3_X, G4_X);
   const gbHubs = [gbHub12, gbHub34];
@@ -670,17 +475,677 @@
   ];
   labelDefs.forEach(d => labels.add(d.id, d.text));
 
-  /* DOM cache */
-  const dom = {
-    rpmIn:  document.getElementById('gb-rpm-in'),
-    rpmOut: document.getElementById('gb-rpm-out'),
-    ratio:  document.getElementById('gb-ratio'),
-    gear:   document.getElementById('gb-current-gear')
-  };
   const GEAR_NAMES = ['Neutral','1st','2nd','3rd','4th','Reverse'];
   const GEAR_SHORT = ['N','1','2','3','4','R'];
 
-  /* Kinematics */
+  /* ═══════════════════════════════════════════════════════════
+     EXTRA GEARBOXES — Automatic, DCT, CVT
+     ═══════════════════════════════════════════════════════════ */
+  const extraGearboxes = (function () {
+
+    const exMat = {
+      tcShell: new THREE.MeshPhysicalMaterial({
+        color: 0xc9a961, metalness: 0.55, roughness: 0.30,
+        transparent: true, opacity: 0.32, side: THREE.DoubleSide, depthWrite: false
+      }),
+      tcImpeller: new THREE.MeshStandardMaterial({ color: 0xd4a34a, metalness: 0.85, roughness: 0.32,
+        emissive: 0x3a2400, emissiveIntensity: 0.25 }),
+      tcTurbine: new THREE.MeshStandardMaterial({ color: 0x9ab4d4, metalness: 0.88, roughness: 0.26,
+        emissive: 0x0a2a4a, emissiveIntensity: 0.25 }),
+      sun: new THREE.MeshStandardMaterial({ color: 0xffd166, metalness: 0.90, roughness: 0.26,
+        emissive: 0x6b4a00, emissiveIntensity: 0.35 }),
+      planet: new THREE.MeshStandardMaterial({ color: 0xb8c1d2, metalness: 0.90, roughness: 0.28 }),
+      ring: new THREE.MeshStandardMaterial({ color: 0x4a5568, metalness: 0.85, roughness: 0.35 }),
+      carrier: new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.65, roughness: 0.38,
+        emissive: 0x38bdf8, emissiveIntensity: 0.35 }),
+      clutchA: new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.75, roughness: 0.35,
+        emissive: 0xf59e0b, emissiveIntensity: 0.35 }),
+      clutchB: new THREE.MeshStandardMaterial({ color: 0x8b5cf6, metalness: 0.75, roughness: 0.35,
+        emissive: 0x8b5cf6, emissiveIntensity: 0.35 }),
+      clutchDisc: new THREE.MeshStandardMaterial({ color: 0x2a3038, metalness: 0.55, roughness: 0.55 }),
+      pulleyCone: new THREE.MeshStandardMaterial({ color: 0x9aa3b0, metalness: 0.92, roughness: 0.22 }),
+      pulleyHub: new THREE.MeshStandardMaterial({ color: 0x4e5768, metalness: 0.85, roughness: 0.32 }),
+      belt: new THREE.MeshStandardMaterial({ color: 0x1a1d24, metalness: 0.35, roughness: 0.72 }),
+      beltLink: new THREE.MeshStandardMaterial({ color: 0x3d4555, metalness: 0.85, roughness: 0.32 }),
+      housing: new THREE.MeshPhysicalMaterial({
+        color: 0x8a93a5, metalness: 0.20, roughness: 0.20,
+        transparent: true, opacity: 0.10, side: THREE.DoubleSide, depthWrite: false
+      })
+    };
+
+    /* ── Automatic (planetary) ── */
+    function createAutomatic() {
+      const group = new THREE.Group();
+
+      /* Torque converter (input, left) */
+      const tc = new THREE.Group();
+      tc.position.set(-1.60, 0, 0);
+      group.add(tc);
+
+      const tcShell = new THREE.Mesh(
+        new THREE.TorusGeometry(0.55, 0.20, 16, 40), exMat.tcShell);
+      tcShell.rotation.y = Math.PI / 2;
+      tc.add(tcShell);
+
+      /* Impeller blades (engine side) */
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * Math.PI * 2;
+        const blade = new THREE.Mesh(
+          new THREE.BoxGeometry(0.06, 0.36, 0.09), exMat.tcImpeller);
+        blade.position.set(-0.15, Math.cos(a) * 0.34, Math.sin(a) * 0.34);
+        blade.rotation.x = a;
+        tc.add(blade);
+      }
+      /* Turbine blades (output side) */
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * Math.PI * 2 + Math.PI / 14;
+        const blade = new THREE.Mesh(
+          new THREE.BoxGeometry(0.06, 0.36, 0.09), exMat.tcTurbine);
+        blade.position.set(0.15, Math.cos(a) * 0.34, Math.sin(a) * 0.34);
+        blade.rotation.x = a;
+        tc.add(blade);
+      }
+      const tcHub = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.12, 0.12, 0.10, 20), exMat.pulleyHub);
+      tcHub.rotation.z = Math.PI / 2;
+      tc.add(tcHub);
+
+      /* Planetary gearset (right) */
+      const planetary = new THREE.Group();
+      planetary.position.set(1.20, 0, 0);
+      group.add(planetary);
+
+      /* Input shaft (from turbine) */
+      const inputShaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.07, 0.07, 2.40, 20), exMat.planet);
+      inputShaft.rotation.z = Math.PI / 2;
+      inputShaft.position.x = -0.05;
+      planetary.add(inputShaft);
+
+      /* Sun gear (attached to input shaft) */
+      const sun = Base.makeCog(0.20, 0.10, 18, 0.045, 0.045, exMat.sun, exMat.sun);
+      sun.rotation.z = Math.PI / 2;
+      sun.rotation.x = 0;
+      planetary.add(sun);
+
+      /* Planet carrier group */
+      const carrier = new THREE.Group();
+      planetary.add(carrier);
+      const carrierDisc = new THREE.Mesh(
+        new THREE.TorusGeometry(0.42, 0.05, 12, 36), exMat.carrier);
+      carrierDisc.rotation.y = Math.PI / 2;
+      carrier.add(carrierDisc);
+
+      const planets = [];
+      for (let i = 0; i < 3; i++) {
+        const a = (i / 3) * Math.PI * 2 + Math.PI / 6;
+        const pg = new THREE.Group();
+        pg.position.set(0, Math.cos(a) * 0.42, Math.sin(a) * 0.42);
+        carrier.add(pg);
+        const planet = Base.makeCog(0.18, 0.08, 14, 0.04, 0.04, exMat.planet, exMat.planet);
+        planet.rotation.z = Math.PI / 2;
+        pg.add(planet);
+        planets.push(planet);
+
+        /* Carrier spoke */
+        const spoke = new THREE.Mesh(
+          new THREE.BoxGeometry(0.05, 0.42, 0.05), exMat.carrier);
+        spoke.position.set(0, Math.cos(a) * 0.21, Math.sin(a) * 0.21);
+        spoke.rotation.x = a;
+        carrier.add(spoke);
+      }
+
+      /* Ring gear (internal teeth, outer) */
+      const ringGrp = new THREE.Group();
+      planetary.add(ringGrp);
+      const ringOuter = new THREE.Mesh(
+        new THREE.TorusGeometry(0.62, 0.06, 12, 48), exMat.ring);
+      ringOuter.rotation.y = Math.PI / 2;
+      ringGrp.add(ringOuter);
+      for (let i = 0; i < 34; i++) {
+        const a = (i / 34) * Math.PI * 2;
+        const tooth = new THREE.Mesh(
+          new THREE.BoxGeometry(0.05, 0.06, 0.05), exMat.ring);
+        tooth.position.set(0, Math.cos(a) * 0.58, Math.sin(a) * 0.58);
+        tooth.rotation.x = a;
+        ringGrp.add(tooth);
+      }
+
+      /* Output shaft (from carrier) */
+      const outputShaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.08, 0.08, 1.20, 20), exMat.planet);
+      outputShaft.rotation.z = Math.PI / 2;
+      outputShaft.position.x = 1.00;
+      group.add(outputShaft);
+
+      /* Housing shell */
+      const shell = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.95, 0.95, 4.4, 32, 1, true), exMat.housing);
+      shell.rotation.z = Math.PI / 2;
+      shell.position.x = 0.20;
+      group.add(shell);
+
+      let sunAng = 0, ringAng = 0, carrAng = 0, tcAng = 0;
+
+      function step(dt, gear) {
+        /* Ring ratio: 1st→0 (fixed), 4th→0.85 (near-locked), 2nd→0.2, 3rd→0.5, R→0.15 */
+        const ringRatio = gear === 0 ? 1.0
+                        : gear === 1 ? 0.00
+                        : gear === 2 ? 0.22
+                        : gear === 3 ? 0.50
+                        : gear === 4 ? 0.85
+                        : 0.15;
+        const sunOmega = 1.0;
+        const ringOmega = sunOmega * ringRatio;
+        /* ω_carrier = (N_sun * ω_sun + N_ring * ω_ring) / (N_sun + N_ring) */
+        const carrOmega = (18 * sunOmega + 34 * ringOmega) / (18 + 34);
+
+        sunAng += dt * sunOmega * 2.0;
+        ringAng += dt * ringOmega * 2.0;
+        carrAng += dt * carrOmega * 2.0;
+        tcAng += dt * sunOmega * 2.0;
+
+        sun.rotation.x = sunAng;
+        ringGrp.rotation.x = ringAng;
+        carrier.rotation.x = carrAng;
+        inputShaft.rotation.x = sunAng;
+        tc.rotation.x = tcAng;
+        outputShaft.rotation.x = carrAng;
+
+        for (const p of planets) {
+          p.rotation.x = -sunAng * (0.20 / 0.18);
+        }
+      }
+
+      return {
+        group, step,
+        title: 'Automatic Transmission — Planetary Gearset',
+        kicker: 'Transmission · Automatic',
+        badge: { text: 'Planetary + Torque Converter', color: '#38bdf8' },
+        desc: `<strong>Automatic transmission.</strong> A <strong>torque converter</strong> — a
+               fluid coupling between the engine and the gearbox — replaces the clutch. Its
+               <strong>impeller</strong> (driven by the engine) throws fluid at the
+               <strong>turbine</strong> (driven output), smoothly transferring torque and letting the
+               engine idle in gear without stalling. Behind it, a <strong>planetary gearset</strong>
+               provides the ratios. Holding the <em>ring gear</em> stationary and driving the
+               <em>sun gear</em> gives a reduction. Releasing the ring or locking parts together
+               changes the output ratio. A hydraulic valve body chooses which clutches and bands
+               hold or release, shifting gears automatically without any input from the driver.`
+      };
+    }
+
+    /* ── Dual-clutch (DCT) ── */
+    function createDCT() {
+      const group = new THREE.Group();
+
+      /* Two clutch packs side by side */
+      function makeClutch(centerX, mat, label) {
+        const pack = new THREE.Group();
+        pack.position.set(centerX, 0, 0);
+        group.add(pack);
+
+        const outer = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.55, 0.55, 0.22, 32), mat);
+        outer.rotation.z = Math.PI / 2;
+        pack.add(outer);
+
+        for (let i = 0; i < 5; i++) {
+          const disc = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.48 - i * 0.02, 0.48 - i * 0.02, 0.03, 32),
+            exMat.clutchDisc);
+          disc.rotation.z = Math.PI / 2;
+          disc.position.x = -0.08 + i * 0.04;
+          pack.add(disc);
+        }
+        const hub = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.10, 0.10, 0.30, 20), exMat.pulleyHub);
+        hub.rotation.z = Math.PI / 2;
+        pack.add(hub);
+
+        return { group: pack, outer };
+      }
+
+      const clutchA = makeClutch(-0.65, exMat.clutchA);
+      const clutchB = makeClutch( 0.65, exMat.clutchB);
+
+      /* Input shaft (thin, drives both clutch outer rings) */
+      const inputShaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.05, 1.80, 20), exMat.planet);
+      inputShaft.rotation.z = Math.PI / 2;
+      inputShaft.position.x = -1.70;
+      group.add(inputShaft);
+
+      /* Concentric output shafts — inner (odd) + outer (even) */
+      const shaftOuter = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.15, 0.15, 2.00, 24), exMat.planet);
+      shaftOuter.rotation.z = Math.PI / 2;
+      shaftOuter.position.x = 1.85;
+      group.add(shaftOuter);
+
+      const shaftInner = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.08, 0.08, 1.70, 20), exMat.carrier);
+      shaftInner.rotation.z = Math.PI / 2;
+      shaftInner.position.x = 1.75;
+      group.add(shaftInner);
+
+      /* Output gears (simplified) */
+      const gearSetA = new THREE.Group();
+      gearSetA.position.set(1.20, 0.35, 0);
+      group.add(gearSetA);
+      const gearA = Base.makeCog(0.22, 0.10, 18, 0.05, 0.05, exMat.clutchA, exMat.clutchA);
+      gearA.rotation.z = Math.PI / 2;
+      gearSetA.add(gearA);
+
+      const gearSetB = new THREE.Group();
+      gearSetB.position.set(1.20, -0.35, 0);
+      group.add(gearSetB);
+      const gearB = Base.makeCog(0.22, 0.10, 18, 0.05, 0.05, exMat.clutchB, exMat.clutchB);
+      gearB.rotation.z = Math.PI / 2;
+      gearSetB.add(gearB);
+
+      /* Housing */
+      const shell = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.85, 0.85, 3.6, 32, 1, true), exMat.housing);
+      shell.rotation.z = Math.PI / 2;
+      shell.position.x = 0.10;
+      group.add(shell);
+
+      let angA = 0, angB = 0, angIn = 0;
+
+      function step(dt, gear) {
+        /* Clutch A = odd gears (1, 3, R). Clutch B = even gears (2, 4). */
+        const engageA = (gear === 1 || gear === 3 || gear === 5) ? 1 : 0;
+        const engageB = (gear === 2 || gear === 4) ? 1 : 0;
+
+        angIn += dt * 2.0;
+        if (engageA) angA += dt * 2.0 * 0.35;
+        if (engageB) angB += dt * 2.0 * 0.55;
+
+        clutchA.group.rotation.x = angA;
+        clutchB.group.rotation.x = angB;
+        inputShaft.rotation.x = angIn;
+        gearA.rotation.x = angA;
+        gearB.rotation.x = angB;
+        shaftInner.rotation.x = angA;
+        shaftOuter.rotation.x = angB;
+
+        /* Emissive pulse on the engaged clutch */
+        exMat.clutchA.emissiveIntensity = 0.35 + (engageA ? 1.6 : 0);
+        exMat.clutchB.emissiveIntensity = 0.35 + (engageB ? 1.6 : 0);
+      }
+
+      return {
+        group, step,
+        title: 'Dual-Clutch Transmission (DCT)',
+        kicker: 'Transmission · Dual-Clutch',
+        badge: { text: 'Twin-Clutch · Powershift', color: '#8b5cf6' },
+        desc: `<strong>Dual-clutch transmission.</strong> Two separate clutches drive two
+               concentric input shafts — an <strong>outer hollow shaft</strong> carrying the
+               even gears, and an <strong>inner solid shaft</strong> running through it carrying
+               the odd gears. While you're in 3rd, the gearbox has already preselected 4th on the
+               other shaft: it engages that shaft's clutch the instant you shift. Because the next
+               gear is already meshed, a DCT shifts in milliseconds — faster than any manual or
+               torque-converter automatic, with none of the fluid losses of an automatic
+               (efficiency close to a manual). Used in performance cars and many modern hot
+               hatches.`
+      };
+    }
+
+    /* ── CVT ── */
+    function createCVT() {
+      const group = new THREE.Group();
+
+      function makePulley(cx) {
+        const g = new THREE.Group();
+        g.position.set(cx, 0, 0);
+        group.add(g);
+
+        /* Two opposing cones */
+        const coneL = new THREE.Mesh(
+          new THREE.ConeGeometry(0.45, 0.32, 32, 1, false), exMat.pulleyCone);
+        coneL.rotation.z = Math.PI / 2;
+        coneL.position.x = -0.20;
+        g.add(coneL);
+
+        const coneR = new THREE.Mesh(
+          new THREE.ConeGeometry(0.45, 0.32, 32, 1, false), exMat.pulleyCone);
+        coneR.rotation.z = -Math.PI / 2;
+        coneR.position.x = 0.20;
+        g.add(coneR);
+
+        const hub = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.10, 0.10, 0.90, 20), exMat.pulleyHub);
+        hub.rotation.z = Math.PI / 2;
+        g.add(hub);
+
+        return { group: g, coneL, coneR };
+      }
+
+      const primary   = makePulley(-1.05);
+      const secondary = makePulley( 1.05);
+
+      /* Belt — two strands (top and bottom) connecting the two pulleys */
+      const beltGroup = new THREE.Group();
+      group.add(beltGroup);
+
+      const beltTop = new THREE.Mesh(
+        new THREE.BoxGeometry(0.06, 0.05, 1), exMat.belt);
+      beltTop.rotation.z = Math.PI / 2;
+      beltGroup.add(beltTop);
+
+      const beltBot = new THREE.Mesh(
+        new THREE.BoxGeometry(0.06, 0.05, 1), exMat.belt);
+      beltBot.rotation.z = Math.PI / 2;
+      beltGroup.add(beltBot);
+
+      /* Decorative belt links */
+      const beltLinks = [];
+      for (let i = 0; i < 14; i++) {
+        const link = new THREE.Mesh(
+          new THREE.BoxGeometry(0.02, 0.07, 0.05), exMat.beltLink);
+        beltGroup.add(link);
+        beltLinks.push(link);
+      }
+
+      /* Housing shell */
+      const shell = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.75, 0.75, 3.0, 32, 1, true), exMat.housing);
+      shell.rotation.z = Math.PI / 2;
+      group.add(shell);
+
+      let ang = 0;
+
+      function step(dt, gear) {
+        /* Gear 1 → low (primary small radius, secondary large)
+           Gear 4 → high (primary large, secondary small)
+           Neutral → middle */
+        const t = gear === 0 ? 0.5
+                : gear === 1 ? 0.15
+                : gear === 2 ? 0.35
+                : gear === 3 ? 0.65
+                : gear === 4 ? 0.90
+                : 0.20;
+
+        /* Primary cones slide together for high ratio, apart for low */
+        const primaryGap = 0.40 - t * 0.30;
+        const secondaryGap = 0.10 + t * 0.30;
+
+        primary.coneL.position.x = -0.10 - primaryGap / 2;
+        primary.coneR.position.x =  0.10 + primaryGap / 2;
+        secondary.coneL.position.x = -0.10 - secondaryGap / 2;
+        secondary.coneR.position.x =  0.10 + secondaryGap / 2;
+
+        /* Belt radius at each pulley */
+        const rPrimary   = 0.16 + t * 0.24;
+        const rSecondary = 0.16 + (1 - t) * 0.24;
+
+        beltTop.position.set(0, rSecondary, 0);
+        beltTop.scale.z = 1;
+        beltTop.scale.y = (rSecondary + rPrimary) / 0.5;
+        beltTop.geometry.computeBoundingBox?.();
+        beltTop.position.y = (rPrimary + rSecondary) / 2;
+
+        beltBot.position.y = -(rPrimary + rSecondary) / 2;
+        beltBot.scale.y = (rSecondary + rPrimary) / 0.5;
+
+        /* Update belt link positions */
+        ang += dt * 2.0;
+        beltLinks.forEach((link, i) => {
+          const phase = (i / beltLinks.length + ang * 0.05) % 1;
+          const x = -1.05 + phase * 2.10;
+          const isTop = phase < 0.5;
+          const r = isTop ? rPrimary : rSecondary;
+          link.position.set(x, isTop ? r + 0.05 : -r - 0.05, 0);
+          link.rotation.z = Math.PI / 2;
+        });
+      }
+
+      return {
+        group, step,
+        title: 'Continuously Variable Transmission (CVT)',
+        kicker: 'Transmission · CVT',
+        badge: { text: 'Steel-Belt Variable', color: '#22c55e' },
+        desc: `<strong>Continuously variable transmission.</strong> Instead of fixed gears, a
+               CVT uses two <strong>variable-diameter pulleys</strong> connected by a
+               <strong>steel belt</strong> or chain. Each pulley is made of two opposing cones
+               that can slide together or apart: as the cones close, the belt is forced to ride
+               further out, effectively <em>enlarging</em> that pulley's working diameter. The
+               engine's pulley (primary) and the wheels' pulley (secondary) trade diameters
+               continuously, so the ratio can be anything between its extremes — no discrete
+               steps. That's why a CVT-equipped car holds a smooth constant RPM while accelerating
+               instead of stepping through gears.`
+      };
+    }
+
+    return {
+      automatic: createAutomatic(),
+      dct:       createDCT(),
+      cvt:       createCVT()
+    };
+  })();
+
+  const extraRoot = new THREE.Group();
+  scene.add(extraRoot);
+  Object.values(extraGearboxes).forEach(ex => {
+    ex.group.visible = false;
+    extraRoot.add(ex.group);
+  });
+
+  /* ═══════════════════════════════════════════════════════════
+     UI — kit chrome + torque + shifter widgets
+     ═══════════════════════════════════════════════════════════ */
+  const ui = UI.create({
+    moduleId: 'gearbox',
+
+    panel: {
+      kicker: 'Transmission',
+      title:  'Manual Gearbox Working Principle',
+      badge:  { text: 'Gearbox', color: '#22c55e' },
+      readout: `
+        <div id="gb-readout" style="display:flex;flex-direction:column;gap:6px;margin-top:6px">
+          <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-dim,#94a3b8)">
+            <span>Input</span><b style="color:var(--text,#e5e7eb);font-variant-numeric:tabular-nums"><span id="gb-rpm-in">1000</span> rpm</b>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-dim,#94a3b8)">
+            <span>Output</span><b style="color:var(--text,#e5e7eb);font-variant-numeric:tabular-nums"><span id="gb-rpm-out">0</span> rpm</b>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-dim,#94a3b8)">
+            <span>Ratio</span><b id="gb-ratio" style="color:var(--text,#e5e7eb);font-variant-numeric:tabular-nums">—</b>
+          </div>
+          <div style="margin-top:8px;font-size:11.5px;color:var(--text-dim,#94a3b8)">
+            Selected: <b id="gb-current-gear" style="color:var(--accent,#22c55e)">Neutral</b>
+          </div>
+        </div>
+      `,
+      desc: `<strong>Gearbox.</strong> The input shaft drives the countershaft through a single gear pair.
+             Fixed gears on the countershaft always spin at the same rate. Each output gear is free on
+             the output shaft until its synchro hub locks it — the selected gear then forces the output
+             shaft to turn at that gear's ratio. Reverse uses an extra idler gear to flip the output
+             direction.`
+    },
+
+    chip: {
+      label: 'Selected gear',
+      value: 'N',
+      unit:  '',
+      bar:   true,
+      rows: [
+        { id: 'in',  label: 'Input',  value: '1000 rpm' },
+        { id: 'out', label: 'Output', value: '0 rpm' }
+      ],
+      status: { text: 'Neutral' }
+    },
+
+    toolbar: {
+      play: true, reset: true,
+      speed: { label: 'Speed', min: 0.15, max: 2.5, step: 0.05, value: 0.85 },
+      labels: true, gas: true
+    },
+
+    widgets: {
+      bl: {
+        caption: '',
+        html: `
+          <div class="tq-panel" id="torque-panel">
+            <div class="tq-header">
+              <div class="tq-live">
+                <div class="tq-gear" id="tq-gear">Neutral</div>
+                <div class="tq-rpm" id="tq-rpm">900 → 0 rpm</div>
+              </div>
+              <span class="tq-status" id="tq-status">SHIFT</span>
+              <button class="tq-toggle" id="torque-toggle" aria-label="Toggle chart">−</button>
+            </div>
+            <canvas class="tq-canvas" id="torque-canvas"></canvas>
+          </div>
+        `,
+        onMount: (el) => {
+          /* Defer to the module-level wiring below */
+          if (typeof window.__wireTorqueWidget === 'function') {
+            window.__wireTorqueWidget(el);
+          }
+        }
+      },
+
+      br: {
+        caption: 'Gear stick',
+        html: `
+          <div id="gear-shifter-overlay">
+            <svg id="gear-shifter" viewBox="0 0 130 180" aria-label="Gear stick">
+              <rect class="gs-bg" x="2" y="2" width="126" height="176" rx="20"/>
+              <text class="gs-title" x="65" y="22" text-anchor="middle">GEAR STICK</text>
+              <rect class="gs-groove" x="20" y="80" width="90" height="20" rx="10"/>
+              <rect class="gs-groove" x="20" y="37" width="20" height="106" rx="10"/>
+              <rect class="gs-groove" x="55" y="37" width="20" height="106" rx="10"/>
+              <rect class="gs-groove" x="90" y="37" width="20" height="106" rx="10"/>
+              <circle class="gs-gate" data-gate="1" cx="30"  cy="48"  r="3"/>
+              <circle class="gs-gate" data-gate="N" cx="30"  cy="90"  r="3"/>
+              <circle class="gs-gate" data-gate="2" cx="30"  cy="132" r="3"/>
+              <circle class="gs-gate" data-gate="3" cx="65"  cy="48"  r="3"/>
+              <circle class="gs-gate" data-gate="N" cx="65"  cy="90"  r="3"/>
+              <circle class="gs-gate" data-gate="4" cx="65"  cy="132" r="3"/>
+              <circle class="gs-gate" data-gate="R" cx="100" cy="48"  r="3"/>
+              <circle class="gs-gate" data-gate="N" cx="100" cy="90"  r="3"/>
+              <text class="gs-label" data-label="1" x="30"  y="36" text-anchor="middle">1</text>
+              <text class="gs-label" data-label="2" x="30"  y="150" text-anchor="middle">2</text>
+              <text class="gs-label" data-label="3" x="65"  y="36" text-anchor="middle">3</text>
+              <text class="gs-label" data-label="4" x="65"  y="150" text-anchor="middle">4</text>
+              <text class="gs-label" data-label="R" x="100" y="36" text-anchor="middle">R</text>
+              <g id="gs-knob" transform="translate(65 90)">
+                <circle class="gs-knob-shadow" cx="0" cy="3" r="14"/>
+                <circle class="gs-knob" cx="0" cy="0" r="13"/>
+                <circle class="gs-knob-hi" cx="0" cy="-4" r="8"/>
+              </g>
+            </svg>
+            <div id="gear-shifter-label">Neutral · drag knob</div>
+          </div>
+        `,
+        onMount: (el) => {
+          if (typeof window.__wireShifterWidget === 'function') {
+            window.__wireShifterWidget(el);
+          }
+        }
+      }
+    }
+  });
+
+  /* ═══════════════════════════════════════════════════════════
+     CONFIG SWITCHER in toolbar extras
+     ═══════════════════════════════════════════════════════════ */
+  const CONFIG_ORDER  = ['manual', 'automatic', 'dct', 'cvt'];
+  const CONFIG_LABELS = {
+    manual:    'Manual',
+    automatic: 'Automatic',
+    dct:       'Dual-Clutch',
+    cvt:       'CVT'
+  };
+  const MANUAL_INFO = {
+    title:  'Manual Gearbox Working Principle',
+    kicker: 'Transmission',
+    badge:  { text: 'Gearbox', color: '#22c55e' },
+    desc:   `<strong>Gearbox.</strong> The input shaft drives the countershaft through a single gear pair.
+             Fixed gears on the countershaft always spin at the same rate. Each output gear is free on
+             the output shaft until its synchro hub locks it — the selected gear then forces the output
+             shaft to turn at that gear's ratio. Reverse uses an extra idler gear to flip the output
+             direction. Drag the knob through the H-pattern to select a gear.`
+  };
+
+  (function buildConfigSwitcher() {
+    const extras = document.getElementById('toolbar-extras');
+    if (!extras) return;
+    const cfgGroup = document.createElement('div');
+    cfgGroup.className = 'cfg-group';
+    cfgGroup.setAttribute('role', 'group');
+    cfgGroup.setAttribute('aria-label', 'Gearbox configuration');
+    cfgGroup.innerHTML = `
+      <button class="cfg-arrow" id="cfg-prev" type="button" aria-label="Previous gearbox">‹</button>
+      <span id="cfg-label">Manual</span>
+      <button class="cfg-arrow" id="cfg-next" type="button" aria-label="Next gearbox">›</button>
+    `;
+    extras.appendChild(cfgGroup);
+  })();
+
+  const cfgLabelEl = document.getElementById('cfg-label');
+  const cfgPrevEl  = document.getElementById('cfg-prev');
+  const cfgNextEl  = document.getElementById('cfg-next');
+
+  /* Panel body refs (for readout labels that change per config) */
+  const panelBody      = ui.panel.body;
+  const elRpmIn        = panelBody ? panelBody.querySelector('#gb-rpm-in')       : null;
+  const elRpmOut       = panelBody ? panelBody.querySelector('#gb-rpm-out')      : null;
+  const elRatio        = panelBody ? panelBody.querySelector('#gb-ratio')        : null;
+  const elCurrentGear  = panelBody ? panelBody.querySelector('#gb-current-gear') : null;
+
+  const strokeDescEl  = document.getElementById('stroke-desc');
+  const badgeEl       = document.getElementById('stroke-badge');
+  const badgeTextEl   = document.getElementById('badge-text');
+  const moduleTitleEl = document.getElementById('module-title');
+  const moduleKickerEl= document.getElementById('module-kicker');
+
+  let activeConfig = 'manual';
+
+  function applyConfig(id) {
+    activeConfig = id;
+
+    /* Toggle 3D scenes */
+    gearboxGroup.visible = (id === 'manual');
+    Object.keys(extraGearboxes).forEach(k => {
+      extraGearboxes[k].group.visible = (k === id);
+    });
+
+    /* Update switcher label */
+    if (cfgLabelEl) cfgLabelEl.textContent = CONFIG_LABELS[id];
+
+    /* Update panel chrome */
+    const info = (id === 'manual') ? MANUAL_INFO : extraGearboxes[id];
+    if (moduleTitleEl)  moduleTitleEl.textContent  = info.title;
+    if (moduleKickerEl) moduleKickerEl.textContent = info.kicker || 'Transmission';
+    if (strokeDescEl)   strokeDescEl.innerHTML     = info.desc;
+
+    if (badgeTextEl) badgeTextEl.textContent = info.badge.text;
+    if (badgeEl) {
+      badgeEl.style.background = `color-mix(in oklch, ${info.badge.color} 18%, transparent)`;
+      badgeEl.style.color = info.badge.color;
+      const dot = badgeEl.querySelector('.dot');
+      if (dot) dot.style.background = info.badge.color;
+    }
+
+    /* Reset gear */
+    setGear(0);
+    labels.hideAll();
+  }
+
+  function stepConfig(dir) {
+    const i = CONFIG_ORDER.indexOf(activeConfig);
+    const next = CONFIG_ORDER[(i + dir + CONFIG_ORDER.length) % CONFIG_ORDER.length];
+    applyConfig(next);
+  }
+
+  if (cfgPrevEl) cfgPrevEl.addEventListener('click', () => stepConfig(-1));
+  if (cfgNextEl) cfgNextEl.addEventListener('click', () => stepConfig(1));
+
+  /* ═══════════════════════════════════════════════════════════
+     KINEMATICS (manual gearbox)
+     ═══════════════════════════════════════════════════════════ */
   let gbAngInput = 0, gbAngCounter = 0, gbAngOutput = 0, gbAngIdler = 0;
   const gbFreeAng = [0,0,0,0,0];
   let gbCurrentGear = 0;
@@ -714,15 +1179,11 @@
       const isActive = (gbCurrentGear === i+1);
       gbFree[i].ring.visible = isActive;
       gbFree[i].glow.visible = isActive;
-      /* Only the engaged gear stays fully solid; every other gear fades to translucent so it
-         reads as free-spinning / not driving the output, instead of looking equally "meshed". */
       const targetOp = isActive ? 1.0 : 0.4;
       gbFree[i].matBody.opacity  += (targetOp - gbFree[i].matBody.opacity)  * fadeLerp;
       gbFree[i].matTooth.opacity += (targetOp - gbFree[i].matTooth.opacity) * fadeLerp;
     }
 
-    /* Slide each synchro hub toward whichever gear (if any) it's currently locking, and back to
-       its centered/neutral spot otherwise — this is the actual "engaging" motion. */
     const hub12Target = gbCurrentGear === 1 ? gbHub12.xLeft : gbCurrentGear === 2 ? gbHub12.xRight : gbHub12.xNeutral;
     const hub34Target = gbCurrentGear === 3 ? gbHub34.xLeft : gbCurrentGear === 4 ? gbHub34.xRight : gbHub34.xNeutral;
     gbHub12.curX += (hub12Target - gbHub12.curX) * fadeLerp;
@@ -735,6 +1196,12 @@
 
     syncReadout();
   }
+
+  /* ═══════════════════════════════════════════════════════════
+     READOUTS
+     ═══════════════════════════════════════════════════════════ */
+  const tqGearEl = document.getElementById('tq-gear');
+  const tqRpmEl  = document.getElementById('tq-rpm');
 
   function syncReadout() {
     const rpmIn = Math.round(400 + state.speedMul * 900);
@@ -749,35 +1216,40 @@
     }
     const rpmOut = Math.round(speedRatio * rpmIn);
 
-    if (dom.rpmIn)  dom.rpmIn.textContent  = rpmIn;
-    if (dom.rpmOut) dom.rpmOut.textContent = rpmOut;
-    if (dom.ratio)  dom.ratio.textContent  = displayRatio;
-    if (dom.gear)   dom.gear.textContent   = GEAR_NAMES[gbCurrentGear];
+    if (elRpmIn)  elRpmIn.textContent  = rpmIn;
+    if (elRpmOut) elRpmOut.textContent = rpmOut;
+    if (elRatio)  elRatio.textContent  = displayRatio;
+    if (elCurrentGear) elCurrentGear.textContent = GEAR_NAMES[gbCurrentGear];
 
-    /* Live header in torque panel */
     if (tqGearEl) {
       tqGearEl.textContent = GEAR_NAMES[gbCurrentGear];
       const activeColors = ['#22c55e', '#38bdf8', '#22c55e', '#f59e0b', '#a855f7', '#ef4444'];
       tqGearEl.style.color = activeColors[gbCurrentGear] || '#22c55e';
     }
-    if (tqRpmEl) {
-      tqRpmEl.textContent = rpmIn + ' → ' + rpmOut + ' rpm';
-    }
+    if (tqRpmEl) tqRpmEl.textContent = rpmIn + ' → ' + rpmOut + ' rpm';
+
+    /* Chip */
+    ui.chip.setBig(GEAR_SHORT[gbCurrentGear], '');
+    ui.chip.setColor(
+      ['#22c55e', '#38bdf8', '#22c55e', '#f59e0b', '#a855f7', '#ef4444'][gbCurrentGear] || '#22c55e'
+    );
+    ui.chip.set('in',  rpmIn  + ' rpm');
+    ui.chip.set('out', rpmOut + ' rpm');
+    ui.chip.setStatus(GEAR_NAMES[gbCurrentGear], gbCurrentGear !== 0);
   }
 
   /* ═══════════════════════════════════════════════════════════
-     TORQUE VISUALIZER (bottom-left)
+     TORQUE VISUALIZER
      ═══════════════════════════════════════════════════════════ */
-  const tqPanel   = document.getElementById('torque-panel');
-  const tqCanvas  = document.getElementById('torque-canvas');
-  const tqCtx     = tqCanvas.getContext('2d');
-  const tqToggle  = document.getElementById('torque-toggle');
-  const tqStatus  = document.getElementById('tq-status');
-  const tqGearEl  = document.getElementById('tq-gear');
-  const tqRpmEl   = document.getElementById('tq-rpm');
+  const tqPanel  = document.getElementById('torque-panel');
+  const tqCanvas = document.getElementById('torque-canvas');
+  const tqCtx    = tqCanvas ? tqCanvas.getContext('2d') : null;
+  const tqToggle = document.getElementById('torque-toggle');
+  const tqStatus = document.getElementById('tq-status');
   let tqW = 0, tqH = 0;
 
   function resizeTorqueCanvas() {
+    if (!tqCanvas || !tqCtx) return;
     const dpr = Math.min(window.devicePixelRatio || 1, isLowEnd ? 1.5 : 2);
     const rect = tqCanvas.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
@@ -786,16 +1258,18 @@
     tqCanvas.height = Math.round(rect.height * dpr);
     tqCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
-  if (window.ResizeObserver) new ResizeObserver(resizeTorqueCanvas).observe(tqCanvas);
+  if (tqCanvas && window.ResizeObserver) new ResizeObserver(resizeTorqueCanvas).observe(tqCanvas);
   else window.addEventListener('resize', resizeTorqueCanvas);
   resizeTorqueCanvas();
 
-  tqToggle.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const collapsed = tqPanel.classList.toggle('collapsed');
-    tqToggle.textContent = collapsed ? '+' : '−';
-    if (!collapsed) requestAnimationFrame(resizeTorqueCanvas);
-  });
+  if (tqToggle) {
+    tqToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const collapsed = tqPanel.classList.toggle('collapsed');
+      tqToggle.textContent = collapsed ? '+' : '−';
+      if (!collapsed) requestAnimationFrame(resizeTorqueCanvas);
+    });
+  }
 
   const ENGINE_MIN_RPM   = 800;
   const ENGINE_MAX_RPM   = 6500;
@@ -873,18 +1347,18 @@
         pA[0] + (pB[0] - pA[0]) * e,
         (pA[1] + (pB[1] - pA[1]) * e) * torqueScale
       ];
-      tqStatus.classList.add('on');
+      if (tqStatus) tqStatus.classList.add('on');
       if (tqGearEl) tqGearEl.classList.add('shifting');
     } else {
       displayDip = 0;
       displayPoint = target || [ inRpm * 0.15, 0 ];
-      tqStatus.classList.remove('on');
+      if (tqStatus) tqStatus.classList.remove('on');
       if (tqGearEl) tqGearEl.classList.remove('shifting');
     }
   }
 
   function drawTorqueChart() {
-    if (!tqW || !tqH) return;
+    if (!tqW || !tqH || !tqCtx) return;
     const ctx = tqCtx;
     const padL = 32, padR = 8, padT = 10, padB = 20;
     const plotW = tqW - padL - padR;
@@ -990,14 +1464,12 @@
   const knobEl          = document.getElementById('gs-knob');
   const shifterLabelEl  = document.getElementById('gear-shifter-label');
 
-  /* Channel geometry in SVG user units (see the <svg viewBox="0 0 130 180">) */
-  const CH_XS = [30, 65, 100];   /* left, middle, right channel x */
-  const Y_TOP = 48;              /* top gate y */
-  const Y_NEU = 90;              /* neutral gate y */
-  const Y_BOT = 132;             /* bottom gate y */
-  const NEUTRAL_BAND = 18;       /* how close to y=90 counts as neutral */
+  const CH_XS = [30, 65, 100];
+  const Y_TOP = 48;
+  const Y_NEU = 90;
+  const Y_BOT = 132;
+  const NEUTRAL_BAND = 18;
 
-  /* Gate → gear mapping (matches the visible H-pattern) */
   const GATES = [
     { x: CH_XS[0], y: Y_TOP, gear: 1, name: '1st' },
     { x: CH_XS[0], y: Y_NEU, gear: 0, name: 'Neutral' },
@@ -1013,6 +1485,7 @@
   let shifterDragging = false;
   let shifterPointerId = null;
   let shifterGrabOffset = { x: 0, y: 0 };
+  let shifterReturnRAF = 0;
 
   function shifterApplyTransform(animate = true) {
     if (!knobEl) return;
@@ -1037,21 +1510,16 @@
   }
 
   function constrainToGrooves(x, y) {
-    /* Snap to nearest channel x */
     let nearestChX = CH_XS[0];
     let bestDist = Math.abs(x - CH_XS[0]);
     for (const cx of CH_XS) {
       const d = Math.abs(x - cx);
       if (d < bestDist) { bestDist = d; nearestChX = cx; }
     }
-
-    /* If close to neutral y-band, lock to neutral and allow free x along the bar */
     if (Math.abs(y - Y_NEU) <= NEUTRAL_BAND) {
       const clampedX = Math.max(CH_XS[0], Math.min(CH_XS[CH_XS.length - 1], x));
       return { x: clampedX, y: Y_NEU };
     }
-
-    /* Otherwise in a channel: snap x to the channel, clamp y */
     const clampedY = Math.max(Y_TOP, Math.min(Y_BOT, y));
     return { x: nearestChX, y: clampedY };
   }
@@ -1068,12 +1536,8 @@
     shifterPos.y = bestGate.y;
     shifterApplyTransform(true);
 
-    /* Engage the gear */
-    if (bestGate.gear !== gbCurrentGear) {
-      setGear(bestGate.gear);
-    }
+    if (bestGate.gear !== gbCurrentGear) setGear(bestGate.gear);
 
-    /* Update the label */
     if (shifterLabelEl) {
       shifterLabelEl.textContent = bestGate.name + ' · drag knob';
       shifterLabelEl.classList.toggle('active', bestGate.gear !== 0);
@@ -1081,7 +1545,6 @@
   }
 
   function updateGateHighlights() {
-    /* Highlight the gate dot + label matching the current gear */
     document.querySelectorAll('.gs-gate').forEach(el => {
       const g = parseInt(el.dataset.gate, 10);
       const isN = el.dataset.gate === 'N';
@@ -1092,7 +1555,6 @@
     });
     document.querySelectorAll('.gs-label').forEach(el => {
       const lbl = el.dataset.label;
-      const isN = lbl === 'N';
       const match =
         (lbl === '1' && gbCurrentGear === 1) ||
         (lbl === '2' && gbCurrentGear === 2) ||
@@ -1103,74 +1565,6 @@
     });
   }
 
-  /* Pointer handlers */
-  shifterEl.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    cancelAnimationFrame(shifterReturnRAF);
-    shifterDragging = true;
-    shifterPointerId = e.pointerId;
-    try { shifterEl.setPointerCapture(e.pointerId); } catch (_) {}
-    shifterEl.classList.add('grabbing');
-    if (shifterLabelEl) shifterLabelEl.classList.add('active');
-
-    const p = clientToSvg(e.clientX, e.clientY);
-    /* If the pointer is close to the knob, keep the offset so it doesn't jump */
-    const dx = p.x - shifterPos.x;
-    const dy = p.y - shifterPos.y;
-    if (Math.hypot(dx, dy) < 26) {
-      shifterGrabOffset.x = dx;
-      shifterGrabOffset.y = dy;
-    } else {
-      shifterGrabOffset.x = 0;
-      shifterGrabOffset.y = 0;
-    }
-  });
-
-  shifterEl.addEventListener('pointermove', (e) => {
-    if (!shifterDragging || e.pointerId !== shifterPointerId) return;
-    e.preventDefault();
-    const p = clientToSvg(e.clientX, e.clientY);
-    const targetX = p.x - shifterGrabOffset.x;
-    const targetY = p.y - shifterGrabOffset.y;
-    const c = constrainToGrooves(targetX, targetY);
-    shifterPos.x = c.x;
-    shifterPos.y = c.y;
-    shifterApplyTransform(false);
-  });
-
-  function endShifterDrag() {
-    if (!shifterDragging) return;
-    shifterDragging = false;
-    shifterPointerId = null;
-    shifterEl.classList.remove('grabbing');
-    if (shifterLabelEl) shifterLabelEl.classList.remove('active');
-    snapToNearestGate();
-  }
-  shifterEl.addEventListener('pointerup', endShifterDrag);
-  shifterEl.addEventListener('pointercancel', endShifterDrag);
-  shifterEl.addEventListener('lostpointercapture', endShifterDrag);
-
-  let shifterReturnRAF = 0;
-
-  /* Keyboard support while focused */
-  shifterEl.tabIndex = 0;
-  shifterEl.addEventListener('keydown', (e) => {
-    let handled = true;
-    switch (gbCurrentGear) {
-      case 0:
-        if (e.key === 'ArrowUp')   { setGear(1); }
-        else if (e.key === 'ArrowDown') { setGear(2); }
-        else if (e.key === 'ArrowRight') { /* could cycle to mid channel */ }
-        else handled = false;
-        break;
-      default:
-        if (e.key === 'Escape' || e.key === 'Home') { setGear(0); }
-        else handled = false;
-    }
-    if (handled) e.preventDefault();
-  });
-
-  /* Position the shifter from the current gear (called when gear changes) */
   function shifterSyncFromGear(n) {
     let gate;
     switch (n) {
@@ -1193,8 +1587,77 @@
     }
   }
 
+  /* Widget wiring callbacks (deferred from UI.create onMount) */
+  window.__wireTorqueWidget = function(el) {
+    /* Torque panel is already wired — nothing more needed here */
+  };
+  window.__wireShifterWidget = function(el) {
+    if (!shifterEl) return;
+
+    shifterEl.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      cancelAnimationFrame(shifterReturnRAF);
+      shifterDragging = true;
+      shifterPointerId = e.pointerId;
+      try { shifterEl.setPointerCapture(e.pointerId); } catch (_) {}
+      shifterEl.classList.add('grabbing');
+      if (shifterLabelEl) shifterLabelEl.classList.add('active');
+
+      const p = clientToSvg(e.clientX, e.clientY);
+      const dx = p.x - shifterPos.x;
+      const dy = p.y - shifterPos.y;
+      if (Math.hypot(dx, dy) < 26) {
+        shifterGrabOffset.x = dx;
+        shifterGrabOffset.y = dy;
+      } else {
+        shifterGrabOffset.x = 0;
+        shifterGrabOffset.y = 0;
+      }
+    });
+
+    shifterEl.addEventListener('pointermove', (e) => {
+      if (!shifterDragging || e.pointerId !== shifterPointerId) return;
+      e.preventDefault();
+      const p = clientToSvg(e.clientX, e.clientY);
+      const targetX = p.x - shifterGrabOffset.x;
+      const targetY = p.y - shifterGrabOffset.y;
+      const c = constrainToGrooves(targetX, targetY);
+      shifterPos.x = c.x;
+      shifterPos.y = c.y;
+      shifterApplyTransform(false);
+    });
+
+    function endShifterDrag() {
+      if (!shifterDragging) return;
+      shifterDragging = false;
+      shifterPointerId = null;
+      shifterEl.classList.remove('grabbing');
+      if (shifterLabelEl) shifterLabelEl.classList.remove('active');
+      snapToNearestGate();
+    }
+    shifterEl.addEventListener('pointerup', endShifterDrag);
+    shifterEl.addEventListener('pointercancel', endShifterDrag);
+    shifterEl.addEventListener('lostpointercapture', endShifterDrag);
+
+    shifterEl.tabIndex = 0;
+    shifterEl.addEventListener('keydown', (e) => {
+      let handled = true;
+      switch (gbCurrentGear) {
+        case 0:
+          if (e.key === 'ArrowUp')   { setGear(1); }
+          else if (e.key === 'ArrowDown') { setGear(2); }
+          else handled = false;
+          break;
+        default:
+          if (e.key === 'Escape' || e.key === 'Home') { setGear(0); }
+          else handled = false;
+      }
+      if (handled) e.preventDefault();
+    });
+  };
+
   /* ═══════════════════════════════════════════════════════════
-     GEAR SELECTION + UI WIRING
+     GEAR SELECTION
      ═══════════════════════════════════════════════════════════ */
   function setGear(n) {
     if (n !== gbCurrentGear) {
@@ -1211,57 +1674,33 @@
       gbFree[i].glow.visible = active;
     }
 
-    document.querySelectorAll('.gear-btn').forEach(b => {
-      const active = parseInt(b.dataset.gear, 10) === n;
-      b.classList.toggle('active', active);
-      b.setAttribute('aria-pressed', String(active));
-    });
     syncReadout();
     shifterSyncFromGear(n);
-    bridge.setStatus(GEAR_NAMES[n], n === 0 ? '#22c55e' : '#38bdf8');
+    if (bridge) bridge.setStatus(GEAR_NAMES[n], n === 0 ? '#22c55e' : '#38bdf8');
   }
 
-  document.querySelectorAll('.gear-btn').forEach(btn => {
-    btn.addEventListener('click', () => setGear(parseInt(btn.dataset.gear, 10)));
-  });
-
-  Base.wireCommonUI(state, { onReset: () => setGear(0) });
-  Base.wirePanelToggle();
-
-  /* Info panel toggle — embed-aware */
-  const eduPanel = document.getElementById('edu-panel');
-  document.getElementById('panel-toggle').onclick = (e) => {
-    e.stopPropagation();
-    if (document.body.classList.contains('embedded')) {
-      eduPanel.classList.toggle('expanded');
-      const expanded = eduPanel.classList.contains('expanded');
-      e.currentTarget.setAttribute('aria-expanded', String(expanded));
-      e.currentTarget.querySelector('svg').style.transform = expanded ? 'rotate(180deg)' : 'rotate(0deg)';
-    } else {
-      const body = document.getElementById('panel-body');
-      const hidden = body.style.display === 'none';
-      body.style.display = hidden ? 'block' : 'none';
-      e.currentTarget.querySelector('svg').style.transform = hidden ? 'rotate(0deg)' : 'rotate(-90deg)';
+  /* ═══════════════════════════════════════════════════════════
+     BRIDGE
+     ═══════════════════════════════════════════════════════════ */
+  const bridge = ui.wireBridge({
+    viewManager,
+    state,
+    onCommand: (d) => {
+      switch (d.action) {
+        case 'reset':  setGear(0); break;
+        case 'setConfig': if (CONFIG_ORDER.indexOf(d.value) >= 0) applyConfig(d.value); break;
+      }
     }
-  };
-  document.getElementById('panel-head').addEventListener('click', (e) => {
-    if (!document.body.classList.contains('embedded')) return;
-    if (e.target.closest('#panel-toggle')) return;
-    eduPanel.classList.toggle('expanded');
-    const expanded = eduPanel.classList.contains('expanded');
-    document.getElementById('panel-toggle').setAttribute('aria-expanded', String(expanded));
-    document.querySelector('#panel-toggle svg').style.transform = expanded ? 'rotate(180deg)' : 'rotate(0deg)';
   });
+  bridge.ready();
+  bridge.setStatus('Neutral', '#22c55e');
 
-  const bridge = Base.createBridge('gearbox', (d) => {
-    if (d.type !== 'command') return;
-    if (d.action === 'setPlaying') state.playing = !!d.value;
-    else if (d.action === 'setSpeed') { state.speedMul = +d.value; syncReadout(); }
-    else if (d.action === 'setLabels') state.showLabels = !!d.value;
-    else if (d.action === 'setGas') state.showGas = !!d.value;
-    else if (d.action === 'reset') setGear(0);
-  });
+  /* Initialize */
+  applyConfig('manual');
 
+  /* ═══════════════════════════════════════════════════════════
+     ANIMATION LOOP
+     ═══════════════════════════════════════════════════════════ */
   const clock = new THREE.Clock();
   let frame = 0;
 
@@ -1269,13 +1708,25 @@
     requestAnimationFrame(animate);
     frame++;
     const dt = Math.min(clock.getDelta(), 0.05);
-    if (state.playing) updateGearbox(dt);
+
+    if (state.playing) {
+      if (activeConfig === 'manual') {
+        updateGearbox(dt);
+      } else {
+        const ex = extraGearboxes[activeConfig];
+        if (ex && ex.step) ex.step(dt * state.speedMul, gbCurrentGear);
+      }
+    }
 
     updateVisualizer(dt);
     drawTorqueChart();
 
     if (state.showLabels && frame % 2 === 0) {
-      labelDefs.forEach(d => labels.project(d.id, d.pos, camera, wrap));
+      if (activeConfig === 'manual') {
+        labelDefs.forEach(d => labels.project(d.id, d.pos, camera, wrap));
+      } else {
+        labels.hideAll();
+      }
     } else if (!state.showLabels) {
       labels.hideAll();
     }
@@ -1283,9 +1734,7 @@
     /* Glow pulse on active gear */
     const pulse = 0.35 + 0.25 * Math.sin(performance.now() * 0.005);
     for (let i = 0; i < 5; i++) {
-      if (gbFree[i].glow.visible) {
-        gbFree[i].glow.material.opacity = pulse;
-      }
+      if (gbFree[i].glow.visible) gbFree[i].glow.material.opacity = pulse;
     }
 
     controls.update();
@@ -1295,7 +1744,6 @@
   syncReadout();
   shifterApplyTransform(false);
   updateGateHighlights();
-  bridge.ready();
   setGear(0);
   animate();
   </script>
