@@ -790,133 +790,162 @@
   }
 
   function ensureAudio() {
-    if (!SND.ready || (SND.ctx && SND.ctx.state === 'closed')) {
-      SND.ready = false; SND.on = false;
-      initAudio();
+    try {
+      if (!SND.ready || (SND.ctx && SND.ctx.state === 'closed')) {
+        SND.ready = false; SND.on = false;
+        initAudio();
+      }
+      if (SND.ready && SND.ctx && SND.ctx.state === 'suspended') SND.ctx.resume();
+      SND.on = SND.ready;
+    } catch (e) {
+      console.warn('[StartingSystem] audio init failed:', e);
     }
-    if (SND.ready && SND.ctx.state === 'suspended') SND.ctx.resume();
-    SND.on = SND.ready;
   }
 
   function playClack() {
     if (!SND.ready) return;
-    const ctx = SND.ctx, now = ctx.currentTime;
-    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++)
-      d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.010));
-    const src = ctx.createBufferSource(); src.buffer = buf;
-    const lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass'; lp.frequency.value = 550; lp.Q.value = 0.9;
-    const gain = ctx.createGain(); gain.gain.value = 0.55;
-    src.connect(lp); lp.connect(gain); gain.connect(SND.master);
-    src.start(now);
+    try {
+      const ctx = SND.ctx, now = ctx.currentTime;
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++)
+        d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.010));
+      const src = ctx.createBufferSource(); src.buffer = buf;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = 550; lp.Q.value = 0.9;
+      const gain = ctx.createGain(); gain.gain.value = 0.55;
+      src.connect(lp); lp.connect(gain); gain.connect(SND.master);
+      src.start(now);
+    } catch(_) {}
   }
   function playPinionRetract() {
     if (!SND.ready) return;
-    const ctx = SND.ctx, now = ctx.currentTime;
-    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.06, ctx.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++)
-      d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.008));
-    const src = ctx.createBufferSource(); src.buffer = buf;
-    const bp = ctx.createBiquadFilter();
-    bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 2;
-    const gain = ctx.createGain(); gain.gain.value = 0.22;
-    src.connect(bp); bp.connect(gain); gain.connect(SND.master);
-    src.start(now);
+    try {
+      const ctx = SND.ctx, now = ctx.currentTime;
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 0.06, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++)
+        d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.008));
+      const src = ctx.createBufferSource(); src.buffer = buf;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 2;
+      const gain = ctx.createGain(); gain.gain.value = 0.22;
+      src.connect(bp); bp.connect(gain); gain.connect(SND.master);
+      src.start(now);
+    } catch(_) {}
   }
   function playFuelPrime() {
     if (!SND.ready) return;
-    const ctx = SND.ctx, now = ctx.currentTime;
-    const osc = ctx.createOscillator(); osc.type = 'sine'; osc.frequency.value = 90;
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.10, now + 0.04);
-    gain.gain.setValueAtTime(0.10, now + 0.55);
-    gain.gain.linearRampToValueAtTime(0, now + 0.75);
-    osc.connect(gain); gain.connect(SND.master);
-    osc.start(now); osc.stop(now + 0.8);
+    try {
+      const ctx = SND.ctx, now = ctx.currentTime;
+      const osc = ctx.createOscillator(); osc.type = 'sine'; osc.frequency.value = 90;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.10, now + 0.04);
+      gain.gain.setValueAtTime(0.10, now + 0.55);
+      gain.gain.linearRampToValueAtTime(0, now + 0.75);
+      osc.connect(gain); gain.connect(SND.master);
+      osc.start(now); osc.stop(now + 0.8);
+    } catch(_) {}
   }
   function playGrind() {
     if (!SND.ready) return;
-    const ctx = SND.ctx, now = ctx.currentTime;
-    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.30, ctx.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++)
-      d[i] = (Math.random() * 2 - 1) * (0.5 + 0.5 * Math.sin(i * 0.05));
-    const src = ctx.createBufferSource(); src.buffer = buf;
-    const bp = ctx.createBiquadFilter();
-    bp.type = 'bandpass'; bp.frequency.value = 3200; bp.Q.value = 4;
-    const gain = ctx.createGain(); gain.gain.value = 0.20;
-    src.connect(bp); bp.connect(gain); gain.connect(SND.master);
-    src.start(now);
+    try {
+      const ctx = SND.ctx, now = ctx.currentTime;
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 0.30, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++)
+        d[i] = (Math.random() * 2 - 1) * (0.5 + 0.5 * Math.sin(i * 0.05));
+      const src = ctx.createBufferSource(); src.buffer = buf;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass'; bp.frequency.value = 3200; bp.Q.value = 4;
+      const gain = ctx.createGain(); gain.gain.value = 0.20;
+      src.connect(bp); bp.connect(gain); gain.connect(SND.master);
+      src.start(now);
+    } catch(_) {}
   }
   function playEngineCatch() {
     if (!SND.ready) return;
-    const ctx = SND.ctx, now = ctx.currentTime;
-    const osc = ctx.createOscillator(); osc.type = 'sine';
-    osc.frequency.setValueAtTime(60, now);
-    osc.frequency.exponentialRampToValueAtTime(110, now + 0.35);
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.30, now + 0.05);
-    gain.gain.linearRampToValueAtTime(0.0, now + 0.55);
-    osc.connect(gain); gain.connect(SND.master);
-    osc.start(now); osc.stop(now + 0.6);
+    try {
+      const ctx = SND.ctx, now = ctx.currentTime;
+      const osc = ctx.createOscillator(); osc.type = 'sine';
+      osc.frequency.setValueAtTime(60, now);
+      osc.frequency.exponentialRampToValueAtTime(110, now + 0.35);
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.30, now + 0.05);
+      gain.gain.linearRampToValueAtTime(0.0, now + 0.55);
+      osc.connect(gain); gain.connect(SND.master);
+      osc.start(now); osc.stop(now + 0.6);
+    } catch(_) {}
   }
   function playSputter() {
     if (!SND.ready) return;
-    const ctx = SND.ctx, now = ctx.currentTime;
-    const osc = ctx.createOscillator(); osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(120, now);
-    osc.frequency.exponentialRampToValueAtTime(45, now + 0.35);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.22, now);
-    g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-    osc.connect(g); g.connect(SND.master);
-    osc.start(now); osc.stop(now + 0.45);
+    try {
+      const ctx = SND.ctx, now = ctx.currentTime;
+      const osc = ctx.createOscillator(); osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(120, now);
+      osc.frequency.exponentialRampToValueAtTime(45, now + 0.35);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.22, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      osc.connect(g); g.connect(SND.master);
+      osc.start(now); osc.stop(now + 0.45);
+    } catch(_) {}
   }
   function playEngineShutoff() {
     if (!SND.ready) return;
-    const ctx = SND.ctx, now = ctx.currentTime;
-    const osc = ctx.createOscillator(); osc.type = 'triangle';
-    const startHz = clamp(sys.engineRpm / 30, 15, 200);
-    osc.frequency.setValueAtTime(startHz, now);
-    osc.frequency.exponentialRampToValueAtTime(Math.max(8, startHz * 0.35), now + 0.5);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.16, now);
-    g.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
-    osc.connect(g); g.connect(SND.master);
-    osc.start(now); osc.stop(now + 0.6);
+    try {
+      const ctx = SND.ctx, now = ctx.currentTime;
+      const osc = ctx.createOscillator(); osc.type = 'triangle';
+      const startHz = clamp(sys.engineRpm / 30, 15, 200);
+      osc.frequency.setValueAtTime(startHz, now);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(8, startHz * 0.35), now + 0.5);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.16, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+      osc.connect(g); g.connect(SND.master);
+      osc.start(now); osc.stop(now + 0.6);
+    } catch(_) {}
   }
 
   function updateAudio() {
     if (!SND.ready || !SND.on) return;
-    const ctx = SND.ctx, now = ctx.currentTime;
-    const tf = 0.05;
-    const starterHz = 120 + (sys.starterRpm / TUNING.starterFreeRpm) * 1400;
-    SND.starterOsc.frequency.setTargetAtTime(starterHz, now, tf);
-    SND.starterOsc2.frequency.setTargetAtTime(starterHz * 2.02, now, tf);
-    SND.starterGain.gain.setTargetAtTime(
-      sys.starterRpm > 60 ? 0.14 + (sys.starterRpm / 5000) * 0.10 : 0, now, 0.10);
-    const crankFiringHz = clamp(sys.engineRpm / 15, 5, 90);
-    SND.crankMod.frequency.setTargetAtTime(crankFiringHz, now, tf);
-    SND.crankGain.gain.setTargetAtTime(
-      (!sys.engineRunning && sys.starterRpm > 300) ? 0.22
-        : (sys.engineRunning ? 0.10 : 0), now, 0.10);
-    const engHz = clamp(sys.engineRpm / 30, 15, 200);
-    SND.engineOsc.frequency.setTargetAtTime(engHz, now, tf);
-    SND.engineSub.frequency.setTargetAtTime(engHz * 0.5, now, tf);
-    SND.engineGain.gain.setTargetAtTime(
-      sys.engineRunning ? 0.06 + (sys.engineRpm / TUNING.redlineRpm) * 0.14 : 0, now, 0.15);
-    SND.engineLP.frequency.setTargetAtTime(
-      500 + (sys.engineRpm / TUNING.redlineRpm) * 2400, now, 0.15);
+    try {
+      const ctx = SND.ctx, now = ctx.currentTime;
+      const tf = 0.05;
+      const starterHz = 120 + (sys.starterRpm / TUNING.starterFreeRpm) * 1400;
+      SND.starterOsc.frequency.setTargetAtTime(starterHz, now, tf);
+      SND.starterOsc2.frequency.setTargetAtTime(starterHz * 2.02, now, tf);
+      SND.starterGain.gain.setTargetAtTime(
+        sys.starterRpm > 60 ? 0.14 + (sys.starterRpm / 5000) * 0.10 : 0, now, 0.10);
+      const crankFiringHz = clamp(sys.engineRpm / 15, 5, 90);
+      SND.crankMod.frequency.setTargetAtTime(crankFiringHz, now, tf);
+      SND.crankGain.gain.setTargetAtTime(
+        (!sys.engineRunning && sys.starterRpm > 300) ? 0.22
+          : (sys.engineRunning ? 0.10 : 0), now, 0.10);
+      const engHz = clamp(sys.engineRpm / 30, 15, 200);
+      SND.engineOsc.frequency.setTargetAtTime(engHz, now, tf);
+      SND.engineSub.frequency.setTargetAtTime(engHz * 0.5, now, tf);
+      SND.engineGain.gain.setTargetAtTime(
+        sys.engineRunning ? 0.06 + (sys.engineRpm / TUNING.redlineRpm) * 0.14 : 0, now, 0.15);
+      SND.engineLP.frequency.setTargetAtTime(
+        500 + (sys.engineRpm / TUNING.redlineRpm) * 2400, now, 0.15);
+    } catch(_) {}
   }
 
   window.addEventListener('pagehide', () => {
     try { SND.ctx && SND.ctx.close(); } catch(_) {}
   });
+
+  /* ═══════════════════════════════════════════════════════════
+     WIDGET REFS — declared BEFORE UI.create so widget onMount
+     (which runs synchronously) can safely assign them.
+     ═══════════════════════════════════════════════════════════ */
+  let keyBladeUI = null, kpLedEl = null;
+  let keyButtons = [], dialDots = [];
+  let mVoltsEl = null, mAmpsEl = null;
+  let rpmStripEl = null, rpmStripCtx = null, stripNoteEl = null;
 
   /* ═══════════════════════════════════════════════════════════
      UI — kit chrome + key widget
@@ -1018,12 +1047,6 @@
   const moduleKickerEl= document.getElementById('module-kicker');
   const strokeDescEl  = document.getElementById('stroke-desc');
 
-  /* Widget refs */
-  let keyBladeUI = null, kpLedEl = null;
-  let keyButtons = [], dialDots = [];
-  let mVoltsEl = null, mAmpsEl = null;
-  let rpmStripEl = null, rpmStripCtx = null, stripNoteEl = null;
-
   function wireKeyWidget(root) {
     keyBladeUI = root.querySelector('#key-blade');
     kpLedEl    = root.querySelector('#kp-led');
@@ -1037,8 +1060,8 @@
 
     keyButtons.forEach(b => {
       b.addEventListener('click', () => {
-        ensureAudio();
         setKey(+b.dataset.key);
+        try { ensureAudio(); } catch(_) {}
       });
     });
 
@@ -1620,67 +1643,75 @@
      ═══════════════════════════════════════════════════════════ */
   const clock = new THREE.Clock();
   let liveT = 0, stripT = 0;
+  let _frameErrorLogged = false;
 
   function animate() {
     requestAnimationFrame(animate);
-    const dt = Math.min(clock.getDelta(), 0.05);
-    const sim = state.playing ? dt : 0;
-    time += sim;
+    try {
+      const dt = Math.min(clock.getDelta(), 0.05);
+      const sim = state.playing ? dt : 0;
+      time += sim;
 
-    updateSystem(sim);
+      updateSystem(sim);
 
-    if (camTween) {
-      camTween.t += dt / camTween.dur;
-      const k = camTween.t >= 1 ? 1 : 1 - Math.pow(1 - camTween.t, 3);
-      camera.position.lerpVectors(camTween.p0, camTween.p1, k);
-      controls.target.lerpVectors(camTween.t0, camTween.t1, k);
-      if (camTween.t >= 1) camTween = null;
-    }
-    controls.update();
+      if (camTween) {
+        camTween.t += dt / camTween.dur;
+        const k = camTween.t >= 1 ? 1 : 1 - Math.pow(1 - camTween.t, 3);
+        camera.position.lerpVectors(camTween.p0, camTween.p1, k);
+        controls.target.lerpVectors(camTween.t0, camTween.t1, k);
+        if (camTween.t >= 1) camTween = null;
+      }
+      controls.update();
 
-    if (sim > 0) {
-      if (circuitView.visible) updateCircuit(sim);
-      if (starterView.visible) updateStarter(sim);
-      if (meshView.visible)    updateMesh(sim);
-      if (crankView.visible)   updateCrank(sim);
-      pushHistory(sim);
-    }
+      if (sim > 0) {
+        if (circuitView.visible) updateCircuit(sim);
+        if (starterView.visible) updateStarter(sim);
+        if (meshView.visible)    updateMesh(sim);
+        if (crankView.visible)   updateCrank(sim);
+        pushHistory(sim);
+      }
 
-    if (state.showLabels) {
-      if (mode === 'circuit') {
-        labels.project('bat-lbl',  v3(-3.0, 0.0, -0.60), camera, wrap);
-        labels.project('bat-pos',  v3(-2.45, 0.85, 0.30), camera, wrap);
-        labels.project('bat-neg',  v3(-3.55, 0.85, 0.30), camera, wrap);
-        labels.project('key-lbl',  v3(-3.0, 2.55, 0), camera, wrap);
-        labels.project('start-lbl',v3(2.4, -1.75, 0), camera, wrap);
-        labels.project('sol-lbl',  v3(2.15, -0.55, 0), camera, wrap);
-        labels.project('pin-lbl',  v3(3.15, -1.20, 0), camera, wrap);
-        labels.project('fly-lbl',  v3(2.4, 1.95, 0), camera, wrap);
-      } else if (mode === 'starter') {
-        labels.project('field-lbl', v3(-0.55, 0.50, 0), camera, wrap);
-        labels.project('arm-lbl',   v3(0, 0.35, 0.35), camera, wrap);
-        labels.project('comm-lbl',  v3(-0.85, -0.30, 0.35), camera, wrap);
-        labels.project('brush-lbl', v3(-0.90, 0.55, 0.35), camera, wrap);
-        labels.project('sol2-lbl',  v3(-0.30, 1.10, 0.35), camera, wrap);
-        labels.project('pin2-lbl',  v3(ST_LEN/2 + 0.75, 0.30, 0), camera, wrap);
-      } else if (mode === 'mesh') {
-        labels.project('ring-lbl',  v3(0, FLY_R + 0.45, 0.4), camera, wrap);
-        labels.project('pin3-lbl',  v3(0, PINION_MESH_Y - 0.35, 0.4), camera, wrap);
-        labels.project('ratio-lbl', v3(-FLY_R - 0.30, 0, 0), camera, wrap);
+      if (state.showLabels) {
+        if (mode === 'circuit') {
+          labels.project('bat-lbl',  v3(-3.0, 0.0, -0.60), camera, wrap);
+          labels.project('bat-pos',  v3(-2.45, 0.85, 0.30), camera, wrap);
+          labels.project('bat-neg',  v3(-3.55, 0.85, 0.30), camera, wrap);
+          labels.project('key-lbl',  v3(-3.0, 2.55, 0), camera, wrap);
+          labels.project('start-lbl',v3(2.4, -1.75, 0), camera, wrap);
+          labels.project('sol-lbl',  v3(2.15, -0.55, 0), camera, wrap);
+          labels.project('pin-lbl',  v3(3.15, -1.20, 0), camera, wrap);
+          labels.project('fly-lbl',  v3(2.4, 1.95, 0), camera, wrap);
+        } else if (mode === 'starter') {
+          labels.project('field-lbl', v3(-0.55, 0.50, 0), camera, wrap);
+          labels.project('arm-lbl',   v3(0, 0.35, 0.35), camera, wrap);
+          labels.project('comm-lbl',  v3(-0.85, -0.30, 0.35), camera, wrap);
+          labels.project('brush-lbl', v3(-0.90, 0.55, 0.35), camera, wrap);
+          labels.project('sol2-lbl',  v3(-0.30, 1.10, 0.35), camera, wrap);
+          labels.project('pin2-lbl',  v3(ST_LEN/2 + 0.75, 0.30, 0), camera, wrap);
+        } else if (mode === 'mesh') {
+          labels.project('ring-lbl',  v3(0, FLY_R + 0.45, 0.4), camera, wrap);
+          labels.project('pin3-lbl',  v3(0, PINION_MESH_Y - 0.35, 0.4), camera, wrap);
+          labels.project('ratio-lbl', v3(-FLY_R - 0.30, 0, 0), camera, wrap);
+        } else {
+          labels.hideAll();
+        }
       } else {
         labels.hideAll();
       }
-    } else {
-      labels.hideAll();
+
+      liveT += dt;
+      if (liveT > 0.12) { liveT = 0; updateLivePanel(); updateAudio(); }
+
+      stripT += dt;
+      if (stripT > 0.05) { stripT = 0; drawStrip(); }
+
+      renderer.render(scene, camera);
+    } catch (err) {
+      if (!_frameErrorLogged) {
+        _frameErrorLogged = true;
+        console.error('[StartingSystem] frame error:', err);
+      }
     }
-
-    liveT += dt;
-    if (liveT > 0.12) { liveT = 0; updateLivePanel(); updateAudio(); }
-
-    stripT += dt;
-    if (stripT > 0.05) { stripT = 0; drawStrip(); }
-
-    renderer.render(scene, camera);
   }
   animate();
   </script>
