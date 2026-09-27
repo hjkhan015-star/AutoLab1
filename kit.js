@@ -774,8 +774,19 @@ class UIKit {
     };
   }
 
+  /* ═════════════════════════════════════════════════════════════════════
+     WIRE BRIDGE — connects the shell + auto-wires the kit's own toolbar.
+
+     After this runs:
+       • Play / reset / speed / labels / gas respond to clicks/taps.
+       • `state.playing`, `state.speedMul`, `state.showLabels`, `state.showGas`
+         update instantly.
+       • Shell commands (`setPlaying`, `setSpeed`, …) update `state` AND
+         the visible controls — no drift.
+     ═════════════════════════════════════════════════════════════════════ */
   wireBridge(opts = {}) {
     const moduleId = this.moduleId;
+    const self = this;
     const embedded = window.parent && window.parent !== window;
     if (embedded) {
       document.body.classList.add('embedded', 'uses-ui-kit');
@@ -795,6 +806,52 @@ class UIKit {
       setXRay:      v => { viewManager?.setXRay?.(!!v); },
     };
 
+    /* ─── Auto-wire the toolbar controls the kit itself creates ─── */
+    const _play  = document.getElementById('btn-play');
+    const _reset = document.getElementById('btn-reset');
+    const _speed = document.getElementById('speed');
+    const _lab   = document.getElementById('chk-labels');
+    const _gas   = document.getElementById('chk-gas');
+
+    function _syncPlayIcons() {
+      const ip  = document.getElementById('icon-play');
+      const ipa = document.getElementById('icon-pause');
+      const playing = state.playing !== false;
+      if (ip)  ip.style.display  = playing ? 'none'  : 'block';
+      if (ipa) ipa.style.display = playing ? 'block' : 'none';
+      if (_play) _play.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+    }
+    function _syncControls() {
+      if (_speed && 'speedMul' in state) _speed.value = state.speedMul;
+      if (_lab   && 'showLabels' in state) _lab.checked = !!state.showLabels;
+      if (_gas   && 'showGas' in state)    _gas.checked = !!state.showGas;
+    }
+    if ('playing' in state) _syncPlayIcons();
+    _syncControls();
+
+    if (_play)  _play.addEventListener('click', () => {
+      state.playing = !state.playing;
+      _syncPlayIcons();
+    });
+    if (_reset) _reset.addEventListener('click', () => {
+      if (onCommand) onCommand({ action: 'reset' });
+    });
+    if (_speed) _speed.addEventListener('input', () => {
+      state.speedMul = parseFloat(_speed.value);
+    });
+    if (_lab)   _lab.addEventListener('change', () => { state.showLabels = _lab.checked; });
+    if (_gas)   _gas.addEventListener('change', () => { state.showGas    = _gas.checked; });
+
+    /* Wrap defaultHandlers so incoming shell commands keep the visible
+       controls in sync (no drift between shell and module). */
+    const wrappedHandlers = {
+      ...defaultHandlers,
+      setPlaying: v => { defaultHandlers.setPlaying(v); _syncPlayIcons(); },
+      setSpeed:   v => { defaultHandlers.setSpeed(v);   if (_speed) _speed.value = state.speedMul; },
+      setLabels:  v => { defaultHandlers.setLabels(v);  if (_lab)   _lab.checked = state.showLabels; },
+      setGas:     v => { defaultHandlers.setGas(v);     if (_gas)   _gas.checked = state.showGas; },
+    };
+
     function send(msg) {
       if (!embedded) return;
       try { window.parent.postMessage(Object.assign({ source: 'auto-module', moduleId }, msg), '*'); }
@@ -806,7 +863,7 @@ class UIKit {
       if (!d || d.source !== 'auto-shell') return;
       if (d.moduleId && d.moduleId !== moduleId) return;
       if (d.type !== 'command' && d.type !== 'query') return;
-      const h = defaultHandlers[d.action];
+      const h = wrappedHandlers[d.action];
       if (h) h(d.value);
       if (onCommand) onCommand(d);
     });
@@ -814,6 +871,8 @@ class UIKit {
     return {
       ready() { send({ type: 'ready' }); },
       setStatus(text, color) { send({ type: 'state', status: { text, color } }); },
+      /* Modules that change state directly can ask the kit to re-sync. */
+      syncControls() { _syncPlayIcons(); _syncControls(); },
     };
   }
 }
