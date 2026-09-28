@@ -303,6 +303,7 @@ export function buildScene(opts = {}) {
   floor.position.y = opts.floorY ?? -2.15;
   floor.receiveShadow = look.shadows;
   floor.userData.__isFloor = true;
+  floor.material.envMapIntensity = 0.25;   /* modules add their own environment map; keep floor colour stable while orbiting */
   scene.add(floor);
 
   if (look.grid) {
