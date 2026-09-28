@@ -9,6 +9,7 @@
 :root { --al-accent: #f43f5e; }
 html.light-theme { --al-accent: #be123c; }
 
+/* ── readout ─────────────────────────────────────────── */
 #panel-readout .al-read{
   display:grid;grid-template-columns:1fr auto;gap:3px 12px;
   font:500 11px/1.45 var(--font-mono);
@@ -20,6 +21,7 @@ html.light-theme { --al-accent: #be123c; }
 .al-read .v.warn{color:var(--warn);}
 .al-read .v.crit{color:var(--crit);}
 
+/* ── info tabs ───────────────────────────────────────── */
 .al-tabs{margin-top:10px;}
 .al-sec{margin-top:12px;}
 .al-sec:first-child{margin-top:2px;}
@@ -40,6 +42,7 @@ html.light-theme { --al-accent: #be123c; }
 .al-fault .s{font-size:11px;line-height:1.45;color:var(--text-dim);}
 .al-fault .c{font-size:11px;line-height:1.45;color:var(--text-mute);margin-top:4px;}
 
+/* ── quiz ────────────────────────────────────────────── */
 .al-q{margin-bottom:12px;}
 .al-q .q{font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;line-height:1.4;}
 .al-opt{
@@ -51,9 +54,11 @@ html.light-theme { --al-accent: #be123c; }
 .al-opt:focus-visible{outline:2px solid var(--al-accent);outline-offset:2px;}
 .al-opt.ok{border-color:var(--ok);color:var(--ok);}
 .al-opt.no{border-color:var(--crit);color:var(--crit);}
+.al-opt:disabled{opacity:.55;cursor:default;}
 .al-exp{display:none;font-size:11px;line-height:1.45;color:var(--text-mute);margin-top:4px;}
 .al-q.done .al-exp{display:block;}
 
+/* ── widgets ─────────────────────────────────────────── */
 .al-w{display:flex;flex-direction:column;gap:6px;min-width:160px;}
 .al-w label{
   display:flex;justify-content:space-between;gap:8px;font-size:10px;letter-spacing:.06em;
@@ -70,10 +75,45 @@ html.light-theme { --al-accent: #be123c; }
   border:1px solid var(--border);border-radius:var(--r-xs,6px);
 }
 .al-sel:focus-visible{outline:2px solid var(--al-accent);outline-offset:2px;}
+.al-panic{
+  width:100%;min-height:34px;margin-top:2px;padding:8px 10px;
+  font:800 10.5px/1 var(--font-sans,ui-sans-serif,sans-serif);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--al-accent);cursor:pointer;border-radius:var(--r-xs,6px);
+  background:color-mix(in oklch, var(--al-accent) 10%, transparent);
+  border:1px solid color-mix(in oklch, var(--al-accent) 45%, transparent);
+  transition:background .15s, transform .05s;
+}
+.al-panic:hover{background:color-mix(in oklch, var(--al-accent) 20%, transparent);}
+.al-panic:active{transform:translateY(1px);}
+.al-panic:focus-visible{outline:2px solid var(--al-accent);outline-offset:2px;}
+.al-check{
+  display:flex;align-items:center;gap:8px;margin-top:4px;font-size:11px;color:var(--text-dim);
+  cursor:pointer;user-select:none;
+}
+.al-check input{accent-color:var(--al-accent);width:15px;height:15px;cursor:pointer;}
 
+/* ── telemetry chart ─────────────────────────────────── */
+#tele-canvas{
+  width:100%;height:150px;display:block;
+  border:1px solid var(--border);border-radius:var(--r-xs,6px);
+}
 .al-legend{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--text-dim);}
 .al-legend span{display:flex;align-items:center;gap:7px;}
-.al-legend i{width:9px;height:9px;border-radius:50%;display:inline-block;}
+.al-legend i{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none;}
+
+/* ── results toast ───────────────────────────────────── */
+.al-toast{
+  position:fixed;left:50%;bottom:96px;transform:translate(-50%,12px);opacity:0;
+  transition:opacity .35s, transform .35s;pointer-events:none;z-index:80;
+  max-width:min(92vw,500px);text-align:center;
+  background:var(--surface,#141821);border:1px solid var(--border-hi,#39424f);
+  border-radius:10px;padding:10px 16px;
+  font:600 12px/1.6 var(--font-mono);color:var(--text);
+  box-shadow:0 14px 40px rgba(0,0,0,.45);
+}
+.al-toast.show{opacity:1;transform:translate(-50%,0);}
+.al-toast b.n{color:#e0564c;}
+.al-toast b.a{color:#2fbf71;}
 
 .ui-tb-btn.active{outline:2px solid var(--al-accent);color:var(--al-accent);}
 </style>
@@ -96,200 +136,932 @@ import * as THREE from 'three';
 import * as Base from './kit.js';
 
 /* ═══════════════════════════════════════════════════════════════════════
-   CONFIG
+   CONFIG — physics in SI units (metres, seconds, m/s²)
    ═══════════════════════════════════════════════════════════════════════ */
-const CFG = {
-  moduleId: 'absesc',
-  accent:   '#f43f5e',
-  cycleHz:  6.0           // ABS pressure cycles per second (approximate)
+const CFG = { moduleId: 'absesc', accent: '#f43f5e' };
+
+const PHYS = {
+  g:             9.81,    // m/s²
+  maxDemand:     11.0,    // m/s² at 100 % pedal — exceeds what tyres can deliver
+  tyreRadius:    0.32,    // m — typical 205/55R16
+  absEfficiency: 0.94,    // real ABS reaches ~94 % of peak friction
+  absFreq:       12,      // Hz — real ABS cycles 10–15 Hz
+  rollResist:    0.30,    // m/s² coasting drag (rolling + aero below)
+  aeroK:         0.0035   // m/s² per (m/s)²
 };
 
+/* Peak (rolling) vs locked (sliding) friction per surface */
 const SURFACES = {
-  dry: { mu: 0.90, label: 'Dry asphalt' },
-  wet: { mu: 0.55, label: 'Wet road' },
-  ice: { mu: 0.18, label: 'Ice / snow' }
+  dry: { mu: 0.90, muLock: 0.72, label: 'Dry asphalt',
+         road: 0x34363e, line: 0xe6ebf2, rough: 0.95, metal: 0.00, smoke: 0xdadce2 },
+  wet: { mu: 0.55, muLock: 0.40, label: 'Wet road',
+         road: 0x23252d, line: 0xc2c8d4, rough: 0.32, metal: 0.30, smoke: 0xc6cad2 },
+  ice: { mu: 0.18, muLock: 0.11, label: 'Ice / snow',
+         road: 0x8b98a6, line: 0xe8ecf2, rough: 0.55, metal: 0.10, smoke: 0xf2f4f8 }
 };
 
+/* Scene mapping — 1 real metre → SCALE scene units */
+const SCALE        = 0.24;
+const CAR_START_M  = 0;
+const ROAD_START_M = -14;
+const ROAD_END_M   = 240;
+const LANE_HALF    = 1.9;          // scene units between the two lane centres
+const ROAD_HALF_W  = 3.4;          // road half-width, scene units
+const LANE_M       = LANE_HALF / SCALE;   // lane offset in real metres (±)
+const CAR_LEN_M    = 1.40 / SCALE;        // car length in real metres
+const WHEEL_VIS    = 0.14;         // visual wheel-rotation slowdown (legibility)
+const AUTORESET_S  = 6.0;          // seconds after both cars finish → auto reset
+
+/* Car visual proportions (scene units) */
+const CAR = {
+  length: 1.40, width: 0.52, bodyH: 0.22,
+  wheelBase: 0.95, wheelR: 0.13, wheelW: 0.09
+};
+
+const COLORS = {
+  noAbs: 0xc23a35, abs: 0x1ea05c, tyre: 0x18181c,
+  glass: 0x0a1420, headlight: 0xfff2c0,
+  taillightOff: 0x501010, taillightOn: 0xff2830, disc: 0xb0b8c4
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+   STATE
+   ═══════════════════════════════════════════════════════════════════════ */
 const state = Base.createUIState();
-state.speedMul = 60;      // km/h — the toolbar slider drives vehicle speed
-state.brake    = 40;      // % pedal
-state.surface  = 'dry';
-state.wssFault = false;   // front-left wheel-speed sensor fault
+state.speedMul = 60;          // km/h — toolbar slider is initial speed
+state.brake    = 0;            // % pedal
+state.surface  = 'wet';
+state.swerve   = false;
+state.soundOn  = true;
+
+function newCarState(hasAbs, lat0) {
+  return {
+    hasAbs, lat0,
+    x_m: 0, lat_m: lat0, v: 0, vLat: 0, vw: 0,     // vw = wheel surface speed
+    locked: false, lockT: 0, absActive: false, slip: 0, wheelAngle: 0,
+    decel: 0, latAccel: 0, steer: 0, phase: 0, heat: 0,
+    slideStart_m: null, segLastX: null,
+    coneHits: 0, impactV: 0, stopped: false, outOfRoad: false, prevV: 0
+  };
+}
+
+const sim = {
+  noAbs: newCarState(false, -LANE_M),
+  abs:   newCarState(true,   LANE_M),
+  t: 0, autoReset: 0, resultShown: false,
+  plan: null                  // swerve-test plan (or null)
+};
+
+/* Telemetry ring for the chart: [t, vN, vA, vwN, vwA, locked] */
+const tele = { samples: [], v0kmh: 60, acc: 0 };
 
 /* ═══════════════════════════════════════════════════════════════════════
    SCENE
    ═══════════════════════════════════════════════════════════════════════ */
 const built = Base.buildScene({
-  fov: 44,
-  camPos: [5.6, 4.6, 8.6],
-  target: [0, 0.55, 0],
-  floorY: -1.4,
-  fogDensity: 0.028
+  fov: 50,
+  camPos: [1.0, 1.5, 4.6],
+  target: [2.5, 0.32, 0],
+  floorY: -0.15,
+  fogDensity: 0.012
 });
 const { scene, camera, renderer, controls, wrap, viewManager, quality } = built;
 Base.attachResize(camera, renderer, wrap, built.baseFov);
-
 const lowEnd = quality.isLowEnd;
+controls.minDistance = 3;
+controls.maxDistance = 70;
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* ═══════════════════════════════════════════════════════════════════════
-   MATERIALS
-   ═══════════════════════════════════════════════════════════════════════ */
-const M = Base.createMaterials();
 const root = new THREE.Group();
 scene.add(root);
 
-const discMat    = new THREE.MeshStandardMaterial({ color: 0x6e7684, metalness: 0.80, roughness: 0.42 });
-const ringMat    = new THREE.MeshStandardMaterial({ color: 0x3d4555, metalness: 0.70, roughness: 0.45 });
-const caliperMat = new THREE.MeshStandardMaterial({ color: 0xb03a2e, metalness: 0.35, roughness: 0.55 });
-const sensorMat  = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.40, roughness: 0.50 });
-const valveMat   = new THREE.MeshStandardMaterial({ color: 0x8a93a5, metalness: 0.80, roughness: 0.30 });
-const valveHot   = new THREE.MeshStandardMaterial({ color: 0xffb020, metalness: 0.50, roughness: 0.35, emissive: 0x552200, emissiveIntensity: 1 });
-const lineMat    = new THREE.MeshStandardMaterial({ color: 0x556074, metalness: 0.60, roughness: 0.40 });
-const brakeLine  = new THREE.MeshStandardMaterial({ color: 0x3a4a60, metalness: 0.55, roughness: 0.45 });
+/* The kit's default ground disc is a 9-unit circle — far too small for a
+   240 m road. Enlarge + re-centre it, hide the lab grid, and re-aim the key
+   light so shadows follow the cars the whole length of the run. */
+let keyLight = null;
+scene.traverse(o => {
+  if (o.userData && o.userData.__isFloor) {
+    o.scale.setScalar(9);
+    o.position.x = ((ROAD_START_M + ROAD_END_M) / 2) * SCALE;
+  }
+  if (o.userData && o.userData.__isGrid) o.visible = false;
+  if (o.isDirectionalLight && o.castShadow) keyLight = o;
+});
+if (keyLight) {
+  const sc = keyLight.shadow.camera;
+  sc.left = -14; sc.right = 14; sc.top = 14; sc.bottom = -14;
+  sc.near = 2; sc.far = 60;
+  sc.updateProjectionMatrix();
+  keyLight.shadow.bias = -0.0004;
+  keyLight.shadow.normalBias = 0.02;
+  scene.add(keyLight.target);
+}
 
 /* ═══════════════════════════════════════════════════════════════════════
-   GEOMETRY — four wheels + hydraulic modulator
+   ROAD — textured asphalt, instanced dashes/ticks, edge lines, distance posts
    ═══════════════════════════════════════════════════════════════════════ */
-const WHEELS = [
-  { id: 'fl', text: 'Front left',  x: -2.45, z: -1.55 },
-  { id: 'fr', text: 'Front right', x:  2.45, z: -1.55 },
-  { id: 'rl', text: 'Rear left',   x: -2.45, z:  1.55 },
-  { id: 'rr', text: 'Rear right',  x:  2.45, z:  1.55 }
-];
+const ROAD_LEN_M = ROAD_END_M - ROAD_START_M;
+const ROAD_LEN_U = ROAD_LEN_M * SCALE;
+const ROAD_MID_M = (ROAD_START_M + ROAD_END_M) / 2;
 
-const discGeo = new THREE.CylinderGeometry(0.56, 0.56, 0.09, lowEnd ? 18 : 32);
-const calGeo  = new THREE.BoxGeometry(0.30, 0.24, 0.24);
-const sensGeo = new THREE.BoxGeometry(0.16, 0.16, 0.20);
-
-WHEELS.forEach(w => {
-  const g = new THREE.Group();
-  g.position.set(w.x, 0.62, w.z);
-  g.rotation.x = Math.PI / 2;          // disc axis now points along world Z
-  root.add(g);
-
-  const disc = new THREE.Mesh(discGeo, discMat);
-  disc.castShadow = true;
-  g.add(disc);
-
-  /* tone ring (reluctor) — 24 teeth typical */
-  const tone = Base.makeCog(0.44, 0.07, lowEnd ? 16 : 24, 0.07, 0.085, ringMat, ringMat);
-  tone.position.y = -0.11;
-  g.add(tone);
-
-  const caliper = new THREE.Mesh(calGeo, caliperMat);
-  caliper.position.set(0, 0.04, 0.50);
-  caliper.castShadow = true;
-  g.add(caliper);
-
-  const sensor = new THREE.Mesh(sensGeo, sensorMat);
-  sensor.position.set(0.52, -0.11, 0);
-  sensor.castShadow = true;
-  g.add(sensor);
-
-  w.group   = g;
-  w.disc    = disc;
-  w.tone    = tone;
-  w.sensor  = sensor;
-  w.sensorMat = sensorMat.clone();
-  w.sensor.material = w.sensorMat;
-});
-
-/* --- hydraulic modulator --- */
-const modGroup = new THREE.Group();
-modGroup.position.set(0, 0.55, 0);
-root.add(modGroup);
-
-const modBody = new THREE.Mesh(new THREE.BoxGeometry(1.30, 0.62, 1.05), M.matMetalDark);
-modBody.castShadow = true;
-modBody.receiveShadow = true;
-modGroup.add(modBody);
-
-/* four solenoid valves on top (one per wheel) */
-const valves = [];
-WHEELS.forEach((w, i) => {
-  const vx = (i % 2 === 0 ? -0.32 : 0.32);
-  const vz = (i < 2 ? -0.28 : 0.28);
-  const v = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.10, 0.30, lowEnd ? 8 : 14), valveMat);
-  v.position.set(vx, 0.46, vz);
-  v.castShadow = true;
-  modGroup.add(v);
-  valves.push(v);
-});
-
-/* pump motor */
-const pump = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.42, lowEnd ? 10 : 16), valveMat);
-pump.rotation.z = Math.PI / 2;
-pump.position.set(0.82, 0.02, 0);
-pump.castShadow = true;
-modGroup.add(pump);
-
-/* --- brake lines + fluid particles --- */
-const lines = [];
-const pGeo = new THREE.SphereGeometry(0.042, lowEnd ? 6 : 10, lowEnd ? 5 : 8);
-
-WHEELS.forEach((w, i) => {
-  const a = new THREE.Vector3(w.x * 0.30, 0.55, w.z * 0.30);
-  const b = new THREE.Vector3(w.x * 0.82, 0.62, w.z * 0.82);
-
-  const tube = Base.tubeBetween(a, b, 0.030, 0.030, brakeLine, true);
-  root.add(tube);
-
-  const parts = [];
-  const n = lowEnd ? 2 : 3;
-  for (let k = 0; k < n; k++) {
-    const p = new THREE.Mesh(pGeo, new THREE.MeshBasicMaterial({ color: 0x60a5fa }));
-    root.add(p);
-    parts.push(p);
+function makeAsphaltTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const x = c.getContext('2d');
+  x.fillStyle = '#8d8d8d';
+  x.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 2600; i++) {
+    const v = (100 + Math.random() * 110) | 0;
+    x.fillStyle = `rgba(${v},${v},${v},0.5)`;
+    x.fillRect((Math.random() * 128) | 0, (Math.random() * 128) | 0, 1.5, 1.5);
   }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(ROAD_LEN_U / 1.2, (ROAD_HALF_W * 2) / 1.2);
+  t.anisotropy = 4;
+  return t;
+}
 
-  const rec = { a, b, parts, valve: valves[i], wheel: w, hot: 0 };
-  lines.push(rec);
-  w.link = rec;
+const roadMat = new THREE.MeshStandardMaterial({
+  color: SURFACES.wet.road, map: makeAsphaltTexture(),
+  roughness: SURFACES.wet.rough, metalness: SURFACES.wet.metal
 });
+const road = new THREE.Mesh(new THREE.BoxGeometry(ROAD_LEN_U, 0.06, ROAD_HALF_W * 2), roadMat);
+road.position.set(ROAD_MID_M * SCALE, -0.03, 0);
+road.receiveShadow = true;
+root.add(road);
+
+/* Centre dashes — one InstancedMesh instead of ~80 draw calls */
+const dashMat = new THREE.MeshBasicMaterial({ color: SURFACES.wet.line });
+{
+  const geo = new THREE.BoxGeometry(0.55, 0.014, 0.05);
+  const count = Math.floor((ROAD_LEN_M - 2) / 3);
+  const inst = new THREE.InstancedMesh(geo, dashMat, count);
+  const m4 = new THREE.Matrix4();
+  let i = 0;
+  for (let m = ROAD_START_M + 2; m < ROAD_END_M && i < count; m += 3, i++) {
+    m4.makeTranslation(m * SCALE, 0.006, 0);
+    inst.setMatrixAt(i, m4);
+  }
+  inst.instanceMatrix.needsUpdate = true;
+  root.add(inst);
+}
+
+/* 10 m ticks on both edges */
+{
+  const geo = new THREE.BoxGeometry(0.05, 0.014, 0.30);
+  const mat = new THREE.MeshBasicMaterial({ color: 0x99a2ae });
+  const xs = [];
+  for (let m = 0; m <= ROAD_END_M; m += 10) xs.push(m * SCALE);
+  const inst = new THREE.InstancedMesh(geo, mat, xs.length * 2);
+  const m4 = new THREE.Matrix4();
+  let i = 0;
+  for (const xu of xs) {
+    m4.makeTranslation(xu, 0.007, -ROAD_HALF_W + 0.20); inst.setMatrixAt(i++, m4);
+    m4.makeTranslation(xu, 0.007,  ROAD_HALF_W - 0.20); inst.setMatrixAt(i++, m4);
+  }
+  inst.instanceMatrix.needsUpdate = true;
+  root.add(inst);
+}
+
+/* Solid edge lines */
+{
+  const geo = new THREE.BoxGeometry(ROAD_LEN_U, 0.012, 0.05);
+  [-1, 1].forEach(s => {
+    const e = new THREE.Mesh(geo, dashMat);
+    e.position.set(ROAD_MID_M * SCALE, 0.006, s * (ROAD_HALF_W - 0.16));
+    root.add(e);
+  });
+}
+
+/* Start line + 40 m reference line */
+const startLine = new THREE.Mesh(
+  new THREE.BoxGeometry(0.12, 0.016, ROAD_HALF_W * 2 - 0.5),
+  new THREE.MeshBasicMaterial({ color: 0xf0f4fa })
+);
+startLine.position.set(CAR_START_M * SCALE, 0.008, 0);
+root.add(startLine);
+
+const finishLine = new THREE.Mesh(
+  new THREE.BoxGeometry(0.10, 0.016, ROAD_HALF_W * 2 - 0.5),
+  new THREE.MeshBasicMaterial({ color: 0xf59e0b })
+);
+finishLine.position.set(40 * SCALE, 0.008, 0);
+root.add(finishLine);
+
+/* ═══════════════════════════════════════════════════════════════════════
+   TEXT SPRITES — distance posts, stop markers
+   ═══════════════════════════════════════════════════════════════════════ */
+function roundRectPath(x, a, b, w, h, r) {
+  x.beginPath();
+  x.moveTo(a + r, b);
+  x.arcTo(a + w, b, a + w, b + h, r);
+  x.arcTo(a + w, b + h, a, b + h, r);
+  x.arcTo(a, b + h, a, b, r);
+  x.arcTo(a, b, a + w, b, r);
+  x.closePath();
+}
+
+function makeLabelSprite(text, color, sub, width = 0.7) {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = sub ? 118 : 88;
+  const x = c.getContext('2d');
+  roundRectPath(x, 4, 4, c.width - 8, c.height - 8, 14);
+  x.fillStyle = 'rgba(10,13,18,0.88)'; x.fill();
+  x.lineWidth = 3.5; x.strokeStyle = color; x.stroke();
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  if (sub) {
+    x.fillStyle = '#f2f5f9';
+    x.font = '700 42px ui-monospace, Menlo, Consolas, monospace';
+    x.fillText(text, 128, 38);
+    x.fillStyle = color;
+    x.font = '700 22px ui-monospace, Menlo, Consolas, monospace';
+    x.fillText(sub, 128, 84);
+  } else {
+    x.fillStyle = '#f2f5f9';
+    x.font = '700 40px ui-monospace, Menlo, Consolas, monospace';
+    x.fillText(text, 128, c.height / 2 + 1);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  spr.scale.set(width, width * c.height / c.width, 1);
+  return spr;
+}
+
+const postMat = new THREE.MeshStandardMaterial({ color: 0x5a6270, roughness: 0.6, metalness: 0.3 });
+{
+  const poleGeo = new THREE.BoxGeometry(0.03, 0.55, 0.03);
+  for (let m = 20; m <= ROAD_END_M; m += 20) {
+    const pole = new THREE.Mesh(poleGeo, postMat);
+    pole.position.set(m * SCALE, 0.27, ROAD_HALF_W + 0.32);
+    root.add(pole);
+    const spr = makeLabelSprite(m + ' m', '#9fb0c0', null, 0.6);
+    spr.position.set(m * SCALE, 0.72, ROAD_HALF_W + 0.32);
+    root.add(spr);
+  }
+}
+
+/* Stop-position markers (dropped where each car halts) */
+const markers = new THREE.Group();
+root.add(markers);
+const markerPoleGeo = new THREE.BoxGeometry(0.02, 0.5, 0.02);
+
+function dropMarker(c) {
+  const col = c.hasAbs ? '#2fbf71' : '#d95248';
+  const text = c.outOfRoad ? '> ' + ROAD_END_M + ' m' : c.x_m.toFixed(1) + ' m';
+  const pole = new THREE.Mesh(markerPoleGeo, postMat);
+  pole.position.set(c.x_m * SCALE, 0.25, c.lat_m * SCALE);
+  const spr = makeLabelSprite(text, col, c.hasAbs ? 'WITH ABS' : 'NO ABS', 0.85);
+  spr.position.set(c.x_m * SCALE, 0.78, c.lat_m * SCALE);
+  markers.add(pole, spr);
+}
+function clearMarkers() {
+  while (markers.children.length) markers.remove(markers.children[0]);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CARS — tilt group for pitch/roll, steering front wheels, glowing discs
+   ═══════════════════════════════════════════════════════════════════════ */
+function buildCar(bodyColour) {
+  const car = new THREE.Group();
+  const tilt = new THREE.Group();          // body shell pitches/rolls, wheels don't
+  car.add(tilt);
+
+  const bodyMat  = new THREE.MeshStandardMaterial({ color: bodyColour, metalness: 0.45, roughness: 0.42 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: COLORS.glass, metalness: 0.85, roughness: 0.12 });
+  const trimMat  = new THREE.MeshStandardMaterial({ color: 0x14161c, roughness: 0.6, metalness: 0.2 });
+
+  const bodyTopY = CAR.wheelR + CAR.bodyH - 0.015;
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(CAR.length, CAR.bodyH, CAR.width), bodyMat);
+  body.position.y = CAR.wheelR + CAR.bodyH / 2 - 0.015;
+  body.castShadow = true; body.receiveShadow = true;
+  tilt.add(body);
+
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(CAR.length * 0.46, 0.115, CAR.width * 0.90), glassMat);
+  glass.position.set(-CAR.length * 0.04, bodyTopY + 0.058, 0);
+  tilt.add(glass);
+
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(CAR.length * 0.42, 0.05, CAR.width * 0.84), bodyMat);
+  roof.position.set(-CAR.length * 0.05, bodyTopY + 0.138, 0);
+  roof.castShadow = true;
+  tilt.add(roof);
+
+  [-1, 1].forEach(s => {   // bumpers
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.075, CAR.width * 0.98), trimMat);
+    b.position.set(s * (CAR.length / 2 - 0.02), CAR.wheelR + 0.05, 0);
+    tilt.add(b);
+  });
+  [-1, 1].forEach(s => {   // mirrors
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.09), trimMat);
+    m.position.set(CAR.length * 0.10, bodyTopY + 0.02, s * (CAR.width / 2 + 0.045));
+    tilt.add(m);
+  });
+
+  const headMat = new THREE.MeshBasicMaterial({ color: COLORS.headlight });
+  [-1, 1].forEach(s => {
+    const h = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.055, 0.09), headMat);
+    h.position.set(CAR.length * 0.49, CAR.wheelR + CAR.bodyH * 0.66, s * CAR.width * 0.30);
+    tilt.add(h);
+  });
+
+  const tailMats = [];
+  [-1, 1].forEach(s => {
+    const mat = new THREE.MeshBasicMaterial({ color: COLORS.taillightOff });
+    const t = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.055, 0.11), mat);
+    t.position.set(-CAR.length * 0.49, CAR.wheelR + CAR.bodyH * 0.66, s * CAR.width * 0.30);
+    tilt.add(t);
+    tailMats.push(mat);
+  });
+
+  /* Wheels */
+  const wheels = [];
+  const spokeMat = new THREE.MeshStandardMaterial({ color: 0x9aa4b0, metalness: 0.8, roughness: 0.35 });
+  const spokes = lowEnd ? 3 : 5;
+
+  for (const wx of [CAR.wheelBase / 2, -CAR.wheelBase / 2]) {
+    for (const wz of [-(CAR.width / 2 - 0.035), CAR.width / 2 - 0.035]) {
+      const front = wx > 0;
+      const outZ = wz > 0 ? 1 : -1;
+      const wg = new THREE.Group();
+      wg.position.set(wx, CAR.wheelR, wz);
+      car.add(wg);
+
+      const tyreMat = new THREE.MeshStandardMaterial({ color: COLORS.tyre, roughness: 0.92, metalness: 0.05 });
+      const tyre = new THREE.Mesh(
+        new THREE.CylinderGeometry(CAR.wheelR, CAR.wheelR, CAR.wheelW, lowEnd ? 12 : 20), tyreMat
+      );
+      tyre.rotation.x = Math.PI / 2;
+      tyre.castShadow = true;
+      wg.add(tyre);
+
+      const spin = new THREE.Group();      // everything that rotates with the wheel
+      wg.add(spin);
+
+      const discMat = new THREE.MeshStandardMaterial({ color: COLORS.disc, metalness: 0.85, roughness: 0.30 });
+      const disc = new THREE.Mesh(
+        new THREE.CylinderGeometry(CAR.wheelR * 0.62, CAR.wheelR * 0.62, 0.016, lowEnd ? 12 : 20), discMat
+      );
+      disc.rotation.x = Math.PI / 2;
+      disc.position.z = outZ * (CAR.wheelW / 2 + 0.004);
+      spin.add(disc);
+
+      for (let i = 0; i < spokes; i++) {
+        const sp = new THREE.Mesh(new THREE.BoxGeometry(CAR.wheelR * 1.15, 0.022, 0.028), spokeMat);
+        sp.rotation.z = (i / spokes) * Math.PI * 2;
+        sp.position.z = outZ * (CAR.wheelW / 2 + 0.004);
+        spin.add(sp);
+      }
+      /* One bright marker dot — rotation is unmistakable, especially at lockup */
+      const dot = new THREE.Mesh(
+        new THREE.BoxGeometry(0.024, 0.06, CAR.wheelW + 0.028),
+        new THREE.MeshBasicMaterial({ color: 0xffcc44 })
+      );
+      dot.position.set(0, CAR.wheelR * 0.62, outZ * (CAR.wheelW / 2 + 0.004));
+      spin.add(dot);
+
+      /* Caliper — fixed to the upright, never spins */
+      const cal = new THREE.Mesh(
+        new THREE.BoxGeometry(0.045, 0.09, 0.07),
+        new THREE.MeshStandardMaterial({ color: 0xc0392b, metalness: 0.4, roughness: 0.5 })
+      );
+      cal.position.set(0.05, 0.02, outZ * (CAR.wheelW / 2 + 0.012));
+      wg.add(cal);
+
+      wheels.push({ group: wg, spin, tyreMat, discMat, front });
+    }
+  }
+  return { group: car, tilt, wheels, tailMats };
+}
+
+const carNoAbs = buildCar(COLORS.noAbs);
+const carAbs   = buildCar(COLORS.abs);
+root.add(carNoAbs.group);
+root.add(carAbs.group);
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SKID MARKS — continuous strips when locked, faint segments under ABS
+   ═══════════════════════════════════════════════════════════════════════ */
+function makeSkidStrip() {
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(1, 0.13),
+    new THREE.MeshBasicMaterial({ color: 0x060608, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide })
+  );
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.y = 0.011;
+  mesh.visible = false;
+  mesh.frustumCulled = false;
+  scene.add(mesh);
+  return { mesh, lastEndM: null };
+}
+const skid = { noAbs_L: makeSkidStrip(), noAbs_R: makeSkidStrip() };
+
+function placeStrip(strip, startM, endM, latM, sideSign) {
+  if (endM - startM < 0.02) { strip.mesh.visible = false; return; }
+  strip.mesh.visible = true;
+  strip.mesh.position.set(((startM + endM) / 2) * SCALE, 0.011,
+                          latM * SCALE + sideSign * (CAR.width / 2 - 0.03));
+  strip.mesh.scale.x = (endM - startM) * SCALE;
+}
+
+/* ABS leaves intermittent faint patches — one InstancedMesh, ring buffer */
+const SEG_LEN_M = 1.1, SEG_MAX = 420;
+let segCursor = 0, segTotal = 0;
+const segMesh = new THREE.InstancedMesh(
+  new THREE.PlaneGeometry(1, 0.13),
+  new THREE.MeshBasicMaterial({ color: 0x0a0a10, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide }),
+  SEG_MAX
+);
+segMesh.frustumCulled = false;
+segMesh.count = 0;
+segMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+root.add(segMesh);
+const segM4 = new THREE.Matrix4();
+const segQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
+const segP = new THREE.Vector3(), segS = new THREE.Vector3();
+
+function emitAbsSegments(x0, x1, latM) {
+  for (const s of [-1, 1]) {
+    segP.set(((x0 + x1) / 2) * SCALE, 0.0105, latM * SCALE + s * (CAR.width / 2 - 0.03));
+    segS.set((x1 - x0) * SCALE * 1.05, 1, 1);
+    segM4.compose(segP, segQ, segS);
+    segMesh.setMatrixAt(segCursor, segM4);
+    segCursor = (segCursor + 1) % SEG_MAX;
+    segTotal++;
+  }
+  segMesh.count = Math.min(SEG_MAX, segTotal);
+  segMesh.instanceMatrix.needsUpdate = true;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   TYRE SMOKE
+   ═══════════════════════════════════════════════════════════════════════ */
+function createSmokeTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0.00, 'rgba(240,240,245,0.90)');
+  g.addColorStop(0.35, 'rgba(200,200,210,0.45)');
+  g.addColorStop(0.70, 'rgba(160,160,175,0.14)');
+  g.addColorStop(1.00, 'rgba(140,140,155,0.00)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+const smokeTex = createSmokeTexture();
+const SMOKE_COUNT = lowEnd ? 24 : 48;
+const smokePool = [];
+for (let i = 0; i < SMOKE_COUNT; i++) {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: smokeTex, transparent: true, opacity: 0, depthWrite: false
+  }));
+  s.visible = false;
+  s.userData = { alive: false, age: 0, life: 1.3, vx: 0, vy: 0, vz: 0 };
+  scene.add(s);
+  smokePool.push(s);
+}
+let smokeCursor = 0;
+function emitSmoke(x, y, z, colorHex) {
+  const s = smokePool[smokeCursor];
+  smokeCursor = (smokeCursor + 1) % SMOKE_COUNT;
+  s.position.set(x, y, z);
+  s.material.color.setHex(colorHex);
+  s.material.opacity = 0.55;
+  s.scale.setScalar(0.14);
+  s.visible = true;
+  s.userData.alive = true;
+  s.userData.age = 0;
+  s.userData.life = 1.1 + Math.random() * 0.5;
+  s.userData.vx = -1.1 - Math.random() * 0.6;
+  s.userData.vy = 0.55 + Math.random() * 0.35;
+  s.userData.vz = (Math.random() - 0.5) * 0.45;
+}
+function updateSmoke(dt) {
+  for (const s of smokePool) {
+    if (!s.visible) continue;
+    s.userData.age += dt;
+    if (s.userData.age >= s.userData.life) { s.visible = false; continue; }
+    s.position.x += s.userData.vx * dt;
+    s.position.y += s.userData.vy * dt;
+    s.position.z += s.userData.vz * dt;
+    const t = s.userData.age / s.userData.life;
+    s.material.opacity = 0.55 * (1 - t) * (1 - t);
+    s.scale.setScalar(0.14 + t * 0.95);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   AUDIO — tyre squeal, ABS pump chatter, cone impacts (all synthesised)
+   ═══════════════════════════════════════════════════════════════════════ */
+const AudioFX = (() => {
+  let ctx = null, master = null, noiseBuf = null, squealGain = null, squealFilter = null;
+  let enabled = true, started = false;
+
+  function ensure() {
+    if (started) return ctx;
+    started = true;
+    try {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      master = ctx.createGain();
+      master.gain.value = 0.6;
+      master.connect(ctx.destination);
+      noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const src = ctx.createBufferSource();
+      src.buffer = noiseBuf; src.loop = true;
+      squealFilter = ctx.createBiquadFilter();
+      squealFilter.type = 'bandpass';
+      squealFilter.frequency.value = 800; squealFilter.Q.value = 14;
+      squealGain = ctx.createGain(); squealGain.gain.value = 0;
+      src.connect(squealFilter).connect(squealGain).connect(master);
+      src.start();
+    } catch (_) { ctx = null; }
+    return ctx;
+  }
+  function burst(dur, type, freq, q, vol) {
+    if (!ctx || !enabled) return;
+    const t0 = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuf;
+    src.playbackRate.value = 0.9 + Math.random() * 0.2;
+    const f = ctx.createBiquadFilter();
+    f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vol, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    src.connect(f).connect(g).connect(master);
+    src.start(t0); src.stop(t0 + dur + 0.02);
+  }
+  function thud(vol) {
+    if (!ctx || !enabled) return;
+    const t0 = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(95, t0);
+    o.frequency.exponentialRampToValueAtTime(38, t0 + 0.14);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vol, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.16);
+    o.connect(g).connect(master);
+    o.start(t0); o.stop(t0 + 0.18);
+    burst(0.09, 'lowpass', 220, 1, vol * 0.7);
+  }
+  return {
+    unlock() { const c = ensure(); if (c && c.state === 'suspended') c.resume(); },
+    setOn(v) { enabled = v; if (master) master.gain.value = v ? 0.6 : 0; },
+    squeal(level, freq) {
+      if (!ctx || !squealGain) return;
+      const t = ctx.currentTime;
+      squealGain.gain.setTargetAtTime(level, t, 0.05);
+      if (freq) squealFilter.frequency.setTargetAtTime(freq, t, 0.08);
+    },
+    absTick(strength) { burst(0.045, 'bandpass', 340, 2, 0.10 * strength); },
+    coneHit(v) {
+      burst(0.08, 'bandpass', 1600, 1.2, Math.min(0.5, 0.1 + v * 0.04));
+      thud(Math.min(0.4, 0.08 + v * 0.03));
+    },
+    stopThud() { thud(0.18); }
+  };
+})();
+document.addEventListener('pointerdown', () => AudioFX.unlock());
+document.addEventListener('keydown', () => AudioFX.unlock());
+
+/* ═══════════════════════════════════════════════════════════════════════
+   OBSTACLE — cones + warning sign for the swerve test
+   ═══════════════════════════════════════════════════════════════════════ */
+const CONES = [];
+{
+  const bodyGeo = new THREE.CylinderGeometry(0.028, 0.082, 0.24, 10);
+  const bandGeo = new THREE.CylinderGeometry(0.055, 0.066, 0.055, 10);
+  const baseGeo = new THREE.BoxGeometry(0.17, 0.02, 0.17);
+  const coneMat = new THREE.MeshStandardMaterial({ color: 0xff6a1f, roughness: 0.55, metalness: 0.05 });
+  const bandMat = new THREE.MeshStandardMaterial({ color: 0xf2f4f8, roughness: 0.5 });
+  const baseMat = new THREE.MeshStandardMaterial({ color: 0xcf4f12, roughness: 0.7 });
+  for (let i = 0; i < 8; i++) {
+    const g = new THREE.Group();
+    const b = new THREE.Mesh(bodyGeo, coneMat); b.position.y = 0.13; b.castShadow = true; g.add(b);
+    const band = new THREE.Mesh(bandGeo, bandMat); band.position.y = 0.15; g.add(band);
+    const base = new THREE.Mesh(baseGeo, baseMat); base.position.y = 0.01; base.castShadow = true; g.add(base);
+    g.visible = false;
+    root.add(g);
+    CONES.push({ g, mode: 'idle', x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, wx: 0, wz: 0 });
+  }
+}
+function layoutCones(plan) {
+  let i = 0;
+  for (const lane of [-LANE_M, LANE_M]) {
+    for (const off of [-0.7, -0.22, 0.22, 0.7]) {
+      if (i >= CONES.length) break;
+      const c = CONES[i++];
+      c.mode = 'stand';
+      c.x = plan.D * SCALE; c.z = (lane + off) * SCALE; c.y = 0;
+      c.vx = c.vy = c.vz = c.wx = c.wz = 0;
+      c.g.visible = true;
+      c.g.position.set(c.x, 0, c.z);
+      c.g.rotation.set(0, Math.random() * Math.PI, 0);
+    }
+  }
+  for (let k = i; k < CONES.length; k++) { CONES[k].mode = 'idle'; CONES[k].g.visible = false; }
+}
+function hideCones() {
+  for (const c of CONES) { c.mode = 'idle'; c.g.visible = false; }
+}
+function kickCone(c, car) {
+  c.mode = 'fly';
+  const sp = car.v * SCALE;
+  c.vx = sp * (0.45 + Math.random() * 0.35);
+  c.vy = 0.9 + Math.random() * 1.4;
+  c.vz = (Math.random() - 0.5) * 1.8 + car.vLat * SCALE * 0.6;
+  c.wx = (Math.random() - 0.5) * 16;
+  c.wz = (Math.random() - 0.5) * 16;
+  AudioFX.coneHit(car.v);
+}
+function updateCones(dt) {
+  for (const c of CONES) {
+    if (c.mode !== 'fly' && c.mode !== 'rest') continue;
+    if (c.mode === 'fly') {
+      c.x += c.vx * dt; c.z += c.vz * dt; c.y += c.vy * dt;
+      c.vy -= 9.81 * SCALE * dt;
+      c.g.rotation.x += c.wx * dt;
+      c.g.rotation.z += c.wz * dt;
+      if (c.y <= 0) {
+        c.y = 0;
+        if (Math.abs(c.vy) > 0.55) {
+          c.vy = -c.vy * 0.35; c.vx *= 0.55; c.vz *= 0.55; c.wx *= 0.5; c.wz *= 0.5;
+        } else { c.vy = 0; c.mode = 'rest'; }
+      }
+    } else {
+      c.vx *= Math.exp(-3 * dt); c.vz *= Math.exp(-3 * dt);
+      c.x += c.vx * dt; c.z += c.vz * dt;
+    }
+    c.g.position.set(c.x, c.y, c.z);
+  }
+}
+function coneCollisions() {
+  for (const c of CONES) {
+    if (c.mode !== 'stand') continue;
+    for (const car of [sim.noAbs, sim.abs]) {
+      if (car.v < 0.4) continue;
+      const cx = car.x_m * SCALE, cz = car.lat_m * SCALE;
+      if (Math.abs(c.x - cx) < 0.74 && Math.abs(c.z - cz) < 0.34) {
+        car.coneHits++;
+        if (car.coneHits === 1) car.impactV = car.v;
+        car.v *= 0.985;
+        kickCone(c, car);
+      }
+    }
+  }
+}
+
+/* Roadside warning sign ahead of the obstacle */
+const sign = (() => {
+  const g = new THREE.Group();
+  const pole = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.62, 0.035), postMat);
+  pole.position.y = 0.31;
+  g.add(pole);
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const x = c.getContext('2d');
+  x.beginPath();
+  x.moveTo(64, 8); x.lineTo(120, 112); x.lineTo(8, 112); x.closePath();
+  x.fillStyle = '#f5c518'; x.fill();
+  x.lineWidth = 8; x.strokeStyle = '#23272e'; x.stroke();
+  x.fillStyle = '#23272e';
+  x.font = '800 64px sans-serif';
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText('!', 64, 86);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const board = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.42, 0.42),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide })
+  );
+  board.position.y = 0.72;
+  g.add(board);
+  g.visible = false;
+  root.add(g);
+  return g;
+})();
 
 /* ═══════════════════════════════════════════════════════════════════════
    LABELS
    ═══════════════════════════════════════════════════════════════════════ */
 const labels = Base.createLabelSystem();
-labels.add('mod', 'ABS / ESC modulator');
-labels.add('pump', 'Pump motor');
-WHEELS.forEach(w => labels.add('w-' + w.id, w.text));
-labels.add('tone', 'Tone ring + WSS');
+labels.add('noAbs',  'NO ABS', 1);
+labels.add('abs',    'WITH ABS', 1);
+labels.add('start',  'Start', 1);
+labels.add('obs',    'Obstacle — brake & steer!', 1);
+labels.add('lockN',  'Wheels locked — sliding', 2);
+labels.add('noSteer','No steering authority', 2);
+labels.add('lockA',  'ABS regulating', 2);
+labels.add('esc',    'ESC — steering priority', 2);
+labels.add('fin',    '40 m reference', 2);
 
 /* ═══════════════════════════════════════════════════════════════════════
-   UI
+   PHYSICS
+   ═══════════════════════════════════════════════════════════════════════ */
+function stepCar(c, dt, surf, plan) {
+  const gPeak = surf.mu * PHYS.g;
+  const gLock = surf.muLock * PHYS.g;
+  const demand = (state.brake / 100) * PHYS.maxDemand;
+
+  /* ESC "steering priority": during the swerve the ABS car trades brake
+     torque for lateral grip (friction circle) instead of locking up. */
+  let target = demand;
+  if (plan && c.hasAbs && c.phase === 1) target = Math.min(demand, plan.aY);
+
+  c.prevV = c.v;
+  c.locked = false;
+  c.absActive = false;
+
+  let decel = 0;
+
+  if (c.v < 0.05) {
+    c.v = 0; c.vw = 0; c.slip = 0; c.decel = 0; c.lockT = 0;
+  } else {
+    if (demand < 0.05) {
+      /* Coasting — rolling resistance + aero drag */
+      decel = PHYS.rollResist + PHYS.aeroK * c.v * c.v;
+      c.slip = 0; c.vw = c.v; c.lockT = 0;
+    } else if (target <= gPeak * 0.995) {
+      /* Below the grip limit — normal rolling brake */
+      decel = target;
+      c.slip = 0.02 + 0.05 * (target / gPeak);
+      c.vw = c.v * (1 - c.slip);
+      c.lockT = 0;
+    } else if (c.hasAbs) {
+      /* Modulating at the peak — slip sawtooths 10–22 % */
+      c.absActive = true;
+      const w = Math.sin(sim.t * PHYS.absFreq * Math.PI * 2);
+      c.slip = 0.16 + 0.06 * w;
+      decel = gPeak * PHYS.absEfficiency * (1 + 0.035 * w);
+      c.vw = c.v * (1 - c.slip);
+      c.lockT = 0;
+    } else {
+      /* Lock-up takes ~150 ms — decel settles from peak µ to kinetic µ */
+      c.lockT = Math.min(1, c.lockT + dt / 0.15);
+      const b = c.lockT;
+      c.locked = b > 0.55;
+      decel = gPeak * (1 - b) + gLock * b;
+      c.slip = Math.min(1, b * 1.15);
+      c.vw = c.v * Math.max(0, 1 - c.slip);
+    }
+
+    c.v = Math.max(0, c.v - decel * dt);
+    if (c.v < 0.05) c.v = 0;
+    c.x_m += c.v * dt;
+    c.decel = decel;
+
+    if (c.x_m > ROAD_END_M - 2) { c.x_m = ROAD_END_M - 2; c.v = 0; c.outOfRoad = true; }
+  }
+
+  /* Wheel rotation for visuals (slowed for legibility, follows wheel speed) */
+  c.wheelAngle += (c.vw / PHYS.tyreRadius) * WHEEL_VIS * dt;
+
+  /* Brake heat → glowing discs */
+  c.heat = Math.max(0, Math.min(1, c.heat * (1 - 0.22 * dt) + decel * c.v * 0.0019 * dt));
+
+  /* ── Lateral dynamics (swerve test) ── */
+  if (plan) {
+    if (c.phase === 0 && c.x_m >= plan.xT) c.phase = 1;
+    if (c.phase === 1 && c.x_m > plan.D + CAR_LEN_M + 1.2) c.phase = 2;
+
+    if (c.phase >= 1 && c.v > 0.05) {
+      const out = Math.sign(c.lat0);
+      const tgt = (c.phase === 1) ? c.lat0 + out * plan.offset : c.lat0;
+      const wn = 2.6;
+      let a = wn * wn * (tgt - c.lat_m) - 2 * wn * c.vLat;
+      let aMax = c.hasAbs ? plan.aLat : 0.30;              /* locked ≈ no steering */
+      if (c.phase === 2 && c.hasAbs) aMax = Math.min(aMax, plan.aLat * 0.8);
+      a = Math.max(-aMax, Math.min(aMax, a));
+      c.vLat += a * dt;
+      if (!c.hasAbs) c.vLat = Math.max(-0.16, Math.min(0.16, c.vLat));
+      c.lat_m += c.vLat * dt;
+      c.latAccel = a;
+    } else {
+      c.vLat *= Math.exp(-4 * dt);
+      c.latAccel = 0;
+    }
+  }
+}
+
+/* Visual steering angle — follows the lateral controller */
+function steerTargetFor(c, plan) {
+  if (!plan || c.phase < 1 || c.v < 0.05) return 0;
+  const out = Math.sign(c.lat0);
+  const tgt = (c.phase === 1) ? c.lat0 + out * plan.offset : c.lat0;
+  return Math.max(-0.52, Math.min(0.52, (tgt - c.lat_m) * 0.42 - c.vLat * 0.55));
+}
+
+/* ── Swerve plan — all worked out analytically once per run ──
+   Wall sits at 0.88 × the locked car's stopping distance (so the locked car
+   still reaches it), the ABS car yields braking just enough to keep lateral
+   authority for the offset it needs. */
+function computePlan(v0, surf) {
+  const gPeak = surf.mu * PHYS.g, gLock = surf.muLock * PHYS.g;
+  const dA = (v0 * v0) / (2 * PHYS.absEfficiency * gPeak);
+  const dN = (v0 * v0) / (2 * gLock);
+  const D = Math.max(8, Math.min(0.88 * dN, ROAD_END_M - 14));
+  const xT = Math.max(3, Math.min(0.24 * D, D - 2));
+  const vT2 = Math.max(0.5, v0 * v0 - 2 * PHYS.absEfficiency * gPeak * xT);
+  const vT = Math.sqrt(vT2);
+  const R = D - xT;
+  let aY = Math.min(0.6 * gPeak, 0.45 * vT2 / R);
+  aY = Math.max(0.1 * gPeak, Math.min(aY, 0.6 * gPeak));
+  const aLat = Math.sqrt(Math.max(0.04, gPeak * gPeak - aY * aY));
+  const disc = vT2 - 2 * aY * R;                          /* always ≥ 0.1·vT² by construction */
+  const tEst = (vT - Math.sqrt(Math.max(0, disc))) / aY;
+  const offset = Math.max(1.3, Math.min(3.0, 0.9 * aLat * tEst * tEst / 4));
+  return { D, xT, aY, aLat, offset, dA, dN,
+           impactV: Math.sqrt(Math.max(0, v0 * v0 - 2 * gLock * D)) };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RUN CONTROL
+   ═══════════════════════════════════════════════════════════════════════ */
+function resetSim() {
+  const kmh = Math.max(20, Math.min(140, state.speedMul || 60));
+  const v0 = kmh / 3.6;
+  tele.v0kmh = kmh;
+  tele.samples.length = 0;
+  tele.acc = 0;
+
+  for (const c of [sim.noAbs, sim.abs]) {
+    c.x_m = CAR_START_M; c.lat_m = c.lat0; c.v = v0; c.vLat = 0; c.vw = v0;
+    c.locked = false; c.lockT = 0; c.absActive = false; c.slip = 0; c.wheelAngle = 0;
+    c.decel = 0; c.latAccel = 0; c.steer = 0; c.phase = 0; c.heat = 0;
+    c.slideStart_m = null; c.segLastX = null;
+    c.coneHits = 0; c.impactV = 0; c.stopped = false; c.outOfRoad = false; c.prevV = v0;
+  }
+  sim.t = 0; sim.autoReset = 0; sim.resultShown = false;
+  sim.plan = state.swerve ? computePlan(v0, SURFACES[state.surface]) : null;
+
+  if (sim.plan) layoutCones(sim.plan); else hideCones();
+  sign.visible = !!sim.plan && sim.plan.D > 26;
+  if (sign.visible) sign.position.set((sim.plan.D - 18) * SCALE, 0, ROAD_HALF_W + 0.38);
+
+  for (const k in skid) { skid[k].mesh.visible = false; skid[k].lastEndM = null; }
+  segMesh.count = 0; segCursor = 0; segTotal = 0;
+  clearMarkers();
+}
+function resetRun() { resetSim(); hideToast(); }
+function doReset() { setPedal(0); resetRun(); }
+
+function bothDone() {
+  const a = sim.noAbs.v < 0.05 || sim.noAbs.outOfRoad;
+  const b = sim.abs.v < 0.05 || sim.abs.outOfRoad;
+  return a && b && sim.t > 0.8;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PANEL CONTENT
    ═══════════════════════════════════════════════════════════════════════ */
 const TABS = {
   overview: () => `
     <div class="al-sec">
       <h4>What it does</h4>
-      <p>ABS stops a wheel locking under braking. A locked tyre slides, and a sliding tyre has less
-      grip than a rolling one — and no steering at all. ABS keeps each wheel turning at roughly
-      <b>10–25 % slip</b>, which is where grip peaks.</p>
+      <p>ABS keeps the wheels <b>turning</b> while you brake as hard as possible. A locked tyre
+      <b>slides</b>: it grips less than a rolling one — and it cannot steer at all. ABS holds each
+      wheel around <b>10–25 % slip</b>, the band where the friction curve peaks.</p>
     </div>
     <div class="al-sec">
-      <h4>The loop</h4>
+      <h4>Why it stops you sooner</h4>
+      <p>Peak (rolling) friction beats locked (sliding) friction, and the gap widens as the road
+      gets worse. At full pedal:</p>
       <ul>
-        <li><b>Sense</b> — a wheel-speed sensor reads a toothed tone ring; typical signal is a
-        square wave whose frequency is proportional to wheel speed.</li>
-        <li><b>Decide</b> — the ECU compares each wheel with the others and with vehicle speed.</li>
-        <li><b>Act</b> — the modulator's solenoid valves <b>hold</b>, <b>dump</b> then
-        <b>reapply</b> pressure, up to about 10 cycles per second.</li>
+        <li><b>Dry</b> — µ 0.90 vs 0.72 → ABS stops ~17 % shorter</li>
+        <li><b>Wet</b> — µ 0.55 vs 0.40 → ~23 % shorter</li>
+        <li><b>Ice</b> — µ 0.18 vs 0.11 → ~35 % shorter</li>
+      </ul>
+      <p>One exception: on <b>loose gravel</b> a locked wheel digs in and can stop sooner — some
+      ABS calibrations special-case it.</p>
+    </div>
+    <div class="al-sec">
+      <h4>The loop — 10–15× per second</h4>
+      <ul>
+        <li><b>Sense</b> — a tone ring and wheel-speed sensor report each wheel's rate.</li>
+        <li><b>Decide</b> — a wheel slowing faster than the car can is about to lock.</li>
+        <li><b>Act</b> — solenoid valves <b>hold</b>, <b>dump</b>, then <b>reapply</b> line pressure.</li>
+        <li><b>Repeat</b> — every cycle hands the tyre back its peak grip and its steering.</li>
       </ul>
     </div>
     <div class="al-sec">
-      <h4>EBD and ESC</h4>
-      <p><b>EBD</b> (electronic brake distribution) uses the same hardware to balance rear braking
-      before ABS ever intervenes. <b>ESC</b> adds a yaw-rate sensor and a steering-angle sensor:
-      when the car understeers or oversteers, ESC brakes one wheel and asks the engine for less
-      torque, pulling the car back onto the intended line.</p>
+      <h4>Steering, EBD &amp; ESC</h4>
+      <p><b>EBD</b> trims rear-axle pressure before ABS even engages. <b>ESC</b> adds yaw-rate and
+      steering-angle sensors: when the car under- or oversteers it brakes a single wheel and cuts
+      engine torque to pull it back on line. Enable the <b>Swerve test</b> (right panel) to watch
+      steering survive full braking with ABS — and die without it.</p>
     </div>
     <div class="al-sec">
-      <h4>Typical values</h4>
+      <h4>Try this</h4>
       <ul>
-        <li>Peak grip ≈ 0.9 µ on dry asphalt, ≈ 0.55 µ wet, ≈ 0.18 µ on ice.</li>
-        <li>Wheel-speed sensor air gap: 0.5–1.5 mm.</li>
-        <li>ABS hydraulic pressure: up to 150–200 bar.</li>
+        <li><b>Panic stop</b> at 100 km/h on wet, then on ice — compare the red and green cars.</li>
+        <li>Open <b>Telemetry</b> to see wheel speed sag to zero (lockup) vs the ABS sawtooth.</li>
+        <li>Enable <b>Swerve test</b> and watch ESC yield brake force for steering.</li>
+        <li>Keys — <b>SPACE</b> brake · <b>C</b> camera · <b>S</b> swerve · <b>P</b> pause · <b>R</b> reset.</li>
       </ul>
     </div>`,
   faults: () => `
@@ -297,7 +1069,7 @@ const TABS = {
     <div class="al-fault">
       <div class="t">Wheel-speed sensor / wiring</div>
       <div class="s">ABS and ESC lamps on, codes for one wheel, ABS disabled but normal brakes remain.</div>
-      <div class="c">Check: sensor resistance, air gap, tone-ring damage and continuity to the ECU.</div>
+      <div class="c">Check: sensor resistance, air gap (0.5–1.5 mm), tone-ring damage, continuity to the ECU.</div>
     </div>
     <div class="al-fault">
       <div class="t">Cracked or corroded tone ring</div>
@@ -306,111 +1078,181 @@ const TABS = {
     </div>
     <div class="al-fault">
       <div class="t">Stuck solenoid valve</div>
-      <div class="s">One wheel drags after ABS has been active, or pulls to one side.</div>
+      <div class="s">One wheel drags after ABS has been active, or the car pulls to one side.</div>
       <div class="c">Check: live data per wheel, modulator function test with a scan tool.</div>
     </div>
     <div class="al-fault">
       <div class="t">Low brake fluid / air in the system</div>
       <div class="s">Long pedal, ABS pump runs constantly.</div>
       <div class="c">Check: fluid level, bleed sequence (usually with a scan tool to cycle the valves).</div>
+    </div>
+    <div class="al-fault">
+      <div class="t">ABS pump motor / relay</div>
+      <div class="s">ABS lamp on, pedal feels normal, pump never primes at key-on or after an ABS stop.</div>
+      <div class="c">Check: pump fuse and relay; command the pump with a scan tool and measure current draw.</div>
+    </div>
+    <div class="al-fault">
+      <div class="t">Steering-angle sensor (ESC)</div>
+      <div class="s">ESP lamp on, ESC inactive — often right after an alignment or battery disconnect.</div>
+      <div class="c">Check: live steering-angle data centred with wheels straight; perform zero-point calibration.</div>
     </div>`,
   quiz: () => `
     <div class="al-q" data-a="1">
-      <div class="q">1. Why does ABS try to keep a small amount of slip?</div>
-      <button class="al-opt">To save fuel</button>
-      <button class="al-opt">Grip peaks at roughly 10–25 % slip; a fully locked tyre has less grip and no steering</button>
-      <button class="al-opt">To cool the brakes</button>
-      <div class="al-exp">A sliding tyre loses both longitudinal and lateral grip. Peak braking force happens a little way into slip, not at full lock.</div>
+      <div class="q">1. Why does ABS aim for 10–25 % slip instead of zero?</div>
+      <button class="al-opt">To save the brake pads</button>
+      <button class="al-opt">Braking force peaks slightly into slip — fully rolling and fully locked both grip less</button>
+      <button class="al-opt">To keep the brake fluid cool</button>
+      <div class="al-exp">The µ–slip curve rises from zero slip to a peak around 15–20 %, then falls as the tyre slides. ABS parks the wheel in that peak band instead of at either extreme.</div>
     </div>
     <div class="al-q" data-a="2">
-      <div class="q">2. What does ESC add over ABS?</div>
-      <button class="al-opt">A bigger brake booster</button>
-      <button class="al-opt">A second hydraulic circuit</button>
-      <button class="al-opt">Yaw-rate and steering-angle sensing, so it can brake one wheel and cut torque</button>
-      <div class="al-exp">ESC compares the car's actual yaw with the driver's intended direction and corrects understeer or oversteer by braking individual wheels.</div>
+      <div class="q">2. On which surface does ABS shorten the stop the most?</div>
+      <button class="al-opt">Dry asphalt</button>
+      <button class="al-opt">Wet road</button>
+      <button class="al-opt">Ice — the gap between peak and locked friction is largest</button>
+      <div class="al-exp">Dry: µ 0.90 vs 0.72 locked — about 17 % gain. Ice: µ 0.18 vs 0.11 — about 35 %. The slipperier the surface, the bigger the ABS advantage.</div>
     </div>
     <div class="al-q" data-a="0">
       <div class="q">3. A wheel-speed sensor fails. What still works?</div>
-      <button class="al-opt">Conventional braking, and usually EBD, but not full ABS</button>
-      <button class="al-opt">Nothing — the brakes stop working</button>
-      <button class="al-opt">Only the parking brake</button>
-      <div class="al-exp">The system fails safe: the ABS and ESC lamps come on, but the hydraulic circuit still gives normal, unmodulated braking.</div>
+      <button class="al-opt">Conventional braking still works; ABS and ESC switch off and the lamps come on</button>
+      <button class="al-opt">Brakes stop working entirely</button>
+      <button class="al-opt">The parking brake engages automatically</button>
+      <div class="al-exp">The system fails safe: the hydraulic circuit remains fully functional, but without modulation. Warning lamps come on and a code is stored.</div>
+    </div>
+    <div class="al-q" data-a="1">
+      <div class="q">4. Front wheels locked mid-braking. You turn the wheel — what happens?</div>
+      <button class="al-opt">The car steers, just a little slower</button>
+      <button class="al-opt">Almost nothing — a sliding tyre has essentially no lateral grip</button>
+      <button class="al-opt">The car steers better than usual</button>
+      <div class="al-exp">Steering needs a rolling contact patch. Lock both fronts and the car keeps going straight no matter where the wheels point — try the Swerve test.</div>
+    </div>
+    <div class="al-q" data-a="2">
+      <div class="q">5. The car understeers wide in a corner. What does ESC do?</div>
+      <button class="al-opt">Applies all four brakes evenly</button>
+      <button class="al-opt">Releases the brakes completely</button>
+      <button class="al-opt">Brakes the inner rear wheel to rotate the car back on line</button>
+      <div class="al-exp">ESC brakes individual wheels to create a yaw moment: understeer → inner rear; oversteer → outer front. It also cuts engine torque.</div>
+    </div>`,
+  graph: () => `
+    <div class="al-sec">
+      <h4>Telemetry — this run</h4>
+      <canvas id="tele-canvas" aria-label="Speed and wheel-speed telemetry for the current run"></canvas>
+      <div class="al-legend" style="margin-top:8px">
+        <span><i style="background:#d95248"></i>No-ABS car · km/h vs time</span>
+        <span><i style="background:#2fbd6d"></i>ABS car</span>
+        <span><i style="background:#d95248;opacity:.4"></i>wheel speed (thin)</span>
+        <span><i style="background:rgba(217,82,74,.3)"></i>shaded = locked</span>
+      </div>
+    </div>
+    <div class="al-sec">
+      <h4>How to read it</h4>
+      <p>The thin lines are <b>wheel speed</b>. On the red car the wheel trace collapses to zero —
+      lockup — while the car is still moving. On the green car the wheel trace <b>sawtooths</b> around
+      the car speed: that is the modulator dumping and reapplying pressure about
+      <b>12 times a second</b>. Where the traces travel together, the tyre is rolling.</p>
     </div>`
 };
 
 function readoutHTML() {
   return `<div class="al-read">
-    <span class="k">Vehicle speed</span><span class="v hi" id="ro-speed">—</span>
-    <span class="k">Wheel speed FL</span><span class="v" id="ro-fl">—</span>
-    <span class="k">Wheel speed FR</span><span class="v" id="ro-fr">—</span>
-    <span class="k">Slip</span><span class="v" id="ro-slip">—</span>
-    <span class="k">Brake pressure</span><span class="v" id="ro-press">—</span>
-    <span class="k">ABS state</span><span class="v" id="ro-abs">—</span>
-    <span class="k">Yaw rate</span><span class="v" id="ro-yaw">—</span>
-    <span class="k">ESC</span><span class="v" id="ro-esc">—</span>
+    <span class="k">Brake pedal</span><span class="v" id="ro-brake">0 %</span>
+    <span class="k">Surface µ peak / lock</span><span class="v" id="ro-mu">—</span>
+    <span class="k">No-ABS speed</span><span class="v" id="ro-ns">—</span>
+    <span class="k">No-ABS wheels</span><span class="v" id="ro-nw">—</span>
+    <span class="k">No-ABS distance</span><span class="v" id="ro-nd">0.0 m</span>
+    <span class="k">ABS speed</span><span class="v" id="ro-as">—</span>
+    <span class="k">ABS wheels</span><span class="v" id="ro-aw">—</span>
+    <span class="k">ABS distance</span><span class="v" id="ro-ad">0.0 m</span>
+    <span class="k" id="ro-advk">ABS advantage</span><span class="v" id="ro-adv">—</span>
   </div>`;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   UI CONSTRUCTION
+   ═══════════════════════════════════════════════════════════════════════ */
+const CAM_ICONS = {
+  track:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></svg>',
+  orbit:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M21 3v6h-6"/></svg>',
+  follow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/></svg>'
+};
+const SND_ON  = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3z"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>';
+const SND_OFF = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3z"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 9.5l5 5M21 9.5l-5 5"/></svg>';
 
 const ui = Base.UI.create({
   moduleId: CFG.moduleId,
   panel: {
-    kicker: 'Chassis',
+    kicker: 'Chassis · Safety',
     title:  'ABS & ESC',
     tabs: [
       { id: 'overview', label: 'Overview' },
       { id: 'faults',   label: 'Faults' },
+      { id: 'graph',    label: 'Telemetry' },
       { id: 'quiz',     label: 'Self-check' }
     ],
     onTab: renderTab,
-    badge: { text: 'ABS ready', color: CFG.accent },
+    badge: { text: 'Panic-brake lab', color: CFG.accent },
     readout: readoutHTML()
   },
   chip: {
-    label: 'Vehicle',
+    label: 'Speed',
     value: '—',
     unit: ' km/h',
     bar: true,
     rows: [
-      { id: 'slip', label: 'Slip', value: '—' },
-      { id: 'abs',  label: 'ABS',  value: '—' }
+      { id: 'n', label: 'No-ABS' },
+      { id: 'a', label: 'With ABS' }
     ],
     status: { text: 'Monitoring' }
   },
   toolbar: {
     play: true,
     reset: true,
-    speed: { label: 'Speed', min: 0, max: 140, step: 1, value: 60 },
+    speed: { label: 'Initial speed', min: 20, max: 140, step: 5, value: 60 },
     labels: true,
     extras: [
-      { id: 'btn-wss', label: 'WSS FAULT', title: 'Toggle front-left wheel-speed sensor fault', onClick: toggleWss }
+      { id: 'btn-cam', title: 'Camera: Track (C)', icon: CAM_ICONS.track, onClick: () => cycleCam() },
+      { id: 'btn-snd', title: 'Sound on', icon: SND_ON, onClick: () => toggleSound() }
     ]
   },
   widgets: {
     bl: {
       html: `<div class="al-w">
-        <label for="brake-range">Brake pedal <b id="brake-out">40%</b></label>
+        <label for="brake-range">Brake pedal <b id="brake-out">0%</b></label>
         <input id="brake-range" class="al-range" type="range" min="0" max="100" step="1"
-               value="40" aria-label="Brake pedal percentage">
+               value="0" aria-label="Brake pedal percentage">
+        <button id="panic-btn" class="al-panic" type="button">Panic stop — 100 %</button>
       </div>`,
-      caption: 'Driver input',
-      onMount: mountBrakeWidget
+      caption: 'Hold SPACE to brake',
+      onMount: (el) => {
+        const inp = el.querySelector('#brake-range');
+        const panic = el.querySelector('#panic-btn');
+        if (inp) {
+          inp.value = state.brake;
+          inp.addEventListener('input', () => setPedal(Number(inp.value)));
+        }
+        if (panic) panic.addEventListener('click', () => setPedal(100));
+      }
     },
     br: {
       html: `<div class="al-w">
         <label for="surf-sel">Surface</label>
         <select id="surf-sel" class="al-sel" aria-label="Road surface">
-          <option value="dry">Dry asphalt · µ ≈ 0.90</option>
-          <option value="wet">Wet road · µ ≈ 0.55</option>
-          <option value="ice">Ice / snow · µ ≈ 0.18</option>
+          <option value="dry">Dry asphalt · µ 0.90 / 0.72</option>
+          <option value="wet" selected>Wet road · µ 0.55 / 0.40</option>
+          <option value="ice">Ice / snow · µ 0.18 / 0.11</option>
         </select>
+        <label class="al-check"><input type="checkbox" id="swerve-chk"> Swerve test (obstacle)</label>
       </div>`,
-      caption: 'Friction',
-      onMount: mountSurfaceWidget
+      caption: 'S key toggles swerve',
+      onMount: (el) => {
+        const sel = el.querySelector('#surf-sel');
+        const chk = el.querySelector('#swerve-chk');
+        if (sel) sel.addEventListener('change', () => setSurface(sel.value));
+        if (chk) chk.addEventListener('change', () => setSwerve(chk.checked));
+      }
     }
   }
 });
-
-ui.toolbar.setRpmLabel('km/h');
+ui.toolbar.setRpmLabel('60 km/h');
 
 const tabHost = document.createElement('div');
 tabHost.id = 'al-tabs';
@@ -431,268 +1273,517 @@ tabHost.addEventListener('click', (e) => {
   });
 });
 
-function renderTab(id) {
-  tabHost.innerHTML = (TABS[id] || TABS.overview)();
-}
+function renderTab(id) { tabHost.innerHTML = (TABS[id] || TABS.overview)(); }
 renderTab('overview');
 
-function mountBrakeWidget(el) {
-  const inp = el.querySelector('#brake-range');
-  const out = el.querySelector('#brake-out');
-  if (!inp || !out) return;
-  inp.value = state.brake;
-  out.textContent = state.brake + '%';
-  inp.addEventListener('input', () => {
-    state.brake = Number(inp.value);
-    out.textContent = state.brake + '%';
-    updateReadouts();
-  });
-}
-
-function mountSurfaceWidget(el) {
-  const sel = el.querySelector('#surf-sel');
-  if (!sel) return;
-  sel.value = state.surface;
-  sel.addEventListener('change', () => {
-    state.surface = sel.value;
-    updateReadouts();
-  });
-}
-
-function toggleWss() {
-  state.wssFault = !state.wssFault;
-  const b = document.getElementById('btn-wss');
-  if (b) b.classList.toggle('active', state.wssFault);
-
-  const fl = WHEELS.find(w => w.id === 'fl');
-  if (fl) fl.sensorMat.color.setHex(state.wssFault ? 0xef4444 : 0x94a3b8);
-
-  applyBadge();
+/* ═══════════════════════════════════════════════════════════════════════
+   INPUT HANDLERS
+   ═══════════════════════════════════════════════════════════════════════ */
+function setPedal(v) {
+  state.brake = Math.max(0, Math.min(100, Math.round(v)));
+  const r = document.getElementById('brake-range');
+  const o = document.getElementById('brake-out');
+  if (r) r.value = state.brake;
+  if (o) o.textContent = state.brake + '%';
+  sim.autoReset = 0;
+  /* If the run had finished, a new pedal input restarts it immediately */
+  if (bothDone() && state.brake > 4) resetRun();
   updateReadouts();
 }
 
-function applyBadge() {
-  const dead = state.wssFault;
-  const col  = dead ? '#ef4444' : CFG.accent;
-  const badge = document.getElementById('stroke-badge');
-  const text  = document.getElementById('badge-text');
-  if (badge) {
-    badge.style.background = `color-mix(in oklch, ${col} 18%, transparent)`;
-    badge.style.color = col;
+function setSurface(key) {
+  state.surface = key;
+  const s = SURFACES[key];
+  roadMat.color.setHex(s.road);
+  roadMat.roughness = s.rough;
+  roadMat.metalness = s.metal;
+  dashMat.color.setHex(s.line);
+  resetRun();
+}
+
+function setSwerve(on) {
+  state.swerve = !!on;
+  const chk = document.getElementById('swerve-chk');
+  if (chk) chk.checked = state.swerve;
+  if (state.swerve) setPedal(100);   /* the swerve test is a panic stop + steer */
+  resetRun();
+}
+
+let pedalBefore = 0;
+function spaceBrake(down) {
+  if (down) {
+    pedalBefore = state.brake;
+    if (bothDone()) resetRun();
+    setPedal(100);
+  } else {
+    setPedal(pedalBefore);
   }
-  if (text) text.textContent = dead ? 'ABS disabled · EBD active' : 'ABS ready';
 }
-applyBadge();
 
-/* ═══════════════════════════════════════════════════════════════════════
-   SIMULATION
-   ═══════════════════════════════════════════════════════════════════════ */
-function simulate() {
-  const v      = state.speedMul;                     // km/h
-  const mu     = SURFACES[state.surface].mu;
-  const demand = (state.brake / 100) * 9.0;          // m/s² requested
-  const grip   = mu * 9.81;                          // m/s² available
+window.addEventListener('keydown', (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const tag = e.target && e.target.closest &&
+    e.target.closest('input, textarea, select, [contenteditable], button, a');
+  if (e.code === 'Space' && !tag) {
+    e.preventDefault();
+    if (!e.repeat) spaceBrake(true);
+  } else if ((e.key === 'c' || e.key === 'C') && !tag) {
+    cycleCam();
+  } else if ((e.key === 's' || e.key === 'S') && !tag) {
+    setSwerve(!state.swerve);
+  }
+});
+window.addEventListener('keyup', (e) => { if (e.code === 'Space') spaceBrake(false); });
+window.addEventListener('blur', () => spaceBrake(false));
 
-  const wantsLock = demand > grip;
-  const absActive = wantsLock && v > 8 && !state.wssFault;
-  const decel     = absActive ? grip * 0.95 : Math.min(demand, grip);
-
-  let slip = 0;
-  if (absActive)      slip = 0.18;
-  else if (wantsLock) slip = 1.0;
-  else                slip = (demand / Math.max(grip, 0.001)) * 0.08;
-
-  const wSpeed = v * (1 - slip);
-
-  /* ESC: without ABS the car is unstable at high slip; ESC intervenes */
-  const escActive = !absActive && wantsLock && v > 25;
-
-  return { v, mu, demand, grip, absActive, escActive, slip, wSpeed, decel };
-}
+/* Toolbar: show live km/h on the speed slider + restart on change */
+let spdDebounce = 0;
+const spdInput = ui.toolbar.speedInput;
+if (spdInput) spdInput.addEventListener('input', () => {
+  ui.toolbar.setRpmLabel(spdInput.value + ' km/h');
+  clearTimeout(spdDebounce);
+  spdDebounce = setTimeout(() => resetRun(), 350);
+});
 
 /* ═══════════════════════════════════════════════════════════════════════
    READOUTS
    ═══════════════════════════════════════════════════════════════════════ */
-const ro = {
-  speed: document.getElementById('ro-speed'),
-  fl:    document.getElementById('ro-fl'),
-  fr:    document.getElementById('ro-fr'),
-  slip:  document.getElementById('ro-slip'),
-  press: document.getElementById('ro-press'),
-  abs:   document.getElementById('ro-abs'),
-  yaw:   document.getElementById('ro-yaw'),
-  esc:   document.getElementById('ro-esc')
-};
+const ro = {};
+['brake','mu','ns','nw','nd','as','aw','ad','adv','advk']
+  .forEach(k => ro[k] = document.getElementById('ro-' + k));
+
+function set(el, v) { if (el) el.textContent = v; }
+function cls(el, c) { if (el) el.className = 'v' + (c ? ' ' + c : ''); }
+
+function wheelState(c) {
+  if (c.v < 0.05) return { t: 'Stopped', cls: 'ok' };
+  if (c.locked)   return { t: 'LOCKED · ' + Math.round(c.slip * 100) + '% slip', cls: 'crit' };
+  if (c.absActive)return { t: 'ABS · ' + Math.round(c.slip * 100) + '% slip', cls: 'warn' };
+  if (state.brake > 4) return { t: 'Rolling · ' + Math.round(c.slip * 100) + '% slip', cls: '' };
+  return { t: 'Rolling', cls: '' };
+}
 
 function updateReadouts() {
-  const s = simulate();
-  const flSpeed = state.wssFault ? 0 : s.wSpeed;
+  const n = sim.noAbs, a = sim.abs;
+  set(ro.brake, state.brake + ' %');
+  set(ro.mu, SURFACES[state.surface].mu.toFixed(2) + ' / ' + SURFACES[state.surface].muLock.toFixed(2));
 
-  if (ro.speed) ro.speed.textContent = Math.round(s.v) + ' km/h';
-  if (ro.fl) {
-    ro.fl.textContent = state.wssFault ? 'no signal' : Math.round(flSpeed) + ' km/h';
-    ro.fl.className = 'v ' + (state.wssFault ? 'crit' : '');
-  }
-  if (ro.fr) ro.fr.textContent = Math.round(s.wSpeed) + ' km/h';
+  set(ro.ns, Math.round(n.v * 3.6) + ' km/h');
+  cls(ro.ns, n.locked ? 'crit' : '');
+  const nw = wheelState(n); set(ro.nw, nw.t); cls(ro.nw, nw.cls);
+  set(ro.nd, (n.outOfRoad ? '> ' : '') + n.x_m.toFixed(1) + ' m');
 
-  if (ro.slip) {
-    ro.slip.textContent = Math.round(s.slip * 100) + ' %';
-    ro.slip.className = 'v ' + (s.slip > 0.5 ? 'crit' : s.slip > 0.15 ? 'warn' : 'ok');
-  }
-  if (ro.press) ro.press.textContent = Math.round(state.brake * 1.8) + ' bar';
+  set(ro.as, Math.round(a.v * 3.6) + ' km/h');
+  const aw = wheelState(a); set(ro.aw, aw.t); cls(ro.aw, aw.cls);
+  set(ro.ad, (a.outOfRoad ? '> ' : '') + a.x_m.toFixed(1) + ' m');
 
-  if (ro.abs) {
-    if (state.wssFault)   { ro.abs.textContent = 'Disabled'; ro.abs.className = 'v crit'; }
-    else if (s.absActive) { ro.abs.textContent = 'Regulating'; ro.abs.className = 'v warn'; }
-    else                  { ro.abs.textContent = 'Idle'; ro.abs.className = 'v ok'; }
-  }
-
-  if (ro.yaw) {
-    const yaw = s.escActive ? (1.6 + Math.sin(performance.now() * 0.002) * 0.6) : 0.1;
-    ro.yaw.textContent = yaw.toFixed(1) + ' °/s';
-    ro.yaw.className = 'v ' + (s.escActive ? 'warn' : '');
-  }
-
-  if (ro.esc) {
-    ro.esc.textContent = s.escActive ? 'Intervening' : 'Standby';
-    ro.esc.className = 'v ' + (s.escActive ? 'warn' : '');
+  if (sim.plan) {
+    set(ro.advk, 'Obstacle result');
+    if (a.outOfRoad || n.outOfRoad) { set(ro.adv, 'Out of road'); cls(ro.adv, 'crit'); }
+    else if (a.coneHits === 0 && n.coneHits > 0) {
+      set(ro.adv, 'ABS avoided · hit at ' + Math.max(1, Math.round(n.impactV * 3.6)) + ' km/h');
+      cls(ro.adv, 'ok');
+    } else if (a.coneHits > 0) {
+      set(ro.adv, 'ABS clipped ' + a.coneHits + ' cone(s)'); cls(ro.adv, 'crit');
+    } else { set(ro.adv, '—'); cls(ro.adv, ''); }
+  } else {
+    set(ro.advk, 'ABS advantage');
+    const d = n.x_m - a.x_m;
+    if (d > 0.5) { set(ro.adv, '−' + d.toFixed(1) + ' m · ' + Math.round(d / Math.max(1, n.x_m) * 100) + '%'); cls(ro.adv, 'ok'); }
+    else { set(ro.adv, '—'); cls(ro.adv, ''); }
   }
 
-  ui.chip.setBig(Math.round(s.v), ' km/h');
-  ui.chip.set('slip', Math.round(s.slip * 100) + ' %');
-  ui.chip.set('abs', state.wssFault ? 'OFF' : s.absActive ? 'ACTIVE' : 'IDLE');
-  ui.chip.setBar((state.brake / 100) * 100, s.absActive ? 'var(--warn)' : 'var(--al-accent)');
-  ui.chip.setStatus(
-    state.wssFault ? 'Sensor fault' : s.absActive ? 'ABS active' : 'Monitoring',
-    !state.wssFault
-  );
+  ui.chip.setBig(Math.round(a.v * 3.6), ' km/h');
+  ui.chip.set('n', n.x_m.toFixed(1) + ' m');
+  ui.chip.set('a', a.x_m.toFixed(1) + ' m');
+  ui.chip.setBar(state.brake, n.locked ? 'var(--crit)' : 'var(--al-accent)');
+
+  let st = 'Monitoring', ok = true;
+  if (bothDone()) { st = sim.plan ? 'Swerve test complete' : 'Run complete'; }
+  else if (sim.plan && a.phase === 1) { st = 'ESC — steering priority'; }
+  else if (n.locked && a.absActive) { st = 'Lockup vs ABS'; ok = false; }
+  else if (n.locked) { st = 'Wheels locked — sliding'; ok = false; }
+  else if (a.absActive) { st = 'ABS regulating'; }
+  else if (state.brake > 4) { st = 'Braking'; }
+  else if (n.outOfRoad || a.outOfRoad) { st = 'Off the chart'; ok = false; }
+  ui.chip.setStatus(st, ok);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   MESSAGING
+   RESULTS TOAST
+   ═══════════════════════════════════════════════════════════════════════ */
+const toast = document.createElement('div');
+toast.className = 'al-toast';
+document.body.appendChild(toast);
+let toastTimer = 0;
+function showToast(html) {
+  toast.innerHTML = html;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 5200);
+}
+function hideToast() { toast.classList.remove('show'); clearTimeout(toastTimer); }
+
+function showResults() {
+  sim.resultShown = true;
+  const n = sim.noAbs, a = sim.abs;
+  if (sim.plan) {
+    if (n.outOfRoad || a.outOfRoad) {
+      showToast('<b class="n">Out of road</b> — too fast for this surface; try a lower speed');
+    } else if (a.coneHits > 0) {
+      showToast(`<b class="n">No-ABS plowed through at ${Math.max(1, Math.round(n.impactV * 3.6))} km/h</b> · <b class="a">ABS clipped the obstacle</b> — steering budget was marginal at this speed`);
+    } else if (n.coneHits > 0) {
+      showToast(`<b class="n">No-ABS plowed through at ${Math.max(1, Math.round(n.impactV * 3.6))} km/h</b> · <b class="a">ABS steered around it</b> and stopped in ${a.x_m.toFixed(1)} m`);
+    } else {
+      showToast(`Both cars stopped short of the obstacle — <b class="a">ABS</b> at ${a.x_m.toFixed(1)} m, <b class="n">no-ABS</b> at ${n.x_m.toFixed(1)} m`);
+    }
+  } else {
+    if (n.outOfRoad || a.outOfRoad) {
+      showToast(`Neither car stopped within ${ROAD_END_M} m — lower the speed or pick a grippier surface`);
+    } else {
+      const d = n.x_m - a.x_m;
+      if (d > 0.5) {
+        const pct = Math.round(d / Math.max(1, n.x_m) * 100);
+        showToast(`<b class="n">No-ABS ${n.x_m.toFixed(1)} m</b> · <b class="a">ABS ${a.x_m.toFixed(1)} m</b> — <b class="a">${d.toFixed(1)} m (${pct}%) shorter</b>`);
+      } else {
+        showToast(`Both stopped within ${Math.abs(d).toFixed(1)} m — this pedal/surface pair never pushed the tyres past their peak`);
+      }
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   BRIDGE TO SHELL
    ═══════════════════════════════════════════════════════════════════════ */
 const bridge = ui.wireBridge({
   viewManager,
   state,
   onCommand: (d) => {
-    if (d.action === 'reset') {
-      state.speedMul = 60;
-      state.brake    = 40;
-      state.surface  = 'dry';
-      state.wssFault = false;
-
-      const sp = document.getElementById('speed');
-      if (sp) sp.value = 60;
-      const br = document.getElementById('brake-range');
-      const bo = document.getElementById('brake-out');
-      if (br) br.value = 40;
-      if (bo) bo.textContent = '40%';
-      const ss = document.getElementById('surf-sel');
-      if (ss) ss.value = 'dry';
-      const b = document.getElementById('btn-wss');
-      if (b) b.classList.remove('active');
-
-      const fl = WHEELS.find(w => w.id === 'fl');
-      if (fl) fl.sensorMat.color.setHex(0x94a3b8);
-
-      applyBadge();
-      updateReadouts();
+    if (d.action === 'reset') doReset();
+    if (d.action === 'setSpeed') {
+      ui.toolbar.setRpmLabel(Math.round(state.speedMul) + ' km/h');
+      resetRun();
     }
   }
 });
 bridge.ready();
-bridge.setStatus('Brakes online', '#f43f5e');
+bridge.setStatus('ABS & ESC module ready', CFG.accent);
 
 /* ═══════════════════════════════════════════════════════════════════════
-   ANIMATION
+   CAMERA MODES — Track (side-on) / Orbit (free) / Follow (chase the ABS car)
    ═══════════════════════════════════════════════════════════════════════ */
-let t = 0;
-let last = performance.now();
-let raf = 0;
-let roClock = 0;
+let camMode = 0;                                  // 0 track · 1 orbit · 2 follow
+const CAM_NAMES = ['Track', 'Orbit', 'Follow'];
+const camBtn = document.getElementById('btn-cam');
+const sndBtn = document.getElementById('btn-snd');
+if (sndBtn) sndBtn.classList.add('active');
 
-const tmp = new THREE.Vector3();
-const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function setCamMode(i) {
+  camMode = ((i % 3) + 3) % 3;
+  controls.enabled = (camMode === 1);
+  if (camMode === 1) {
+    const lead = Math.max(sim.noAbs.x_m, sim.abs.x_m) * SCALE;
+    controls.target.set(lead + 1, 0.7, 0);
+    controls.update();
+  }
+  if (camBtn) {
+    camBtn.title = 'Camera: ' + CAM_NAMES[camMode] + ' (C)';
+    camBtn.setAttribute('aria-label', camBtn.title);
+    camBtn.innerHTML = CAM_ICONS[['track', 'orbit', 'follow'][camMode]];
+  }
+}
+function cycleCam() { setCamMode(camMode + 1); }
 
-function frame(now) {
-  raf = requestAnimationFrame(frame);
-  const dt = Math.min(0.05, (now - last) / 1000);
-  last = now;
+function toggleSound() {
+  state.soundOn = !state.soundOn;
+  AudioFX.setOn(state.soundOn);
+  if (sndBtn) {
+    sndBtn.classList.toggle('active', state.soundOn);
+    sndBtn.title = state.soundOn ? 'Sound on' : 'Sound off';
+    sndBtn.innerHTML = state.soundOn ? SND_ON : SND_OFF;
+  }
+}
 
-  const s = simulate();
-  const running = state.playing;
-  const spin = running ? (s.wSpeed / 3.6) / 0.56 * dt : 0;   // rad/s → disc rotation
+const camTmp = new THREE.Vector3(), lookTmp = new THREE.Vector3();
+function updateCamera(dt) {
+  const k = 1 - Math.exp(-(REDUCED ? 30 : 3.2) * dt);
+  if (camMode === 0) {
+    const lead = Math.max(sim.noAbs.x_m, sim.abs.x_m) * SCALE;
+    camTmp.set(lead + 0.6, 1.45, 4.4);
+    camera.position.lerp(camTmp, k);
+    lookTmp.set(lead + 1.6, 0.32, 0);
+    camera.lookAt(lookTmp);
+  } else if (camMode === 2) {
+    const px = sim.abs.x_m * SCALE, pz = sim.abs.lat_m * SCALE;
+    camTmp.set(px - 3.4, 1.25, pz + 2.2);
+    camera.position.lerp(camTmp, k);
+    lookTmp.set(px + 1.9, 0.35, pz * 0.9);
+    camera.lookAt(lookTmp);
+  }
+  /* Shadows track the action */
+  if (keyLight) {
+    const lx = Math.max(sim.noAbs.x_m, sim.abs.x_m) * SCALE;
+    keyLight.position.set(lx + 8, 14, 9);
+    keyLight.target.position.set(lx + 2, 0, 0);
+  }
+}
 
-  /* --- discs and tone rings rotate with wheel speed --- */
-  WHEELS.forEach((w, i) => {
-    const isFl = w.id === 'fl';
-    const localSpin = (isFl && state.wssFault) ? 0 : spin;
-    w.disc.rotation.y -= localSpin;
-    w.tone.rotation.y -= localSpin;
+/* ═══════════════════════════════════════════════════════════════════════
+   PER-FRAME VISUAL UPDATES
+   ═══════════════════════════════════════════════════════════════════════ */
+function updateCarVisual(c, carObj, dt) {
+  const g = carObj.group;
+  g.position.x = c.x_m * SCALE;
+  g.position.z = c.lat_m * SCALE;
+  g.rotation.y = -Math.atan2(c.vLat, Math.max(3, c.v)) - c.steer * 0.10;
 
-    /* ABS valve glow + fluid pulsing while regulating */
-    const rec = lines[i];
-    if (s.absActive) {
-      const phase = ((t * CFG.cycleHz + i * 0.15) % 1);
-      rec.hot = Math.sin(phase * Math.PI * 2) > 0 ? 1 : 0;
-      rec.valve.material = rec.hot ? valveHot : valveMat;
-    } else {
-      rec.valve.material = valveMat;
-    }
+  const st = steerTargetFor(c, sim.plan);
+  c.steer += (st - c.steer) * Math.min(1, dt * 9);
+
+  carObj.wheels.forEach(w => {
+    w.spin.rotation.z = -c.wheelAngle;
+    if (w.front) w.group.rotation.y = -c.steer;
+    w.discMat.emissive.setRGB(c.heat * 0.85, c.heat * 0.22, c.heat * 0.05);
+    if (c.locked && c.v > 0.5) w.tyreMat.emissive.setHex(0x2a0a06);
+    else w.tyreMat.emissive.setHex(0x000000);
   });
 
-  if (running) t += dt * 1.0;
+  const tCol = state.brake > 4 ? COLORS.taillightOn : COLORS.taillightOff;
+  carObj.tailMats.forEach(m => m.color.setHex(tCol));
 
-  /* --- brake fluid particles --- */
-  for (let i = 0; i < lines.length; i++) {
-    const L = lines[i];
-    const n = L.parts.length;
-    const flow = s.absActive ? 0.9 : (state.brake / 100) * 0.35;
-    for (let k = 0; k < n; k++) {
-      const p = L.parts[k];
-      let u = (t * flow + k / n) % 1;
-      if (u < 0) u += 1;
-      p.position.lerpVectors(L.a, L.b, u);
-      p.scale.setScalar(0.45 + 0.7 * Math.sin(Math.PI * u));
-      p.visible = s.absActive || state.brake > 4;
+  /* Weight transfer: nose dip under braking, lean away from the turn */
+  const pitchT = -Math.min(0.075, c.decel * 0.009);
+  const rollT  = -c.latAccel * 0.006;
+  const t = carObj.tilt;
+  t.rotation.z += (pitchT - t.rotation.z) * Math.min(1, dt * 8);
+  t.rotation.x += (rollT - t.rotation.x) * Math.min(1, dt * 8);
+}
+
+function updateSkids() {
+  const n = sim.noAbs, a = sim.abs;
+  if (n.locked && n.slideStart_m == null) n.slideStart_m = n.x_m;
+  [['noAbs_L', -1], ['noAbs_R', 1]].forEach(([key, s]) => {
+    const strip = skid[key];
+    if (n.slideStart_m != null) {
+      const endM = n.locked ? n.x_m : Math.max(n.x_m, strip.lastEndM ?? n.x_m);
+      placeStrip(strip, n.slideStart_m, endM, n.lat_m, s);
+      strip.lastEndM = endM;
+    } else strip.mesh.visible = false;
+  });
+  if (a.absActive) {
+    if (a.segLastX == null) a.segLastX = a.x_m;
+    else if (a.x_m - a.segLastX >= SEG_LEN_M) {
+      emitAbsSegments(a.segLastX, a.x_m, a.lat_m);
+      a.segLastX = a.x_m;
     }
-  }
+  } else a.segLastX = null;
+}
 
-  /* --- labels --- */
+let smokeClock = 0;
+function updateSmokeFX(dt, surf) {
+  smokeClock += dt;
+  const n = sim.noAbs;
+  if (!REDUCED && state.playing && n.locked && n.v > 1.0 && smokeClock > 0.03) {
+    smokeClock = 0;
+    const rx = n.x_m * SCALE - CAR.wheelBase / 2;
+    const z = n.lat_m * SCALE;
+    emitSmoke(rx, 0.10, z - CAR.width / 2 + 0.03, surf.smoke);
+    emitSmoke(rx, 0.10, z + CAR.width / 2 - 0.03, surf.smoke);
+  }
+  updateSmoke(dt);
+}
+
+const tmp = new THREE.Vector3();
+function updateLabels() {
   labels.hideAll();
-  if (state.showLabels) {
-    labels.project('mod',  tmp.set(0, 1.30, 0), camera, wrap);
-    labels.project('pump', tmp.set(0.82, 1.05, 0), camera, wrap);
-    for (const w of WHEELS) {
-      labels.project('w-' + w.id, tmp.set(w.x, 1.55, w.z), camera, wrap);
-    }
-    labels.project('tone', tmp.set(-2.45, 1.05, -1.55), camera, wrap);
+  if (!state.showLabels) return;
+  const n = sim.noAbs, a = sim.abs;
+  labels.project('noAbs', tmp.set(n.x_m * SCALE, 0.92, n.lat_m * SCALE), camera, wrap);
+  labels.project('abs',   tmp.set(a.x_m * SCALE, 0.92, a.lat_m * SCALE), camera, wrap);
+  labels.project('start', tmp.set(0, 0.35, 0), camera, wrap);
+  labels.project('fin',   tmp.set(40 * SCALE, 0.35, -ROAD_HALF_W + 0.5), camera, wrap);
+  if (sim.plan) {
+    if (Math.abs(sim.plan.D - Math.max(n.x_m, a.x_m)) < 38)
+      labels.project('obs', tmp.set(sim.plan.D * SCALE, 1.05, 0), camera, wrap);
+    if (n.phase >= 1 && n.locked && n.v > 0.5)
+      labels.project('noSteer', tmp.set(n.x_m * SCALE, 0.30, n.lat_m * SCALE - 0.95), camera, wrap);
+    if (a.phase === 1)
+      labels.project('esc', tmp.set(a.x_m * SCALE, 0.30, a.lat_m * SCALE + 0.95), camera, wrap);
+  }
+  if (n.locked && n.v > 0.5 && !sim.plan)
+    labels.project('lockN', tmp.set(n.x_m * SCALE, 0.30, n.lat_m * SCALE - 0.95), camera, wrap);
+  if (a.absActive && a.v > 0.5)
+    labels.project('lockA', tmp.set(a.x_m * SCALE, 0.30, a.lat_m * SCALE + 0.95), camera, wrap);
+}
+
+function updateAudio() {
+  const n = sim.noAbs;
+  const squeal = (n.locked && n.v > 1 && state.playing) ? Math.min(0.13, 0.02 + n.v * 0.006) : 0;
+  AudioFX.squeal(squeal, 520 + n.v * 9);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   TELEMETRY CHART
+   ═══════════════════════════════════════════════════════════════════════ */
+function sampleTele(dt) {
+  tele.acc += dt;
+  if (tele.acc < 1 / 30) return;
+  tele.acc = 0;
+  const s = tele.samples;
+  s.push(sim.t, sim.noAbs.v, sim.abs.v, sim.noAbs.vw, sim.abs.vw, sim.noAbs.locked ? 1 : 0);
+  if (s.length > 6 * 2400) s.splice(0, s.length - 6 * 2400);
+}
+
+function drawChart() {
+  const cv = document.getElementById('tele-canvas');
+  if (!cv || !cv.isConnected) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = cv.clientWidth, H = cv.clientHeight || 150;
+  if (W < 20) return;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) {
+    cv.width = Math.round(W * dpr);
+    cv.height = Math.round(H * dpr);
+  }
+  const g = cv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, W, H);
+
+  const padL = 30, padR = 6, padT = 8, padB = 16;
+  const iw = W - padL - padR, ih = H - padT - padB;
+  const s = tele.samples, n = (s.length / 6) | 0;
+  const maxT = Math.max(2, n ? s[(n - 1) * 6] : 0);
+  const maxV = Math.max(40, Math.ceil((tele.v0kmh * 1.06) / 20) * 20);
+  const X = t => padL + (t / maxT) * iw;
+  const Y = v => padT + (1 - v / maxV) * ih;
+
+  g.font = '9px ui-monospace, Menlo, monospace';
+  g.lineWidth = 1;
+  g.strokeStyle = 'rgba(128,138,152,0.16)';
+  g.fillStyle = 'rgba(128,138,152,0.75)';
+  for (let i = 0; i <= 4; i++) {
+    const y = Math.round(padT + (ih * i) / 4) + 0.5;
+    g.beginPath(); g.moveTo(padL, y); g.lineTo(W - padR, y); g.stroke();
+    g.fillText(String(Math.round(maxV * (1 - i / 4))), 3, y + 3);
+  }
+  for (let t = 0; t <= maxT; t++) {
+    const x = Math.round(X(t)) + 0.5;
+    g.beginPath(); g.moveTo(x, padT); g.lineTo(x, padT + ih); g.stroke();
+    if (t % 2 === 0 && t > 0 && X(t) < W - 16) g.fillText(t + 's', x - 7, H - 4);
   }
 
-  controls.update();
+  if (n < 2) {
+    g.fillStyle = 'rgba(140,150,162,0.8)';
+    g.font = '11px ui-monospace, Menlo, monospace';
+    g.fillText('Run the test — telemetry plots here', padL + 10, padT + ih / 2);
+    return;
+  }
+
+  /* Locked regions (red car) */
+  g.fillStyle = 'rgba(217,82,74,0.14)';
+  for (let i = 0; i < n; ) {
+    if (s[i * 6 + 5]) {
+      let j = i;
+      while (j < n && s[j * 6 + 5]) j++;
+      const x0 = X(s[i * 6]), x1 = X(s[(j - 1) * 6]);
+      g.fillRect(x0, padT, Math.max(1.5, x1 - x0), ih);
+      i = j;
+    } else i++;
+  }
+
+  const line = (idx, color, width, alpha) => {
+    g.globalAlpha = alpha;
+    g.strokeStyle = color;
+    g.lineWidth = width;
+    g.beginPath();
+    for (let i = 0; i < n; i++) {
+      const x = X(s[i * 6]), y = Y(s[i * 6 + idx] * 3.6);
+      i ? g.lineTo(x, y) : g.moveTo(x, y);
+    }
+    g.stroke();
+    g.globalAlpha = 1;
+  };
+  line(3, '#d95248', 1, 0.45);   /* no-ABS wheel speed */
+  line(4, '#2fbd6d', 1, 0.45);   /* ABS wheel speed */
+  line(1, '#d95248', 1.8, 0.95); /* no-ABS car speed */
+  line(2, '#2fbd6d', 1.8, 0.95); /* ABS car speed */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MAIN LOOP
+   ═══════════════════════════════════════════════════════════════════════ */
+const clock = { last: performance.now(), raf: 0, ro: 0, absTick: -1 };
+
+function frame(now) {
+  clock.raf = requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - clock.last) / 1000);
+  clock.last = now;
+
+  const surf = SURFACES[state.surface];
+  const plan = sim.plan;
+
+  if (state.playing) {
+    sim.t += dt;
+    stepCar(sim.noAbs, dt, surf, plan);
+    stepCar(sim.abs,   dt, surf, plan);
+    coneCollisions();
+    updateCones(dt);
+    sampleTele(dt);
+
+    /* ABS pump chatter — one click per modulation cycle */
+    const cyc = Math.floor(sim.t * PHYS.absFreq);
+    if (cyc !== clock.absTick) {
+      clock.absTick = cyc;
+      if (sim.abs.absActive && sim.abs.v > 0.4) AudioFX.absTick(Math.min(1, sim.abs.v / 12));
+    }
+
+    /* Stop events → distance markers + settle thud */
+    for (const c of [sim.noAbs, sim.abs]) {
+      if (!c.stopped && c.v === 0 && c.prevV > 0.3) {
+        c.stopped = true;
+        dropMarker(c);
+        AudioFX.stopThud();
+      }
+    }
+
+    if (bothDone()) {
+      if (!sim.resultShown) showResults();
+      sim.autoReset += dt;
+      if (sim.autoReset > AUTORESET_S) doReset();
+    } else sim.autoReset = 0;
+  }
+
+  updateCarVisual(sim.noAbs, carNoAbs, dt);
+  updateCarVisual(sim.abs,   carAbs,   dt);
+  updateSkids();
+  updateSmokeFX(dt, surf);
+  updateCamera(dt);
+  updateLabels();
+  updateAudio();
+
+  if (camMode === 1) controls.update();
   renderer.render(scene, camera);
 
-  roClock += dt;
-  if (roClock > 0.12) { roClock = 0; updateReadouts(); }
+  clock.ro += dt;
+  if (clock.ro > 0.1) { clock.ro = 0; updateReadouts(); }
+  drawChart();
 }
 
-if (reduced) {
-  setInterval(() => renderer.render(scene, camera), 120);
-} else {
-  raf = requestAnimationFrame(frame);
-}
+/* ═══════════════════════════════════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════════════════════════════════ */
+resetSim();
+updateReadouts();
+setCamMode(0);
+clock.raf = requestAnimationFrame(frame);
 
 document.addEventListener('visibilitychange', () => {
-  if (reduced) return;
   if (document.hidden) {
-    if (raf) { cancelAnimationFrame(raf); raf = 0; }
-  } else if (!raf) {
-    last = performance.now();
-    raf = requestAnimationFrame(frame);
+    if (clock.raf) { cancelAnimationFrame(clock.raf); clock.raf = 0; }
+  } else if (!clock.raf) {
+    clock.last = performance.now();
+    clock.raf = requestAnimationFrame(frame);
   }
 });
-
-updateReadouts();
 </script>
 </body>
 </html>
