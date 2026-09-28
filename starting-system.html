@@ -100,7 +100,7 @@
     padding: 8px 2px; border-radius: 8px;
     border: 1px solid var(--border, rgba(255,255,255,.10));
     background: rgba(255,255,255,.04); color: var(--text-dim, #94a3b8);
-    font-size: 9.5px; font-weight: 800; letter-spacing: .05em;
+    font-size: 10px; font-weight: 800; letter-spacing: .05em;
     text-transform: uppercase; cursor: pointer;
     transition: all .18s; font-family: inherit; line-height: 1;
   }
@@ -128,7 +128,7 @@
   }
   html.light-theme #key-meters .meter { background: rgba(15,23,42,.04); border-color: rgba(15,23,42,.08); }
   #key-meters .meter .lbl {
-    font-size: 8.5px; font-weight: 800; letter-spacing: .08em;
+    font-size: 10px; font-weight: 800; letter-spacing: .08em;
     text-transform: uppercase; color: #64748b;
   }
   #key-meters .meter .val {
@@ -136,7 +136,7 @@
     font-variant-numeric: tabular-nums; line-height: 1;
   }
   #key-meters .meter .val span {
-    font-size: 9px; font-weight: 700; opacity: .65; margin-left: 2px;
+    font-size: 10px; font-weight: 700; opacity: .65; margin-left: 2px;
   }
   #rpm-strip {
     width: 100%; height: 52px; border-radius: 6px;
@@ -145,7 +145,7 @@
   html.light-theme #rpm-strip { background: rgba(15,23,42,.06); }
   #strip-label {
     display: flex; justify-content: space-between;
-    font-size: 8.5px; letter-spacing: .08em; color: #64748b;
+    font-size: 10px; letter-spacing: .08em; color: #64748b;
     text-transform: uppercase; font-weight: 800; margin-bottom: 1px;
   }
 
@@ -182,7 +182,7 @@
     #key-meters .meter .val { font-size: 12px; }
     #rpm-strip { height: 40px; }
     .cfg-arrow { width: 19px; height: 19px; font-size: 12px; }
-    #cfg-label { min-width: 66px; font-size: 9px; }
+    #cfg-label { min-width: 66px; font-size: 10px; }
   }
 </style>
 </head>
@@ -231,8 +231,8 @@
 
   const { scene, camera, renderer, controls, wrap, viewManager } = Base.buildScene({
     fov: 42,
-    camPos: isCoarse ? [3.0, 2.0, 5.2] : [3.4, 2.2, 5.8],
-    target: [0, 0, 0], floorY: -2.4
+    camPos: isCoarse ? [1.8, 1.8, 9.6] : [1.8, 1.6, 9.2],
+    target: [0, 0.4, -0.5], floorY: -2.4
   });
   Base.attachResize(camera, renderer, wrap, 42);
   const particleTex = Base.createParticleTexture();
@@ -308,13 +308,31 @@
     m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
     return m;
   }
-  function wireBetween(a, b, sag, r, mat) {
-    const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
-    mid.y -= sag;
-    const curve = new THREE.CatmullRomCurve3([a, mid, b]);
-    return new THREE.Mesh(new THREE.TubeGeometry(curve, 24, r, 8, false), mat);
-  }
   const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
+  /* Manhattan cable — adapted from ignition.html (buildManhattanPoints): tight fillet at every 90° turn.
+     Rebuilt as line + quadratic pieces so long runs stay perfectly straight (spline version bowed). */
+  function wireRoute(pts, r, mat, fillet = 0.06) {
+    const g = new THREE.Group(), path = new THREE.CurvePath();
+    const add = (c, segs) => { path.add(c); g.add(new THREE.Mesh(new THREE.TubeGeometry(c, segs, r, 10, false), mat)); };
+    let cur = pts[0].clone();
+    for (let i = 1; i < pts.length - 1; i++) {
+      const c = pts[i];
+      const tp = new THREE.Vector3().subVectors(pts[i-1], c), tn = new THREE.Vector3().subVectors(pts[i+1], c);
+      const dp = tp.length(), dn = tn.length(); tp.normalize(); tn.normalize();
+      const rad = Math.min(fillet, dp * 0.4, dn * 0.4);
+      const p1 = c.clone().addScaledVector(tp, rad), p2 = c.clone().addScaledVector(tn, rad);
+      add(new THREE.LineCurve3(cur, p1), 1);
+      add(new THREE.QuadraticBezierCurve3(p1, c.clone(), p2), 8);
+      cur = p2;
+    }
+    add(new THREE.LineCurve3(cur, pts[pts.length - 1].clone()), 1);
+    for (const i of [0, pts.length - 1]) {   /* terminal lugs */
+      const lug = new THREE.Mesh(new THREE.SphereGeometry(r * 1.5, 10, 8), M.brass);
+      lug.position.copy(pts[i]); g.add(lug);
+    }
+    g.userData.path = path;
+    return g;
+  }
 
   const _toothGeoCaches = new Map();
   function buildGearTeeth({ count, innerR, outerR, depth, mat, group }) {
@@ -374,6 +392,14 @@
   const batNegT = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.16, 16), M.batteryBlack);
   batNegT.position.set(-0.55, 0.58, 0.30); batGroup.add(batNegT);
 
+  for (let i = -1; i <= 1; i++) {                       /* cell-cap ribs — from ignition.html */
+    const rib = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.94), M.steelDark);
+    rib.position.set(i * 0.5, 0.51, 0); batGroup.add(rib);
+  }
+  for (const [x, mat] of [[0.55, M.batteryRed], [-0.55, M.batteryBlack]]) {   /* terminal clamps */
+    const clamp_ = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.06, 0.26), mat);
+    clamp_.position.set(x, 0.52, 0.30); batGroup.add(clamp_);
+  }
   labels.add('bat-lbl', '12 V · 60 Ah');
   labels.add('bat-pos', '+', 2);
   labels.add('bat-neg', '−', 2);
@@ -396,10 +422,14 @@
   const keyTip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.020), M.steel);
   keyTip.position.set(0, -0.52, 0); keyBladeGroup.add(keyTip);
 
+  const keyGlow = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.014, 8, 40),
+    new THREE.MeshBasicMaterial({ color: 0xffb030, transparent: true, opacity: 0.1,
+      blending: THREE.AdditiveBlending, depthWrite: false }));
+  keyGlow.position.z = 0.14; keyGroup.add(keyGlow);
   labels.add('key-lbl', 'Ignition switch');
 
   const starterGroup = new THREE.Group();
-  starterGroup.position.set(2.4, -1.2, 0);
+  starterGroup.position.set(PIN_XY.x, PIN_XY.y, ST_Z0); starterGroup.rotation.y = -Math.PI / 2;
   circuitGroup.add(starterGroup);
   const starterBody = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.30, 0.90, 24), M.steel);
   starterBody.rotation.z = Math.PI / 2; starterGroup.add(starterBody);
@@ -419,18 +449,23 @@
   pinionGroup.position.set(0.62, 0, 0); starterGroup.add(pinionGroup);
   const pinionCollar = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.10, 0.20, 16), M.steelDark);
   pinionCollar.rotation.z = Math.PI / 2; pinionGroup.add(pinionCollar);
-  const pinionGearGroup = new THREE.Group();
-  pinionGearGroup.position.x = 0.18; pinionGroup.add(pinionGearGroup);
+  const pinionAxis = new THREE.Group();      /* local z → starter shaft (x) */
+  pinionAxis.position.x = 0.18; pinionAxis.rotation.y = Math.PI / 2; pinionGroup.add(pinionAxis);
+  const pinionGearGroup = new THREE.Group(); pinionAxis.add(pinionGearGroup);
   const pinionHub = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.14, 16), M.brass);
-  pinionHub.rotation.z = Math.PI / 2; pinionGearGroup.add(pinionHub);
+  pinionHub.rotation.x = Math.PI / 2; pinionGearGroup.add(pinionHub);
   buildGearTeeth({ count: 9, innerR: 0.11, outerR: 0.155, depth: 0.14, mat: M.steel, group: pinionGearGroup });
 
   labels.add('start-lbl', 'Starter motor');
   labels.add('sol-lbl', 'Solenoid', 2);
   labels.add('pin-lbl', 'Pinion');
 
+  /* Layout: pinion meshes with the ring at −55° (lower right); starter sits behind the flywheel plane */
+  const FLY_C = { x: 2.4, y: 0.55 }, MESH_D = 1.0, MESH_A = -55 * Math.PI / 180;
+  const PIN_XY = { x: FLY_C.x + Math.cos(MESH_A) * MESH_D, y: FLY_C.y + Math.sin(MESH_A) * MESH_D };
+  const PIN_SLIDE = 0.36, ST_Z0 = -(0.80 + PIN_SLIDE);
   const flyGroup = new THREE.Group();
-  flyGroup.position.set(2.4, 0.9, 0); circuitGroup.add(flyGroup);
+  flyGroup.position.set(FLY_C.x, FLY_C.y, 0); circuitGroup.add(flyGroup);
   const flySpinGroupCircuit = new THREE.Group(); flyGroup.add(flySpinGroupCircuit);
 
   const flyDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 0.15, 40), M.castIron);
@@ -453,13 +488,29 @@
     new THREE.MeshBasicMaterial({ color: 0xffcc33, transparent: true, opacity: 0,
       blending: THREE.AdditiveBlending, depthWrite: false })
   );
-  circuitMeshGlow.position.set(2.4, -0.15, 0);
+  circuitMeshGlow.position.set(PIN_XY.x - 0.02, PIN_XY.y + 0.12, 0.1);
   circuitGroup.add(circuitMeshGlow);
 
-  circuitGroup.add(wireBetween(v3(-2.45, 0.58, 0.30), v3(2.15, -0.86, 0), 0.55, 0.055, M.wireRed));
-  circuitGroup.add(wireBetween(v3(-2.45, 0.58, 0.30), v3(-3.0, 2.0, 0.10), 0.35, 0.040, M.wireGreen));
-  circuitGroup.add(wireBetween(v3(-3.0, 2.0, 0.10), v3(2.15, -0.86, 0.20), 1.10, 0.035, M.wireBlue));
-  circuitGroup.add(wireBetween(v3(-3.55, 0.58, 0.30), v3(2.4, -1.65, 0), 0.80, 0.050, M.wireBlack));
+  /* Orthogonal routes (world coords inside circuitGroup) */
+  const SX = PIN_XY.x, SY = PIN_XY.y, SZ = ST_Z0;
+  const ROUTES = {
+    red:   [v3(-2.45,0.58,0.30), v3(-2.45,0.95,0.30), v3(-1.60,0.95,0.30), v3(-1.60,-1.00,0.30),
+            v3(-1.60,-1.00,SZ-0.62), v3(SX,-1.00,SZ-0.62), v3(SX,SY-0.30,SZ-0.62)],
+    green: [v3(-2.45,0.58,0.30), v3(-2.45,0.58,0.62), v3(-2.45,2.00,0.62), v3(-2.72,2.00,0.62), v3(-2.72,2.00,0.10)],
+    blue:  [v3(-3.00,2.30,0.10), v3(-3.00,2.80,0.10), v3(4.30,2.80,0.10), v3(4.30,2.80,SZ-0.25),
+            v3(4.30,SY+0.52,SZ-0.25), v3(SX,SY+0.52,SZ-0.25), v3(SX,SY+0.34,SZ-0.25)],
+    black: [v3(-3.55,0.58,0.30), v3(-3.55,1.20,0.30), v3(-4.40,1.20,0.30), v3(-4.40,-1.60,0.30),
+            v3(-4.40,-1.60,SZ+0.20), v3(SX-0.45,-1.60,SZ+0.20), v3(SX-0.45,SY-0.02,SZ+0.20)]
+  };
+  const WIRES = {
+    red:   wireRoute(ROUTES.red,   0.055, M.wireRed),
+    green: wireRoute(ROUTES.green, 0.040, M.wireGreen),
+    blue:  wireRoute(ROUTES.blue,  0.035, M.wireBlue),
+    black: wireRoute(ROUTES.black, 0.050, M.wireBlack),
+    blackRev: wireRoute(ROUTES.black.slice().reverse(), 0.001, M.wireBlack)   /* path only, for return-current flow */
+  };
+  WIRES.blackRev.visible = false;
+  for (const k in WIRES) circuitGroup.add(WIRES[k]);
 
   const flowPtGeo = new THREE.BufferGeometry();
   const FLOW_N = isLowEnd ? 40 : 80;
@@ -475,15 +526,13 @@
   flowPts.frustumCulled = false; circuitGroup.add(flowPts);
 
   const flowDefs = [
-    { from:v3(-2.45, 0.58, 0.30), to:v3(2.15, -0.86, 0),      sag:0.55, col:new THREE.Color(0xff3b3b), active:() => sys.currentDraw > 60 },
-    { from:v3(-2.45, 0.58, 0.30), to:v3(-3.0, 2.0, 0.10),     sag:0.35, col:new THREE.Color(0x4ade80), active:() => sys.key >= 2 },
-    { from:v3(-3.0, 2.0, 0.10),   to:v3(2.15, -0.86, 0.20),   sag:1.10, col:new THREE.Color(0x60a5fa), active:() => sys.key === 3 },
-    { from:v3(2.4, -1.65, 0),     to:v3(-3.55, 0.58, 0.30),   sag:0.80, col:new THREE.Color(0x94a3b8), active:() => sys.currentDraw > 10 }
+    { path:WIRES.red.userData.path,                          col:new THREE.Color(0xff3b3b), active:() => sys.currentDraw > 60 },
+    { path:WIRES.green.userData.path,                        col:new THREE.Color(0x4ade80), active:() => sys.key >= 2 },
+    { path:WIRES.blue.userData.path,                         col:new THREE.Color(0x60a5fa), active:() => sys.key === 3 },
+    { path:WIRES.blackRev.userData.path,      col:new THREE.Color(0x94a3b8), active:() => sys.currentDraw > 10 }
   ];
-  for (const d of flowDefs) {
-    d.mid = new THREE.Vector3(
-      (d.from.x + d.to.x) / 2, (d.from.y + d.to.y) / 2 - d.sag, (d.from.z + d.to.z) / 2);
-  }
+  const _fp = new THREE.Vector3();
+  const pointOnRoute = (d, t, out) => d.path.getPointAt(clamp(t, 0, 1), out);
   const flowData = [];
   for (let i = 0; i < FLOW_N; i++) {
     flowData.push({ wire: i % flowDefs.length, t: Math.random(), speed: 0.35 + Math.random() * 0.35, j: Math.random() });
@@ -934,6 +983,12 @@
     } catch(_) {}
   }
 
+  let _sndWasOn = false;
+  document.addEventListener('visibilitychange', () => {
+    const c = SND.ctx; if (!c || c.state === 'closed') return;
+    if (document.hidden) { _sndWasOn = c.state === 'running'; if (_sndWasOn) c.suspend().catch(() => {}); }
+    else if (_sndWasOn) c.resume().catch(() => {});
+  });
   window.addEventListener('pagehide', () => {
     try { SND.ctx && SND.ctx.close(); } catch(_) {}
   });
@@ -956,12 +1011,12 @@
      UI — kit chrome + key widget
      ═══════════════════════════════════════════════════════════ */
   const ui = UI.create({
-    moduleId: 'startingsystem',
+    moduleId: 'starting',
 
     panel: {
       kicker: 'Starting & Ignition',
       title:  'Starting System · Circuit',
-      badge:  { text: 'Wiring · Power Path', color: '#ef4444' },
+      badge:  { text: 'Wiring · Power Path', color: '#818cf8' },
       readout: `
         <div id="ss-readout">
           <div class="ss-row"><span data-ss="r1l">Key</span><b data-ss="r1">OFF</b></div>
@@ -1177,7 +1232,7 @@
 
     labels.hideAll();
 
-    if (m === 'circuit')      animateCamera([3.5, 1.5, 4.5], [0, 0.3, 0]);
+    if (m === 'circuit')      animateCamera([1.8, 1.6, 9.2], [0, 0.4, -0.5]);
     else if (m === 'starter') animateCamera([2.4, 1.0, 3.2], [0, 0, 0]);
     else if (m === 'mesh')    animateCamera([1.4, -0.2, 2.4], [0, -0.2, 0]);
     else                      animateCamera([4.5, 2.5, 6.5], [0.2, 0.3, 0]);
@@ -1237,7 +1292,7 @@
   function updateSystem(dt) {
     if (sys._fuelPulse > 0) sys._fuelPulse = Math.max(0, sys._fuelPulse - dt * 1.4);
 
-    const wantExtend = (sys.key === 3) || (sys.starterRpm > 200);
+    const wantExtend = !sys.engineRunning && ((sys.key === 3) || (sys.starterRpm > 200));  /* slides away once the engine fires */
     const extendRate = wantExtend ? 1 / TUNING.pinionExtendTime : 1 / TUNING.pinionRetractTime;
     sys.pinionExtend += (wantExtend ? 1 : -1) * extendRate * dt;
     sys.pinionExtend = clamp(sys.pinionExtend, 0, 1);
@@ -1332,20 +1387,18 @@
     const target = KEY_ANGLE_PER_STATE[sys.key];
     keyBladeGroup.rotation.z += (target - keyBladeGroup.rotation.z) * Math.min(1, dt * 12);
 
+    keyGlow.material.opacity = sys.key >= 2 ? 0.28 + 0.12 * Math.sin(time * 6) : 0.08;
+    keyGlow.material.color.setHex(sys.key === 3 ? 0x60a5fa : 0xffb030);
     for (let i = 0; i < FLOW_N; i++) {
       const p = flowData[i];
       const wire = flowDefs[p.wire];
       const active = wire.active();
       p.t += dt * p.speed * (active ? (1.0 + sys.currentDraw / 300) : 0.25);
       if (p.t > 1) p.t -= 1;
-      const from = wire.from, to = wire.to, mid = wire.mid;
-      const t1 = 1 - p.t;
-      const x = t1 * t1 * from.x + 2 * t1 * p.t * mid.x + p.t * p.t * to.x;
-      const y = t1 * t1 * from.y + 2 * t1 * p.t * mid.y + p.t * p.t * to.y;
-      const z = t1 * t1 * from.z + 2 * t1 * p.t * mid.z + p.t * p.t * to.z;
-      flowPos[i * 3]     = x + Math.sin(time * 4 + p.j * TAU) * 0.02;
-      flowPos[i * 3 + 1] = y + Math.cos(time * 4 + p.j * TAU) * 0.02;
-      flowPos[i * 3 + 2] = z;
+      pointOnRoute(wire, p.t, _fp);
+      flowPos[i * 3]     = _fp.x;
+      flowPos[i * 3 + 1] = _fp.y;
+      flowPos[i * 3 + 2] = _fp.z;
       const alpha = active ? 1 : 0.12;
       flowCol[i * 3]     = wire.col.r * alpha;
       flowCol[i * 3 + 1] = wire.col.g * alpha;
@@ -1360,9 +1413,8 @@
     M.wireGreen.emissiveIntensity = sys._fuelPulse > 0 ? 0.55 * sys._fuelPulse : (sys.key >= 2 ? 0.22 : 0);
     M.brass.emissiveIntensity     = sys.key === 3 ? 0.35 : 0;
 
-    const plungerOffset = sys.pinionExtend * 0.16;
-    solenoidPlunger.position.x = 0.30 + plungerOffset;
-    pinionGroup.position.x = 0.62 + plungerOffset;
+    solenoidPlunger.position.x = 0.30 + sys.pinionExtend * 0.16;
+    pinionGroup.position.x = 0.62 + sys.pinionExtend * PIN_SLIDE;
 
     const omegaPinion = (sys.starterRpm / 60) * TAU;
     pinionGearGroup.rotation.z += omegaPinion * dt;
@@ -1678,11 +1730,11 @@
           labels.project('bat-lbl',  v3(-3.0, 0.0, -0.60), camera, wrap);
           labels.project('bat-pos',  v3(-2.45, 0.85, 0.30), camera, wrap);
           labels.project('bat-neg',  v3(-3.55, 0.85, 0.30), camera, wrap);
-          labels.project('key-lbl',  v3(-3.0, 2.55, 0), camera, wrap);
-          labels.project('start-lbl',v3(2.4, -1.75, 0), camera, wrap);
-          labels.project('sol-lbl',  v3(2.15, -0.55, 0), camera, wrap);
-          labels.project('pin-lbl',  v3(3.15, -1.20, 0), camera, wrap);
-          labels.project('fly-lbl',  v3(2.4, 1.95, 0), camera, wrap);
+          labels.project('key-lbl',  v3(-3.0, 3.10, 0), camera, wrap);
+          labels.project('start-lbl',v3(PIN_XY.x, PIN_XY.y - 0.55, ST_Z0 - 0.3), camera, wrap);
+          labels.project('sol-lbl',  v3(PIN_XY.x, PIN_XY.y + 0.75, ST_Z0 - 0.25), camera, wrap);
+          labels.project('pin-lbl',  v3(PIN_XY.x + 0.55, PIN_XY.y - 0.30, -0.2), camera, wrap);
+          labels.project('fly-lbl',  v3(FLY_C.x, FLY_C.y + 1.30, 0), camera, wrap);
         } else if (mode === 'starter') {
           labels.project('field-lbl', v3(-0.55, 0.50, 0), camera, wrap);
           labels.project('arm-lbl',   v3(0, 0.35, 0.35), camera, wrap);

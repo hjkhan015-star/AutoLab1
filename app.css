@@ -421,7 +421,7 @@
     pointer-events: none;
   }
   .ui-chip-label {
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
     letter-spacing: .11em;
     text-transform: uppercase;
@@ -857,4 +857,13 @@
   .ui-hidden { display: none !important; }
   .ui-stack { display: flex; flex-direction: column; gap: var(--s-3); }
   .ui-row   { display: flex; align-items: center; gap: var(--s-2); }
+}
+
+
+/* ── Consistency additions ── */
+a.ui-tb-btn { text-decoration: none; color: inherit; }
+@media (prefers-reduced-motion: reduce) {
+  .ui-card, .ui-tb-btn, .ui-panel, .ui-panel-body, .label3d, .ui-chip-fill {
+    transition: none !important; animation: none !important;
+  }
 }

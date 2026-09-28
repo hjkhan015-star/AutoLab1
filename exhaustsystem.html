@@ -34,7 +34,7 @@
     font-size: 11px; color: var(--text-dim, #94a3b8);
   }
   #cat-chem .cc-title {
-    font-size: 9.5px; font-weight: 800; letter-spacing: .1em;
+    font-size: 10px; font-weight: 800; letter-spacing: .1em;
     text-transform: uppercase; color: var(--text-mute, #64748b);
     margin: 12px 0 5px;
   }
@@ -49,7 +49,7 @@
     display: flex; flex-direction: column; align-items: center;
   }
   #cat-chem .lam-btn small {
-    font-size: 9px; font-weight: 600; opacity: .7;
+    font-size: 10px; font-weight: 600; opacity: .7;
     font-family: ui-monospace, Menlo, Consolas, monospace;
   }
   #cat-chem .lam-btn.active { color: #0b0e14; border-color: transparent; background: #22c55e; }
@@ -90,7 +90,7 @@
     display: flex; flex-wrap: wrap; gap: 6px 12px;
     margin-top: 10px; padding-top: 8px;
     border-top: 1px solid var(--border, rgba(255,255,255,.08));
-    font-size: 9px; font-weight: 800; letter-spacing: .04em;
+    font-size: 10px; font-weight: 800; letter-spacing: .04em;
     text-transform: uppercase; color: var(--text-dim, #9aa3b2);
   }
   .ex-legend span { display: inline-flex; align-items: center; gap: 4px; }
@@ -136,7 +136,7 @@
     padding: 7px 4px; border-radius: 8px;
     border: 1px solid var(--border, rgba(255,255,255,.10));
     background: rgba(255,255,255,.04); color: var(--text-dim, #94a3b8);
-    font-size: 9.5px; font-weight: 800; letter-spacing: .03em;
+    font-size: 10px; font-weight: 800; letter-spacing: .03em;
     text-transform: uppercase; cursor: pointer;
     transition: all .18s; font-family: inherit; line-height: 1.15;
   }
@@ -157,7 +157,7 @@
   html.light-theme #spectrum-strip { background: rgba(15,23,42,.06); }
   #spectrum-label {
     display: flex; justify-content: space-between;
-    font-size: 8.5px; letter-spacing: .08em; color: #64748b;
+    font-size: 10px; letter-spacing: .08em; color: #64748b;
     text-transform: uppercase; font-weight: 800;
   }
 
@@ -188,9 +188,9 @@
   html.light-theme #cfg-label { color: #0a0d13; }
   @media (max-width: 600px) {
     .cfg-arrow { width: 19px; height: 19px; font-size: 12px; }
-    #cfg-label { min-width: 76px; font-size: 9px; }
+    #cfg-label { min-width: 76px; font-size: 10px; }
     #sound-panel { min-width: 180px; padding: 8px 10px; gap: 6px; }
-    .muf-btn { font-size: 8.5px; padding: 6px 3px; }
+    .muf-btn { font-size: 10px; padding: 6px 3px; }
     #spectrum-strip { height: 38px; }
   }
 </style>
@@ -936,7 +936,7 @@
     panel: {
       kicker: 'Emissions & Acoustics',
       title:  'Exhaust System · Working Principle',
-      badge:  { text: 'Principle', color: '#0ea5e9' },
+      badge:  { text: 'Principle', color: '#f59e0b' },
       readout: `
         <div id="ex-readout">
           <div class="ex-row"><span data-ex="r1l">Input amplitude</span><b data-ex="r1">100 %</b></div>
@@ -1589,6 +1589,12 @@
     SND.master.gain.setTargetAtTime(SND.on ? 0.55 : 0, now, 0.10);
   }
 
+  let _sndWasOn = false;
+  document.addEventListener('visibilitychange', () => {
+    const c = SND.ctx; if (!c || c.state === 'closed') return;
+    if (document.hidden) { _sndWasOn = c.state === 'running'; if (_sndWasOn) c.suspend().catch(() => {}); }
+    else if (_sndWasOn) c.resume().catch(() => {});
+  });
   window.addEventListener('pagehide', () => {
     try { SND.ctx && SND.ctx.close(); } catch(_) {}
   });
