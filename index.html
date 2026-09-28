@@ -27,7 +27,6 @@
 <style>
 /* ═══════════════════════════════════════════════════════════════════════
    Shell-only styles — home screen, module frame, pill, sheet.
-   These are not part of app.css because modules never render them.
    ═══════════════════════════════════════════════════════════════════════ */
 @layer shell {
   #home-screen {
@@ -874,13 +873,13 @@
   .rel{display:flex;flex-wrap:wrap;gap:var(--s-2);padding:0 var(--s-5) var(--s-6)}
 
   /* ═══════════════════════════════════════════════════════════════════
-     APPS VIEW — mobile-launcher style grid, grouped by system.
+     APPS VIEW — mobile launcher style grid, grouped by system.
      ═══════════════════════════════════════════════════════════════════ */
-  .apps-wrap { padding: 0 var(--s-4) var(--s-4); display: flex; flex-direction: column; gap: var(--s-4); }
+  .apps-wrap { padding: 0 var(--s-4) var(--s-4); display: flex; flex-direction: column; gap: var(--s-5); }
 
   .app-system {
     position: relative;
-    padding: var(--s-4);
+    padding: var(--s-4) var(--s-3) var(--s-5);
     border-radius: var(--r-xl);
     overflow: hidden;
     background:
@@ -895,7 +894,7 @@
     display: flex; align-items: center;
     gap: var(--s-3);
     margin-bottom: var(--s-4);
-    padding-bottom: var(--s-3);
+    padding: 0 var(--s-1) var(--s-3);
     border-bottom: 1px solid color-mix(in oklch, var(--c) 22%, transparent);
   }
   .app-system-ic {
@@ -910,14 +909,14 @@
   .app-system-ic svg { width: 100%; height: 100%; display: block; }
   .app-system-meta { flex: 1; min-width: 0; }
   .app-system-title {
-    font-size: 14.5px; font-weight: 800;
+    font-size: 15px; font-weight: 800;
     letter-spacing: -.015em;
     line-height: 1.2;
     color: var(--text);
     text-wrap: balance;
   }
   .app-system-sub {
-    font-size: 11px; font-weight: 600;
+    font-size: 11.5px; font-weight: 500;
     color: var(--text-mute);
     margin-top: 3px;
     letter-spacing: .01em;
@@ -934,104 +933,89 @@
 
   .app-tiles {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
-    gap: var(--s-3);
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--s-4) var(--s-1);
+    padding: 0 var(--s-1);
   }
-  @media (min-width: 520px) { .app-tiles { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); } }
-  @media (min-width: 900px) { .app-tiles { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); } }
+  @media (min-width: 520px) { .app-tiles { grid-template-columns: repeat(5, 1fr); } }
+  @media (min-width: 768px) { .app-tiles { grid-template-columns: repeat(6, 1fr); } }
+  @media (min-width: 1024px) { .app-tiles { grid-template-columns: repeat(8, 1fr); } }
 
   .app-tile {
-    position: relative;
-    aspect-ratio: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 10px 6px 8px;
-    border-radius: var(--r-md);
+    justify-content: flex-start;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    gap: 0;
     cursor: pointer;
-    overflow: hidden;
-    color: var(--text);
-    background: color-mix(in oklch, var(--c) 10%, var(--surface-3));
-    border: 1px solid color-mix(in oklch, var(--c) 24%, transparent);
-    transition: transform var(--dur-fast) var(--ease-spring),
-                border-color var(--dur-fast) var(--ease-out),
-                box-shadow var(--dur-fast) var(--ease-out),
-                background var(--dur-fast) var(--ease-out);
-    touch-action: manipulation;
     text-align: center;
-    min-height: 76px;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform var(--dur-fast) var(--ease-spring);
+    touch-action: manipulation;
   }
-  .app-tile::before {
-    content: "";
-    position: absolute; inset: 0;
-    background: radial-gradient(circle at 50% 20%,
-      color-mix(in oklch, var(--c) 32%, transparent) 0%,
-      transparent 65%);
-    opacity: .55;
-    transition: opacity var(--dur-base) var(--ease-out);
-    pointer-events: none;
-  }
-  .app-tile:hover {
-    border-color: color-mix(in oklch, var(--c) 55%, transparent);
-    box-shadow: 0 10px 28px -12px color-mix(in oklch, var(--c) 70%, transparent);
-  }
-  .app-tile:hover::before { opacity: .9; }
-  .app-tile:active { transform: scale(.94); }
-  .app-tile:focus-visible {
-    outline: 2px solid var(--c, var(--accent));
-    outline-offset: 2px;
-  }
+  .app-tile:active { transform: scale(.90); }
+
   .app-tile-ic {
     position: relative;
-    width: 26px; height: 26px;
-    color: var(--c);
-    filter: drop-shadow(0 3px 10px color-mix(in oklch, var(--c) 55%, transparent));
-    z-index: 1;
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, var(--c), color-mix(in oklch, var(--c) 70%, black));
+    color: #fff;
+    box-shadow: 0 6px 16px -6px color-mix(in oklch, var(--c) 60%, transparent);
+    transition: box-shadow var(--dur-fast) var(--ease-out);
   }
-  .app-tile-ic svg { width: 100%; height: 100%; display: block; }
+  .app-tile:hover .app-tile-ic {
+    box-shadow: 0 8px 24px -6px color-mix(in oklch, var(--c) 80%, transparent);
+  }
+  .app-tile-ic svg { width: 28px; height: 28px; }
+
   .app-tile-lbl {
-    position: relative;
-    font-size: 10.5px; font-weight: 700;
-    line-height: 1.15;
-    letter-spacing: -.005em;
-    z-index: 1;
+    margin-top: 6px;
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--text);
+    width: 100%;
     overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    word-break: break-word;
-  }
-  .app-tile-mode {
-    position: absolute;
-    top: 5px; right: 5px;
-    font: 700 8.5px var(--font-mono);
-    padding: 2px 5px;
-    border-radius: var(--r-xs, 4px);
-    background: color-mix(in oklch, var(--c) 24%, transparent);
-    color: color-mix(in oklch, var(--c) 90%, var(--text));
-    letter-spacing: .04em;
-    z-index: 2;
-    pointer-events: none;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    padding: 0 2px;
+    letter-spacing: -.01em;
   }
 
-  /* coming-soon tile */
-  .app-tile.soon {
-    cursor: default;
-    background: var(--surface-2);
-    border-style: dashed;
-    border-color: color-mix(in oklch, var(--c) 30%, var(--border));
-    opacity: .55;
+  .app-tile-mode {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    font: 700 8.5px var(--font-mono);
+    padding: 2px 5px;
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text-mute);
+    border: 1px solid var(--border);
+    letter-spacing: .04em;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    z-index: 2;
   }
-  .app-tile.soon::before { opacity: .15; }
-  .app-tile.soon .app-tile-ic { filter: none; color: var(--text-mute); }
-  .app-tile.soon:hover {
-    transform: none;
-    box-shadow: none;
-    border-color: color-mix(in oklch, var(--c) 30%, var(--border));
-  }
+
+  /* Coming soon tile */
+  .app-tile.soon { cursor: default; }
   .app-tile.soon:active { transform: none; }
+  .app-tile.soon .app-tile-ic {
+    background: var(--surface-2);
+    color: var(--text-mute);
+    border: 1px dashed var(--border);
+    box-shadow: none;
+  }
+  .app-tile.soon:hover .app-tile-ic { box-shadow: none; }
+  .app-tile.soon .app-tile-lbl { color: var(--text-mute); }
 
   /* View transition — respect reduced motion */
   .apps-wrap, .sys-grid, .module-grid, .recent-list {
@@ -1043,7 +1027,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .apps-wrap, .sys-grid, .module-grid, .recent-list,
-    .app-tile, .app-tile::before, .module-card, .module-card::before,
+    .app-tile, .app-tile-ic, .module-card, .module-card::before,
     .sys-card, .brand-mark::after, .boot-ring {
       animation: none !important;
       transition: none !important;
@@ -1506,7 +1490,6 @@
       b.classList.toggle('active', on);
       b.setAttribute('aria-selected', on ? 'true' : 'false');
     });
-    /* view toggle is only meaningful on the Home tab */
     if (viewToggleEl) viewToggleEl.style.display = (tab === 'home') ? '' : 'none';
     homeMain.innerHTML = '';
     if (tab === 'home') renderAllModules();
@@ -1545,7 +1528,6 @@
         })
       : modules;
 
-    /* Search overrides both views: flat results only. */
     if (q) {
       var st = document.createElement('div');
       st.className = 'section-title';
@@ -1562,7 +1544,6 @@
       return;
     }
 
-    /* No search: honor the current view. */
     if (state.sys) { renderSystem(state.sys); return; }
     if (state.view === 'apps') { renderAppsGrid(); return; }
     renderSystems();
@@ -1668,7 +1649,7 @@
     }
   }
 
-  /* ─── Apps grid view (mobile-launcher style) ─── */
+  /* ─── Apps grid view (mobile launcher style) ─── */
   function renderAppsGrid() {
     var all = allSystems(), hasOther = all.some(function (s) { return s.id === 'other'; });
     var doms = ['All'].concat(DOMAINS, hasOther ? ['Other'] : []);
@@ -1688,7 +1669,6 @@
       wrap.appendChild(buildAppSystemCard(s));
     });
 
-    /* If a domain filter produced nothing, show a friendly empty state. */
     if (!wrap.children.length) {
       homeMain.appendChild(buildEmptyState('Nothing here', 'No systems in this group yet.'));
       return;
@@ -1735,14 +1715,14 @@
       icB.appendChild(svgWrap(m.icon || ''));
       tile.appendChild(icB);
 
+      if (mt[2]) {
+        var badgeText = mt[2] === '3D' ? '3D' : mt[2] === '2D' ? '2D' : 'MIX';
+        var badge = el('span', 'app-tile-mode', badgeText);
+        icB.appendChild(badge);
+      }
+
       var lbl = el('div', 'app-tile-lbl', m.label || m.title);
       tile.appendChild(lbl);
-
-      if (mt[2] && mt[2] !== '3D') {
-        tile.appendChild(el('span', 'app-tile-mode', mt[2].replace('2D + 3D', 'MIX')));
-      } else if (mt[2] === '3D') {
-        tile.appendChild(el('span', 'app-tile-mode', '3D'));
-      }
 
       tile.onclick = function () { openModule(m.id); };
       tiles.appendChild(tile);
