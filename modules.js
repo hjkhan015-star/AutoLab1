@@ -120,5 +120,11 @@ window.AUTO_MODULES = [
     subtitle: 'Emissions · Silencer & Catalyst',
     file: 'exhaustsystem.html', color: '#78909c',
     icon: '<path d="M3 14h4l2-6 4 10 3-6h5"/><circle cx="6" cy="17" r="1.2"/><circle cx="20" cy="17" r="1.2"/>'
+  },
+  {
+    id: 'sensors', label: 'Sensors', title: 'Sensors & Wiring',
+    subtitle: 'Electrical · Sensing & Control',
+    file: 'sensors.html', color: '#22c55e',
+    icon: '<circle cx="12" cy="12" r="3"/><path d="M6 12a6 6 0 0 1 12 0M3 12a9 9 0 0 1 18 0"/>'
   }
 ];
