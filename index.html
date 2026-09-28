@@ -162,6 +162,44 @@
   .search-wrap input::placeholder { color: var(--text-mute); font-weight: 400; }
   @media (max-width: 720px) { .search-wrap input { font-size: 16px; } }
 
+  /* ── View toggle (Roadmap / Apps) ── */
+  .view-toggle {
+    display: inline-flex;
+    gap: 3px;
+    margin-top: var(--s-3);
+    padding: 3px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--r-pill);
+  }
+  .view-toggle-btn {
+    display: inline-flex; align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 0 12px;
+    border-radius: var(--r-pill);
+    color: var(--text-mute);
+    font-size: 12px; font-weight: 700;
+    letter-spacing: .01em;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    transition: background var(--dur-base) var(--ease-out),
+                color var(--dur-base) var(--ease-out),
+                transform var(--dur-fast) var(--ease-spring);
+    touch-action: manipulation;
+  }
+  .view-toggle-btn svg { width: 14px; height: 14px; flex: 0 0 auto; }
+  .view-toggle-btn:hover { color: var(--text-dim); }
+  .view-toggle-btn:active { transform: scale(.96); }
+  .view-toggle-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .view-toggle-btn.active {
+    background: color-mix(in oklch, var(--accent) 20%, var(--surface-3));
+    color: var(--accent);
+    box-shadow: 0 2px 8px -2px color-mix(in oklch, var(--accent) 40%, transparent);
+  }
+  .view-toggle-btn.active svg { color: var(--accent); }
+
   /* ── Main scroll area ── */
   .home-main {
     flex: 1; min-height: 0;
@@ -834,6 +872,183 @@
   .badge.basic{color:var(--ok)}.badge.intermediate{color:var(--warn)}.badge.advanced{color:var(--crit)}
   .mod-row.soon{opacity:.5;border-left-style:dashed;cursor:default}.mod-row.soon:hover{background:var(--surface-2)}.mod-row.soon:active{transform:none}
   .rel{display:flex;flex-wrap:wrap;gap:var(--s-2);padding:0 var(--s-5) var(--s-6)}
+
+  /* ═══════════════════════════════════════════════════════════════════
+     APPS VIEW — mobile-launcher style grid, grouped by system.
+     ═══════════════════════════════════════════════════════════════════ */
+  .apps-wrap { padding: 0 var(--s-4) var(--s-4); display: flex; flex-direction: column; gap: var(--s-4); }
+
+  .app-system {
+    position: relative;
+    padding: var(--s-4);
+    border-radius: var(--r-xl);
+    overflow: hidden;
+    background:
+      radial-gradient(120% 90% at 0% 0%,
+        color-mix(in oklch, var(--c) 14%, transparent) 0%,
+        transparent 60%),
+      var(--surface-2);
+    border: 1px solid color-mix(in oklch, var(--c) 26%, var(--border));
+    box-shadow: 0 1px 0 color-mix(in oklch, var(--c) 8%, transparent) inset;
+  }
+  .app-system-head {
+    display: flex; align-items: center;
+    gap: var(--s-3);
+    margin-bottom: var(--s-4);
+    padding-bottom: var(--s-3);
+    border-bottom: 1px solid color-mix(in oklch, var(--c) 22%, transparent);
+  }
+  .app-system-ic {
+    width: 36px; height: 36px;
+    padding: 8px;
+    flex: 0 0 auto;
+    border-radius: var(--r-sm);
+    background: color-mix(in oklch, var(--c) 20%, transparent);
+    color: var(--c);
+    border: 1px solid color-mix(in oklch, var(--c) 30%, transparent);
+  }
+  .app-system-ic svg { width: 100%; height: 100%; display: block; }
+  .app-system-meta { flex: 1; min-width: 0; }
+  .app-system-title {
+    font-size: 14.5px; font-weight: 800;
+    letter-spacing: -.015em;
+    line-height: 1.2;
+    color: var(--text);
+    text-wrap: balance;
+  }
+  .app-system-sub {
+    font-size: 11px; font-weight: 600;
+    color: var(--text-mute);
+    margin-top: 3px;
+    letter-spacing: .01em;
+  }
+  .app-system-count {
+    flex: 0 0 auto;
+    font: 700 11px var(--font-mono);
+    padding: 4px 9px;
+    border-radius: var(--r-pill);
+    background: color-mix(in oklch, var(--c) 18%, transparent);
+    color: var(--c);
+    border: 1px solid color-mix(in oklch, var(--c) 32%, transparent);
+  }
+
+  .app-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+    gap: var(--s-3);
+  }
+  @media (min-width: 520px) { .app-tiles { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); } }
+  @media (min-width: 900px) { .app-tiles { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); } }
+
+  .app-tile {
+    position: relative;
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 6px 8px;
+    border-radius: var(--r-md);
+    cursor: pointer;
+    overflow: hidden;
+    color: var(--text);
+    background: color-mix(in oklch, var(--c) 10%, var(--surface-3));
+    border: 1px solid color-mix(in oklch, var(--c) 24%, transparent);
+    transition: transform var(--dur-fast) var(--ease-spring),
+                border-color var(--dur-fast) var(--ease-out),
+                box-shadow var(--dur-fast) var(--ease-out),
+                background var(--dur-fast) var(--ease-out);
+    touch-action: manipulation;
+    text-align: center;
+    min-height: 76px;
+  }
+  .app-tile::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 20%,
+      color-mix(in oklch, var(--c) 32%, transparent) 0%,
+      transparent 65%);
+    opacity: .55;
+    transition: opacity var(--dur-base) var(--ease-out);
+    pointer-events: none;
+  }
+  .app-tile:hover {
+    border-color: color-mix(in oklch, var(--c) 55%, transparent);
+    box-shadow: 0 10px 28px -12px color-mix(in oklch, var(--c) 70%, transparent);
+  }
+  .app-tile:hover::before { opacity: .9; }
+  .app-tile:active { transform: scale(.94); }
+  .app-tile:focus-visible {
+    outline: 2px solid var(--c, var(--accent));
+    outline-offset: 2px;
+  }
+  .app-tile-ic {
+    position: relative;
+    width: 26px; height: 26px;
+    color: var(--c);
+    filter: drop-shadow(0 3px 10px color-mix(in oklch, var(--c) 55%, transparent));
+    z-index: 1;
+  }
+  .app-tile-ic svg { width: 100%; height: 100%; display: block; }
+  .app-tile-lbl {
+    position: relative;
+    font-size: 10.5px; font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -.005em;
+    z-index: 1;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    word-break: break-word;
+  }
+  .app-tile-mode {
+    position: absolute;
+    top: 5px; right: 5px;
+    font: 700 8.5px var(--font-mono);
+    padding: 2px 5px;
+    border-radius: var(--r-xs, 4px);
+    background: color-mix(in oklch, var(--c) 24%, transparent);
+    color: color-mix(in oklch, var(--c) 90%, var(--text));
+    letter-spacing: .04em;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  /* coming-soon tile */
+  .app-tile.soon {
+    cursor: default;
+    background: var(--surface-2);
+    border-style: dashed;
+    border-color: color-mix(in oklch, var(--c) 30%, var(--border));
+    opacity: .55;
+  }
+  .app-tile.soon::before { opacity: .15; }
+  .app-tile.soon .app-tile-ic { filter: none; color: var(--text-mute); }
+  .app-tile.soon:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: color-mix(in oklch, var(--c) 30%, var(--border));
+  }
+  .app-tile.soon:active { transform: none; }
+
+  /* View transition — respect reduced motion */
+  .apps-wrap, .sys-grid, .module-grid, .recent-list {
+    animation: viewFadeIn var(--dur-base) var(--ease-out);
+  }
+  @keyframes viewFadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .apps-wrap, .sys-grid, .module-grid, .recent-list,
+    .app-tile, .app-tile::before, .module-card, .module-card::before,
+    .sys-card, .brand-mark::after, .boot-ring {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
 </style>
 </head>
 <body>
@@ -864,6 +1079,8 @@
     <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="i-wire" viewBox="0 0 24 24"><path d="M12 3l9 5v8l-9 5-9-5V8l9-5z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M3 8l9 5 9-5M12 13v9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" opacity=".55"/></symbol>
     <symbol id="i-xray" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-roadmap" viewBox="0 0 24 24"><path d="M4 6h3M11 6h9M4 12h3M11 12h9M4 18h3M11 18h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="6.5" cy="6" r="1.4" fill="currentColor"/><circle cx="6.5" cy="12" r="1.4" fill="currentColor"/><circle cx="6.5" cy="18" r="1.4" fill="currentColor"/></symbol>
+    <symbol id="i-apps" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.9"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.9"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.9"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
   </defs>
 </svg>
 
@@ -891,6 +1108,14 @@
       <svg><use href="#i-search"/></svg>
       <input id="search-input" type="text" placeholder="Search modules…" autocomplete="off">
     </label>
+    <div class="view-toggle" role="tablist" aria-label="Home view">
+      <button class="view-toggle-btn" data-view="roadmap" role="tab" aria-selected="false">
+        <svg><use href="#i-roadmap"/></svg><span>Roadmap</span>
+      </button>
+      <button class="view-toggle-btn" data-view="apps" role="tab" aria-selected="false">
+        <svg><use href="#i-apps"/></svg><span>Apps</span>
+      </button>
+    </div>
   </header>
   <main class="home-main" id="home-main"></main>
   <nav id="bottom-nav" role="tablist" aria-label="Sections">
@@ -938,8 +1163,6 @@
 <script>
 /* ═══════════════════════════════════════════════════════════════════════
    perf-guard — inlined. Pauses off-screen iframes to save battery.
-   Injected into every iframe on load, then resumed/paused based on
-   its .active class.
    ═══════════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
@@ -1091,6 +1314,7 @@
   var bottomSheet   = document.getElementById('bottom-sheet');
   var sheetContent  = document.getElementById('sheet-content');
   var bootLoader    = document.getElementById('boot-loader');
+  var viewToggleEl  = document.querySelector('.view-toggle');
 
   var PREF_KEY = 'autolab.prefs';
 
@@ -1108,6 +1332,7 @@
 
   var state = {
     tab: 'home', sys: null, dom: 'All',
+    view: savedPrefs.view === 'apps' ? 'apps' : 'roadmap',
     active: null,
     playing: true,
     speed: parseFloat(pillSpeed.value),
@@ -1120,12 +1345,15 @@
   };
   var iframes = Object.create(null);
   var speedTouched = false;
-  var modSpeed = Object.create(null);   /* per-module speed, restored on re-open */
+  var modSpeed = Object.create(null);
 
   function savePrefs() {
     try {
       localStorage.setItem(PREF_KEY, JSON.stringify({
-        theme: state.theme, wireframe: state.wireframe, xray: state.xray
+        theme: state.theme,
+        wireframe: state.wireframe,
+        xray: state.xray,
+        view: state.view
       }));
     } catch (_) {}
   }
@@ -1145,9 +1373,6 @@
     try { localStorage.setItem('autolab.recents', JSON.stringify(state.recents)); } catch (_) {}
   }
 
-  /* ─── Embed-fix: for modules that DON'T use kit.js, keep the shell
-       from fighting with their layout. Migrated modules carry the
-       `uses-ui-kit` class (set by kit.js) and app.css handles them. */
   function injectEmbedFix(fr) {
     try {
       var doc = fr.contentDocument;
@@ -1157,15 +1382,10 @@
         doc.documentElement.classList.toggle('light-theme', state.theme === 'light');
         doc.body.classList.toggle('light-theme', state.theme === 'light');
       } catch (_) {}
-      /* Migrated modules: app.css + kit.js do everything. */
       if (doc.body.classList.contains('uses-ui-kit')) return;
-      /* Legacy modules: nothing else to inject — app.css's [embed] layer
-         already handles `body.embedded:not(.uses-ui-kit)` selectors. */
     } catch (_) {}
   }
 
-  /* Each module owns a WebGL context; browsers cap them (mobile ≈ 8–16, often fewer in practice).
-     Keep only the most recent few alive and unload the rest so none silently dies. */
   var MAX_LIVE = 4;
   var lru = [];
   function touchLru(id) { lru = lru.filter(function (x) { return x !== id; }); lru.push(id); }
@@ -1225,7 +1445,7 @@
     try { ready = !!(win.document && win.document.body); } catch (_) {}
     if (!ready) { fr.addEventListener('load', function () { sendAllCommands(id); }, { once: true }); return; }
     postTo(id, { type: 'command', action: 'setPlaying',   value: state.playing });
-    if (speedTouched) postTo(id, { type: 'command', action: 'setSpeed', value: state.speed });  /* else keep the module's own default */
+    if (speedTouched) postTo(id, { type: 'command', action: 'setSpeed', value: state.speed });
     postTo(id, { type: 'command', action: 'setLabels',    value: state.labels });
     postTo(id, { type: 'command', action: 'setGas',       value: state.gas });
     postTo(id, { type: 'command', action: 'setTheme',     value: state.theme });
@@ -1245,6 +1465,39 @@
     return s;
   }
 
+  /* ─── View toggle ─── */
+  function applyViewToggleUI() {
+    if (!viewToggleEl) return;
+    viewToggleEl.querySelectorAll('.view-toggle-btn').forEach(function (b) {
+      var on = b.dataset.view === state.view;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+  }
+  function setView(v) {
+    if (v !== 'apps' && v !== 'roadmap') return;
+    if (state.view === v) return;
+    state.view = v;
+    state.sys = null;
+    applyViewToggleUI();
+    savePrefs();
+    if (state.tab === 'home') renderHome('home');
+  }
+  if (viewToggleEl) {
+    viewToggleEl.addEventListener('click', function (e) {
+      var b = e.target.closest('.view-toggle-btn');
+      if (!b) return;
+      setView(b.dataset.view);
+    });
+    viewToggleEl.addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      var next = state.view === 'roadmap' ? 'apps' : 'roadmap';
+      setView(next);
+      var target = viewToggleEl.querySelector('[data-view="' + next + '"]');
+      if (target) target.focus();
+    });
+  }
+
   /* ─── Home rendering ─── */
   function renderHome(tab) {
     state.tab = tab;
@@ -1253,6 +1506,8 @@
       b.classList.toggle('active', on);
       b.setAttribute('aria-selected', on ? 'true' : 'false');
     });
+    /* view toggle is only meaningful on the Home tab */
+    if (viewToggleEl) viewToggleEl.style.display = (tab === 'home') ? '' : 'none';
     homeMain.innerHTML = '';
     if (tab === 'home') renderAllModules();
     else if (tab === 'recents') renderRecents();
@@ -1290,37 +1545,30 @@
         })
       : modules;
 
-    if (state.recents.length && !q && !state.sys) {
+    /* Search overrides both views: flat results only. */
+    if (q) {
       var st = document.createElement('div');
       st.className = 'section-title';
-      st.textContent = 'Jump back in';
+      st.textContent = 'Results (' + filtered.length + ')';
       homeMain.appendChild(st);
-      var list = document.createElement('div');
-      list.className = 'recent-list';
-      state.recents.slice(0, 2).forEach(function (id) {
-        var m = modules.find(function (x) { return x.id === id; });
-        if (m) list.appendChild(buildRecentItem(m));
-      });
-      homeMain.appendChild(list);
-    }
-
-    if (!q) { if (state.sys) renderSystem(state.sys); else renderSystems(); return; }
-    var st2 = document.createElement('div');
-    st2.className = 'section-title';
-    st2.textContent = q ? ('Results (' + filtered.length + ')') : 'All modules';
-    homeMain.appendChild(st2);
-
-    if (!filtered.length) {
-      homeMain.appendChild(buildEmptyState('No matches', 'Nothing found for "' + searchInput.value + '". Try another word.'));
+      if (!filtered.length) {
+        homeMain.appendChild(buildEmptyState('No matches', 'Nothing found for "' + searchInput.value + '". Try another word.'));
+        return;
+      }
+      var grid = document.createElement('div');
+      grid.className = 'module-grid';
+      filtered.forEach(function (m) { grid.appendChild(buildCard(m)); });
+      homeMain.appendChild(grid);
       return;
     }
-    var grid = document.createElement('div');
-    grid.className = 'module-grid';
-    filtered.forEach(function (m) { grid.appendChild(buildCard(m)); });
-    homeMain.appendChild(grid);
+
+    /* No search: honor the current view. */
+    if (state.sys) { renderSystem(state.sys); return; }
+    if (state.view === 'apps') { renderAppsGrid(); return; }
+    renderSystems();
   }
 
-  /* ─── Systems layer ─── */
+  /* ─── Systems layer (roadmap view) ─── */
   var SYSTEMS = window.AUTO_SYSTEMS || [], DOMAINS = window.AUTO_DOMAINS || [], META = window.AUTO_META || {};
   function el(t, c, txt) { var e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; }
   function byId(id) { return modules.filter(function (m) { return m.id === id; })[0]; }
@@ -1420,6 +1668,102 @@
     }
   }
 
+  /* ─── Apps grid view (mobile-launcher style) ─── */
+  function renderAppsGrid() {
+    var all = allSystems(), hasOther = all.some(function (s) { return s.id === 'other'; });
+    var doms = ['All'].concat(DOMAINS, hasOther ? ['Other'] : []);
+
+    var tabs = el('div', 'dom-tabs');
+    doms.forEach(function (d) {
+      var b = el('button', 'dom-tab' + (state.dom === d ? ' on' : ''), d);
+      b.onclick = function () { state.dom = d; renderHome('home'); };
+      tabs.appendChild(b);
+    });
+    homeMain.appendChild(tabs);
+
+    var wrap = el('div', 'apps-wrap');
+
+    all.forEach(function (s) {
+      if (state.dom !== 'All' && state.dom !== s.domain) return;
+      wrap.appendChild(buildAppSystemCard(s));
+    });
+
+    /* If a domain filter produced nothing, show a friendly empty state. */
+    if (!wrap.children.length) {
+      homeMain.appendChild(buildEmptyState('Nothing here', 'No systems in this group yet.'));
+      return;
+    }
+    homeMain.appendChild(wrap);
+  }
+
+  function buildAppSystemCard(s) {
+    var card = el('section', 'app-system');
+    card.style.setProperty('--c', s.color);
+    card.setAttribute('aria-label', s.title + ' — ' + (s.modules.length + s.soon.length) + ' modules');
+
+    /* head */
+    var head = el('div', 'app-system-head');
+    var ic = el('div', 'app-system-ic');
+    ic.appendChild(svgWrap(s.icon));
+    head.appendChild(ic);
+
+    var meta = el('div', 'app-system-meta');
+    meta.appendChild(el('div', 'app-system-title', s.title));
+    var subBits = [s.domain];
+    if (s.blurb) subBits.push(s.blurb.split('.')[0]);
+    meta.appendChild(el('div', 'app-system-sub', subBits.join(' · ')));
+    head.appendChild(meta);
+
+    var total = s.modules.length + (s.soon ? s.soon.length : 0);
+    var count = el('span', 'app-system-count', total + (total === 1 ? ' APP' : ' APPS'));
+    head.appendChild(count);
+    card.appendChild(head);
+
+    /* tiles */
+    var tiles = el('div', 'app-tiles');
+
+    s.modules.forEach(function (mid) {
+      var m = byId(mid);
+      if (!m) return;
+      var mt = META[m.id] || ['Basic', 10, '3D'];
+      var tile = el('button', 'app-tile');
+      tile.style.setProperty('--c', m.color || s.color);
+      tile.setAttribute('aria-label', m.title + ' — ' + mt[0] + ' · ' + mt[2]);
+      tile.setAttribute('title', m.title);
+
+      var icB = el('div', 'app-tile-ic');
+      icB.appendChild(svgWrap(m.icon || ''));
+      tile.appendChild(icB);
+
+      var lbl = el('div', 'app-tile-lbl', m.label || m.title);
+      tile.appendChild(lbl);
+
+      if (mt[2] && mt[2] !== '3D') {
+        tile.appendChild(el('span', 'app-tile-mode', mt[2].replace('2D + 3D', 'MIX')));
+      } else if (mt[2] === '3D') {
+        tile.appendChild(el('span', 'app-tile-mode', '3D'));
+      }
+
+      tile.onclick = function () { openModule(m.id); };
+      tiles.appendChild(tile);
+    });
+
+    (s.soon || []).forEach(function (label) {
+      var tile = el('div', 'app-tile soon');
+      tile.style.setProperty('--c', s.color);
+      tile.setAttribute('aria-disabled', 'true');
+      tile.setAttribute('title', label + ' — coming soon');
+      var icB = el('div', 'app-tile-ic');
+      icB.appendChild(svgWrap('<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16v.01"/>'));
+      tile.appendChild(icB);
+      tile.appendChild(el('div', 'app-tile-lbl', label));
+      tiles.appendChild(tile);
+    });
+
+    card.appendChild(tiles);
+    return card;
+  }
+
   function buildRecentItem(mod) {
     var el = document.createElement('button');
     el.className = 'recent-item';
@@ -1494,6 +1838,7 @@
       '<div class="about-card">',
       '  <h3>How to use</h3>',
       '  <p><strong>Tap any module</strong> to open it. Inside, drag the 3D view to orbit, pinch to zoom, and use the floating controls at the bottom.</p>',
+      '  <p>Switch between <strong>Roadmap</strong> and <strong>Apps</strong> view with the pill above — Apps shows every module as a tile, grouped by system.</p>',
       '  <p>Tap the <strong>info chip</strong> at the top-left to expand module details. View toggles — theme, wireframe, x-ray — live in the <strong>...</strong> menu and are remembered between sessions.</p>',
       '</div>',
       '<div class="maker-card">',
@@ -1595,8 +1940,6 @@
     document.title = mod.title + ' — Auto Lab';
     try { if (location.hash.slice(1) !== id) history.pushState({ mod: id }, '', '#' + id); } catch (_) {}
     if (wasLive) {
-      /* Re-opening a live module: only re-sync shell-global things. Speed / labels / gas / view
-         choices made inside the module are kept. (New iframes get the full set on load.) */
       postTo(id, { type: 'command', action: 'setPlaying',   value: state.playing });
       postTo(id, { type: 'command', action: 'setTheme',     value: state.theme });
       postTo(id, { type: 'command', action: 'setWireframe', value: state.wireframe });
@@ -1631,9 +1974,7 @@
     if (history.state && history.state.mod) history.back(); else closeModule();
   }
 
-  btnBack.addEventListener('click', function () {
-    requestClose();
-  });
+  btnBack.addEventListener('click', function () { requestClose(); });
   window.addEventListener('popstate', function () {
     var id = location.hash.slice(1);
     if (id && modules.some(function (m) { return m.id === id; })) {
@@ -1909,6 +2250,7 @@
   /* ─── Boot ─── */
   moduleCountEl.textContent = modules.length + ' interactive modules';
   applyShellTheme();
+  applyViewToggleUI();
   pillWire.classList.toggle('active', state.wireframe);
   pillXRay.classList.toggle('active', state.xray);
   updatePlayIcon();
