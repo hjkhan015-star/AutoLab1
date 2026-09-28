@@ -279,9 +279,7 @@
   /* ═══════════════════════════════════════════════════════════════════
      GROUND GRID
      ═══════════════════════════════════════════════════════════════════ */
-  const grid = new THREE.GridHelper(9, 18, 0x1e293b, 0x151a24);
-  grid.position.y = -2.14;
-  scene.add(grid);
+  /* Ground grid comes from the kit (same height) — a second one here caused shimmer. */
 
   /* ═══════════════════════════════════════════════════════════════════
      HELPERS
