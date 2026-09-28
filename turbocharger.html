@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0b0e14">
-<title>Forced Induction — Auto Lab</title>
+<meta name="theme-color" content="#0a0d13">
+<title>Turbocharger — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
 <style>
   /* ═══════════════════════════════════════════════════════════
@@ -16,7 +16,7 @@
   }
   #accel-readout {
     margin-bottom: 8px;
-    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
     font-size: 12px; font-weight: 800;
     color: var(--text, #e5e7eb);
     background: rgba(10,14,20,.76);
@@ -74,7 +74,7 @@
     color: #475569;
     border-color: rgba(15,23,42,.14);
   }
-  #accel-control-pct { color: var(--text, #e5e7eb); font-family: ui-monospace, Menlo, Consolas, monospace; }
+  #accel-control-pct { color: var(--text, #e5e7eb); font-family: var(--font-mono); }
   @media (max-width: 600px) {
     #accel-track { width: 44px; height: 128px; }
     #accel-control-label { font-size: 10px; padding: 4px 8px; }
@@ -98,10 +98,10 @@
   }
   #live-readout .lr-row {
     display: flex; justify-content: space-between; gap: 10px;
-    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
   }
   #live-readout .lr-row > span:first-child {
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--font-sans);
     font-weight: 500;
   }
   #live-readout .lr-row b {
@@ -133,7 +133,7 @@
     min-width: 96px; text-align: center; white-space: nowrap;
     font-size: 10.5px; font-weight: 700; letter-spacing: .02em;
     color: var(--text, #e5e7eb);
-    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
   }
   html.light-theme .cfg-arrow { background: rgba(15,23,42,.08); color: #0a0d13; }
   html.light-theme .cfg-arrow:hover { background: var(--accent, #38bdf8); color: #fff; }
@@ -1339,7 +1339,7 @@
 
     panel: {
       kicker: 'Forced Induction',
-      title:  'Turbocharger Working Principle',
+      title:  'Turbocharger · Working Principle',
       badge:  { text: 'Exhaust-Driven', color: '#ef4444' },
       readout: `
         <div id="live-readout">
@@ -1511,7 +1511,7 @@
   };
 
   const TURBO_INFO = {
-    title:  'Turbocharger Working Principle',
+    title:  'Turbocharger · Working Principle',
     kicker: 'Forced Induction · Exhaust-Driven',
     badge:  { text: 'Exhaust-Driven', color: '#ef4444' },
     desc: `<strong>Turbocharger.</strong> Hot exhaust gas leaves the engine, dives down behind the block, and enters the turbine
@@ -1522,7 +1522,7 @@
   };
 
   const SC_INFO = {
-    title:  'Supercharger Working Principle',
+    title:  'Supercharger · Working Principle',
     kicker: 'Forced Induction · Belt-Driven',
     badge:  { text: 'Belt-Driven', color: '#38bdf8' },
     desc: `<strong>Supercharger.</strong> A belt runs from the <strong>crankshaft pulley</strong> up to the

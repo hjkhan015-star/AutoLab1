@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0b0e14">
-<title>Electrical System — Auto Lab</title>
+<meta name="theme-color" content="#0a0d13">
+<title>Battery · Starter · Alternator — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
 <style>
   /* ═══════════════════════════════════════════════════════════
@@ -35,7 +35,7 @@
     margin-top: 10px; padding: 7px 10px; border-radius: 8px;
     background: rgba(34,197,94,.10);
     border: 1px solid rgba(34,197,94,.28);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
     font-size: 11px; font-weight: 700;
     color: #86efac;
     text-align: center; letter-spacing: .02em;
@@ -53,10 +53,10 @@
   .el-rows .row {
     display: flex; justify-content: space-between; align-items: center;
     gap: 10px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
   }
   .el-rows .row > span:first-child {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-sans);
     font-weight: 500; letter-spacing: .01em;
   }
   .el-rows .val {
@@ -80,7 +80,7 @@
     font-size: 11px; font-weight: 800; letter-spacing: .06em;
     text-transform: uppercase; cursor: pointer;
     transition: all var(--dur-fast, .18s) var(--ease-out, ease);
-    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     box-shadow: 0 6px 16px rgba(0,0,0,.5);
     display: flex; align-items: center; justify-content: center; gap: 5px;
@@ -124,7 +124,7 @@
     font-size: 10.5px; font-weight: 800; letter-spacing: .06em;
     text-transform: uppercase; cursor: pointer;
     transition: all var(--dur-fast, .18s) var(--ease-out, ease);
-    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     box-shadow: 0 6px 16px rgba(0,0,0,.5);
   }
@@ -163,7 +163,7 @@
   #waveform-panel .wf-label {
     font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
     color: #8d9aaa; font-weight: 700;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--font-sans);
   }
   #waveform-canvas {
     display: block; width: 100%; height: 70px; border-radius: 6px;
@@ -980,7 +980,7 @@
       badge: 'Lead-Acid Battery',
       badgeColor: '#22c55e',
       badgeBg: 'rgba(34,197,94,.18)',
-      title: 'Battery — Chemical Energy Storage',
+      title: 'Battery · Chemical Energy Storage',
       desc: `<strong>Lead-acid battery.</strong> Six cells in series, each producing about
              2.1&nbsp;V — hence the familiar 12.6&nbsp;V nominal. Inside each cell, lead
              dioxide (PbO₂) and sponge lead (Pb) plates sit in dilute sulfuric acid.
@@ -992,7 +992,7 @@
       badge: 'Alternator · 3-phase',
       badgeColor: '#38bdf8',
       badgeBg: 'rgba(56,189,248,.18)',
-      title: 'Alternator — Mechanical → Electrical',
+      title: 'Alternator · Mechanical → Electrical',
       desc: `<strong>Alternator.</strong> A belt spins the <strong>rotor</strong>, whose
              <strong>field winding</strong> is energized by a small current through
              <strong>slip rings</strong>. The rotor's claw-pole fingers alternate
@@ -1006,7 +1006,7 @@
       badge: 'Charging Circuit',
       badgeColor: '#f59e0b',
       badgeBg: 'rgba(245,158,11,.18)',
-      title: 'Charging — Balance of Supply & Load',
+      title: 'Charging · Balance of Supply & Load',
       desc: `<strong>Charging system.</strong> The alternator feeds the battery and every
              electrical load simultaneously. If alternator output exceeds total load,
              the extra current flows <em>into</em> the battery — <strong>charging</strong>.
@@ -1023,7 +1023,7 @@
     moduleId: 'electrical',
 
     panel: {
-      kicker: 'Electrical Systems',
+      kicker: 'Electrical',
       title:  'Battery · Alternator · Charging',
       tabs: [
         {

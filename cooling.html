@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0a0d13">
-<title>Engine Cooling System — Auto Lab</title>
+<title>Cooling System — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
 <style>
   /* ═══════════════════════════════════════════════════════════════════
@@ -162,20 +162,19 @@
     position: fixed;
     z-index: 6;
     pointer-events: none;
-    font: 600 11px Inter, system-ui;
-    padding: 4px 8px;
-    border-radius: 7px;
-    background: rgba(6,10,16,.86);
-    border: 1px solid rgba(255,255,255,.14);
+    font-family: var(--font-sans);
+    font-size: 11px; font-weight: 600; letter-spacing: .01em;
+    padding: 3px 9px;
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    color: var(--text);
     white-space: nowrap;
     transform: translate(-50%,-50%);
     display: none;
   }
-  html.light-theme .callout {
-    background: rgba(255,255,255,.96);
-    border-color: rgba(15,23,42,.14);
-    color: #0a0d13;
-  }
+  html.light-theme .callout { background: var(--surface-2); }
   .callout-dot {
     position: fixed;
     z-index: 4;

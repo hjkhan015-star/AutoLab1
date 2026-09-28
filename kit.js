@@ -242,7 +242,18 @@ export function buildScene(opts = {}) {
   wrap.appendChild(renderer.domElement);
   renderer.domElement.setAttribute('role', 'img');
   renderer.domElement.setAttribute('aria-label', (document.title || 'Auto Lab').replace(/\s*—\s*Auto Lab$/, '') + ' — interactive 3D model');
-  window.addEventListener('pagehide', () => { try { renderer.dispose(); renderer.forceContextLoss(); } catch (_) {} });
+  let _leaving = false;
+  window.addEventListener('pagehide', () => { _leaving = true; try { renderer.dispose(); renderer.forceContextLoss(); } catch (_) {} });
+  /* Context-loss recovery: the browser evicts old WebGL contexts (esp. mobile).
+     three.js restores on its own if the context comes back; if not within 1.2s, reload this module. */
+  let _lostTimer = 0;
+  renderer.domElement.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    if (_leaving) return;
+    clearTimeout(_lostTimer);
+    _lostTimer = setTimeout(() => { if (!_leaving) location.reload(); }, 1200);
+  });
+  renderer.domElement.addEventListener('webglcontextrestored', () => clearTimeout(_lostTimer));
 
   const controls = new OrbitControls(camera, renderer.domElement);
   const tg = opts.target || [0, 1.9, 0];
@@ -460,7 +471,7 @@ export function createLabelSystem() {
   let density = 2;
   const order = [];
   /* Auto tier: a label without an explicit tier is "key" (1) if it is in the first half added, else "detail" (2) */
-  const tierOf = (id) => tiers[id] ?? (order.indexOf(id) < Math.ceil(order.length / 2) ? 1 : 2);
+  const tierOf = (id) => tiers[id] ?? (order.indexOf(id) < Math.min(8, Math.ceil(order.length / 2)) ? 1 : 2);
   window.__autolabDensity = 2;
   const api = {
     add(id, text, tier) {
@@ -589,10 +600,18 @@ class UIKit {
     toggle.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14z"/></svg>';
     card.appendChild(toggle);
 
+    const key = 'autolab.orb.' + this.moduleId + '.' + (card.id || 'card');
     function set(collapsed) {
       card.classList.toggle('is-orb', collapsed);
       toggle.setAttribute('aria-label', collapsed ? 'Expand' : 'Minimize');
+      card.setAttribute('role', collapsed ? 'button' : '');
+      card.tabIndex = collapsed ? 0 : -1;
+      try { sessionStorage.setItem(key, collapsed ? '1' : '0'); } catch (_) {}
     }
+    card.addEventListener('keydown', (e) => {
+      if (card.classList.contains('is-orb') && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); set(false); }
+    });
+    try { if (sessionStorage.getItem(key) === '1') set(true); } catch (_) {}
     toggle.addEventListener('click', (e) => { e.stopPropagation(); set(!card.classList.contains('is-orb')); });
     card.addEventListener('click', () => { if (card.classList.contains('is-orb')) set(false); });
     return { set };
@@ -864,7 +883,7 @@ class UIKit {
 
     const defaultHandlers = {
       setPlaying:   v => { if ('playing'    in state) state.playing    = !!v; },
-      setSpeed:     v => { if ('speedMul'   in state) state.speedMul   = +v; },
+      setSpeed:     v => { if ('speedMul' in state) { let x = +v; if (_speed) x = Math.max(+_speed.min, Math.min(+_speed.max, x)); state.speedMul = x; } },
       setLabels:    v => { if ('showLabels' in state) state.showLabels = !!v; },
       setGas:       v => { if ('showGas'    in state) state.showGas    = !!v; },
       setTheme:     v => { viewManager?.setTheme?.(v); },

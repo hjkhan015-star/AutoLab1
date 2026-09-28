@@ -916,7 +916,7 @@
     '  var caf = window.cancelAnimationFrame.bind(window);',
     '  var paused = false;',
     '  var parked = new Map();',
-    '  var uid = 0;',
+    '  var uid = 1000000000;',
     '  window.requestAnimationFrame = function (cb) {',
     '    if (!paused) return raf(cb);',
     '    var id = ++uid;',
@@ -1082,6 +1082,8 @@
     recents: loadRecents()
   };
   var iframes = Object.create(null);
+  var speedTouched = false;
+  var modSpeed = Object.create(null);   /* per-module speed, restored on re-open */
 
   function savePrefs() {
     try {
@@ -1125,6 +1127,27 @@
     } catch (_) {}
   }
 
+  /* Each module owns a WebGL context; browsers cap them (mobile ≈ 8–16, often fewer in practice).
+     Keep only the most recent few alive and unload the rest so none silently dies. */
+  var MAX_LIVE = 4;
+  var lru = [];
+  function touchLru(id) { lru = lru.filter(function (x) { return x !== id; }); lru.push(id); }
+  function evictOld(keepId) {
+    while (lru.length > MAX_LIVE) {
+      var victim = null;
+      for (var i = 0; i < lru.length; i++) if (lru[i] !== keepId) { victim = lru[i]; break; }
+      if (!victim) return;
+      lru = lru.filter(function (x) { return x !== victim; });
+      var fr = iframes[victim];
+      if (fr) {
+        try { fr.contentWindow.dispatchEvent(new Event('pagehide')); } catch (_) {}
+        try { fr.src = 'about:blank'; } catch (_) {}
+        if (fr.parentNode) fr.parentNode.removeChild(fr);
+        delete iframes[victim];
+      }
+    }
+  }
+
   function ensureIframe(mod) {
     if (iframes[mod.id]) return iframes[mod.id];
     var fr = document.createElement('iframe');
@@ -1165,7 +1188,7 @@
     try { ready = !!(win.document && win.document.body); } catch (_) {}
     if (!ready) { fr.addEventListener('load', function () { sendAllCommands(id); }, { once: true }); return; }
     postTo(id, { type: 'command', action: 'setPlaying',   value: state.playing });
-    postTo(id, { type: 'command', action: 'setSpeed',     value: state.speed });
+    if (speedTouched) postTo(id, { type: 'command', action: 'setSpeed', value: state.speed });  /* else keep the module's own default */
     postTo(id, { type: 'command', action: 'setLabels',    value: state.labels });
     postTo(id, { type: 'command', action: 'setGas',       value: state.gas });
     postTo(id, { type: 'command', action: 'setTheme',     value: state.theme });
@@ -1422,14 +1445,25 @@
     for (var k in iframes) {
       if (k !== id) postTo(k, { type: 'command', action: 'setPlaying', value: false });
     }
+    var wasLive = !!iframes[id];
     ensureIframe(mod);
+    touchLru(id);
+    evictOld(id);
     for (var k2 in iframes) iframes[k2].classList.toggle('active', k2 === id);
     moduleScreen.classList.add('active');
     moduleScreen.setAttribute('aria-hidden', 'false');
     homeScreen.classList.add('behind');
     document.title = mod.title + ' — Auto Lab';
-    try { if (location.hash.slice(1) !== id) history.pushState(null, '', '#' + id); } catch (_) {}
-    sendAllCommands(id);
+    try { if (location.hash.slice(1) !== id) history.pushState({ mod: id }, '', '#' + id); } catch (_) {}
+    if (wasLive) {
+      /* Re-opening a live module: only re-sync shell-global things. Speed / labels / gas / view
+         choices made inside the module are kept. (New iframes get the full set on load.) */
+      postTo(id, { type: 'command', action: 'setPlaying',   value: state.playing });
+      postTo(id, { type: 'command', action: 'setTheme',     value: state.theme });
+      postTo(id, { type: 'command', action: 'setWireframe', value: state.wireframe });
+      postTo(id, { type: 'command', action: 'setXRay',      value: state.xray });
+      if (modSpeed[id] != null) { state.speed = modSpeed[id]; pillSpeed.value = state.speed; }
+    }
     updatePlayIcon();
     var fr = iframes[id];
     if (fr && fr.contentWindow) {
@@ -1451,13 +1485,15 @@
     homeScreen.classList.remove('behind');
     state.active = null;
     document.title = 'Auto Lab';
-    try { history.replaceState(null, '', ' '); } catch (_) {}
+    try { if (location.hash) history.replaceState(null, '', location.pathname + location.search); } catch (_) {}
     closeSheet();
+  }
+  function requestClose() {
+    if (history.state && history.state.mod) history.back(); else closeModule();
   }
 
   btnBack.addEventListener('click', function () {
-    if (history.state !== null) history.back();
-    else closeModule();
+    requestClose();
   });
   window.addEventListener('popstate', function () {
     var id = location.hash.slice(1);
@@ -1482,7 +1518,8 @@
     if (state.active) postTo(state.active, { type: 'command', action: 'reset' });
   });
   pillSpeed.addEventListener('input', function () {
-    state.speed = parseFloat(pillSpeed.value);
+    state.speed = parseFloat(pillSpeed.value); speedTouched = true;
+    if (state.active) modSpeed[state.active] = state.speed;
     if (state.active) postTo(state.active, { type: 'command', action: 'setSpeed', value: state.speed });
     var el = document.getElementById('sheet-speed-val');
     if (el) el.textContent = formatSpeed(state.speed);
@@ -1561,7 +1598,8 @@
 
     var speedEl = sheetContent.querySelector('#sheet-speed');
     speedEl.addEventListener('input', function () {
-      state.speed = parseFloat(speedEl.value);
+      state.speed = parseFloat(speedEl.value); speedTouched = true;
+      if (state.active) modSpeed[state.active] = state.speed;
       pillSpeed.value = state.speed;
       if (state.active) postTo(state.active, { type: 'command', action: 'setSpeed', value: state.speed });
       document.getElementById('sheet-speed-val').textContent = formatSpeed(state.speed);
@@ -1691,7 +1729,7 @@
     if (!inShell) return;
     if (e.key === 'Escape') {
       if (bottomSheet.classList.contains('open')) { closeSheet(); return; }
-      if (state.active) closeModule();
+      if (state.active) requestClose();
       return;
     }
     if (!state.active) return;

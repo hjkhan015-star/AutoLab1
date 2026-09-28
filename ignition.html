@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0b0e14">
+<meta name="theme-color" content="#0a0d13">
 <title>Ignition System — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
 <style>
@@ -17,10 +17,10 @@
   }
   #ign-readout .ig-row {
     display: flex; justify-content: space-between; gap: 10px;
-    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
   }
   #ign-readout .ig-row > span:first-child {
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--font-sans);
     font-weight: 500;
   }
   #ign-readout .ig-row b {
@@ -62,7 +62,7 @@
     transform: translateX(-50%);
     font-size: 10px; font-weight: 800;
     color: #cbd5e1;
-    font-family: ui-monospace, monospace;
+    font-family: var(--font-mono);
     transition: color .08s;
   }
   .cyc-marker.firing { background: #ffd166; box-shadow: 0 0 18px rgba(255,209,102,1); }
@@ -71,7 +71,7 @@
     display: flex; justify-content: space-between;
     margin-top: 8px;
     font-size: 10px; color: #64748b;
-    font-family: ui-monospace, monospace;
+    font-family: var(--font-mono);
     letter-spacing: .05em;
   }
   html.light-theme #cycle-labels { color: #94a3b8; }
@@ -1231,7 +1231,7 @@
     moduleId: 'ignition',
 
     panel: {
-      kicker: 'Electrical Systems',
+      kicker: 'Electrical',
       title:  'Ignition System & Spark Timing',
       badge:  { text: 'Ignition', color: '#f59e0b' },
       readout: `

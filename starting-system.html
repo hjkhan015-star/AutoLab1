@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0b0e14">
+<meta name="theme-color" content="#0a0d13">
 <title>Starting System — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
 <style>
@@ -15,10 +15,10 @@
   }
   #ss-readout .ss-row {
     display: flex; justify-content: space-between; gap: 10px;
-    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
   }
   #ss-readout .ss-row > span:first-child {
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--font-sans);
     font-weight: 500;
   }
   #ss-readout .ss-row b {
@@ -170,7 +170,7 @@
     min-width: 80px; text-align: center; white-space: nowrap;
     font-size: 10.5px; font-weight: 700; letter-spacing: .02em;
     color: var(--text, #e5e7eb);
-    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
   }
   html.light-theme .cfg-arrow { background: rgba(15,23,42,.08); color: #0a0d13; }
   html.light-theme #cfg-label { color: #0a0d13; }

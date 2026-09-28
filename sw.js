@@ -1,5 +1,5 @@
 /* Auto Lab service worker — offline cache */
-const VERSION = 'autolab-v8.9';
+const VERSION = 'autolab-v9.0';
 const CORE    = VERSION + '-core';
 const RUNTIME = VERSION + '-runtime';
 
@@ -49,7 +49,7 @@ self.addEventListener('fetch', (event) => {
       try {
         const fresh = await fetch(req);
         const cache = await caches.open(CORE);
-        cache.put(req, fresh.clone());          /* cache each page under its own URL (was: everything overwrote index.html) */
+        if (fresh && fresh.ok) cache.put(req, fresh.clone());   /* only cache good responses */
         return fresh;
       } catch (_) {
         const cached = (await caches.match(req)) || (await caches.match('./index.html'));
@@ -59,16 +59,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  /* Same-origin: stale-while-revalidate */
+  /* Same-origin: network-first (keeps kit.js / app.css / pages in lock-step), cache fallback offline */
   if (url.origin === location.origin) {
     event.respondWith((async () => {
       const cache = await caches.open(CORE);
-      const cached = await cache.match(req);
-      const fetchP = fetch(req).then((res) => {
+      try {
+        const res = await fetch(req);
         if (res && res.ok) cache.put(req, res.clone());
         return res;
-      }).catch(() => null);
-      return cached || (await fetchP) || new Response('Offline', { status: 503 });
+      } catch (_) {
+        return (await cache.match(req)) || new Response('Offline', { status: 503 });
+      }
     })());
     return;
   }
