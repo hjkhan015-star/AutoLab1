@@ -797,6 +797,43 @@
     to   { opacity: .85; transform: translateY(0); }
   }
 }
+
+  /* ── Systems layer (domain → system → modules) ── */
+  .dom-tabs{display:flex;gap:var(--s-2);overflow-x:auto;padding:0 var(--s-5) var(--s-3);scrollbar-width:none}
+  .dom-tabs::-webkit-scrollbar{display:none}
+  .dom-tab{flex:none;padding:7px 14px;border-radius:var(--r-pill);font-size:12.5px;font-weight:600;color:var(--text-mute);background:var(--surface-2);border:1px solid var(--border)}
+  .dom-tab.on{color:var(--text);border-color:var(--accent);background:color-mix(in oklch,var(--accent) 16%,var(--surface-2))}
+  .sys-grid{display:grid;grid-template-columns:1fr;gap:var(--s-3);padding:0 var(--s-5) var(--s-4)}
+  @media(min-width:600px){.sys-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(min-width:1000px){.sys-grid{grid-template-columns:repeat(3,1fr)}}
+  .sys-card{position:relative;text-align:left;color:var(--text);padding:var(--s-4);border-radius:var(--r-lg);display:grid;grid-template-columns:44px 1fr;gap:2px var(--s-3);overflow:hidden;
+    background:color-mix(in oklch,var(--c) 9%,var(--surface-2));border:1px solid color-mix(in oklch,var(--c) 24%,transparent);transition:transform var(--dur-fast) var(--ease-spring),box-shadow var(--dur-fast)}
+  .sys-card:hover{box-shadow:0 14px 40px -16px color-mix(in oklch,var(--c) 65%,transparent)}.sys-card:active{transform:scale(.97)}
+  .sys-ic{width:44px;height:44px;padding:9px;border-radius:var(--r-sm);color:var(--c);background:color-mix(in oklch,var(--c) 16%,transparent);grid-row:span 3}
+  .sys-ic svg{width:100%;height:100%}
+  .sys-name{font-size:14.5px;font-weight:700;letter-spacing:-.01em}
+  .sys-desc{font-size:12px;line-height:1.4;color:var(--text-mute)}
+  .sys-foot{font-size:11px;font-weight:600;color:var(--c);margin-top:4px}
+  .sys-back{margin:0 var(--s-5) var(--s-3);padding:6px 12px 6px 8px;border-radius:var(--r-pill);font-size:12.5px;font-weight:600;color:var(--text-mute);background:var(--surface-2);border:1px solid var(--border)}
+  .sys-head{display:flex;gap:var(--s-4);align-items:center;margin:0 var(--s-5) var(--s-4);padding:var(--s-4);border-radius:var(--r-lg);background:linear-gradient(135deg,color-mix(in oklch,var(--c) 20%,var(--surface-2)),var(--surface-2));border:1px solid color-mix(in oklch,var(--c) 28%,transparent)}
+  .sys-head .sys-ic{width:56px;height:56px;padding:12px;grid-row:auto;flex:none}
+  .sys-kick{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--c)}
+  .sys-title{font-size:19px;letter-spacing:-.02em;margin:2px 0}.sys-blurb{font-size:12.5px;line-height:1.45;color:var(--text-mute)}
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 var(--s-5) var(--s-4);padding:var(--s-3);border-radius:var(--r-md);background:var(--surface-2);border:1px solid var(--border)}
+  .flow-step{font-size:12px;font-weight:600;padding:5px 10px;border-radius:var(--r-pill);background:color-mix(in oklch,var(--c) 10%,transparent);color:var(--text-mute)}
+  .flow-step.link{color:var(--text);border:1px solid color-mix(in oklch,var(--c) 45%,transparent)}
+  .flow-arrow{color:var(--text-mute);font-size:12px}
+  .mod-list{display:flex;flex-direction:column;gap:var(--s-2);padding:0 var(--s-5) var(--s-4)}
+  .mod-row{display:flex;align-items:center;gap:var(--s-3);text-align:left;color:var(--text);padding:var(--s-3) var(--s-4);border-radius:var(--r-md);background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--c);transition:transform var(--dur-fast) var(--ease-spring),background var(--dur-fast)}
+  .mod-row:hover{background:color-mix(in oklch,var(--c) 10%,var(--surface-2))}.mod-row:active{transform:scale(.985)}
+  .mod-num{font:700 11px var(--font-mono);color:var(--text-mute);width:16px}
+  .mod-row .sys-ic{width:38px;height:38px;padding:8px;grid-row:auto;flex:none}
+  .mod-copy{flex:1;min-width:0}.mod-t{font-size:14px;font-weight:700}.mod-s{font-size:11.5px;color:var(--text-mute);margin-top:1px}
+  .mod-badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+  .badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:var(--r-pill);background:var(--surface-3);color:var(--text-mute)}
+  .badge.basic{color:var(--ok)}.badge.intermediate{color:var(--warn)}.badge.advanced{color:var(--crit)}
+  .mod-row.soon{opacity:.5;border-left-style:dashed;cursor:default}.mod-row.soon:hover{background:var(--surface-2)}.mod-row.soon:active{transform:none}
+  .rel{display:flex;flex-wrap:wrap;gap:var(--s-2);padding:0 var(--s-5) var(--s-6)}
 </style>
 </head>
 <body>
@@ -1070,7 +1107,7 @@
   var savedPrefs = loadPrefs() || {};
 
   var state = {
-    tab: 'home',
+    tab: 'home', sys: null, dom: 'All',
     active: null,
     playing: true,
     speed: parseFloat(pillSpeed.value),
@@ -1253,7 +1290,7 @@
         })
       : modules;
 
-    if (state.recents.length && !q) {
+    if (state.recents.length && !q && !state.sys) {
       var st = document.createElement('div');
       st.className = 'section-title';
       st.textContent = 'Jump back in';
@@ -1267,6 +1304,7 @@
       homeMain.appendChild(list);
     }
 
+    if (!q) { if (state.sys) renderSystem(state.sys); else renderSystems(); return; }
     var st2 = document.createElement('div');
     st2.className = 'section-title';
     st2.textContent = q ? ('Results (' + filtered.length + ')') : 'All modules';
@@ -1280,6 +1318,106 @@
     grid.className = 'module-grid';
     filtered.forEach(function (m) { grid.appendChild(buildCard(m)); });
     homeMain.appendChild(grid);
+  }
+
+  /* ─── Systems layer ─── */
+  var SYSTEMS = window.AUTO_SYSTEMS || [], DOMAINS = window.AUTO_DOMAINS || [], META = window.AUTO_META || {};
+  function el(t, c, txt) { var e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; }
+  function byId(id) { return modules.filter(function (m) { return m.id === id; })[0]; }
+  function allSystems() {
+    var used = {}; SYSTEMS.forEach(function (s) { s.modules.forEach(function (i) { used[i] = 1; }); });
+    var rest = modules.filter(function (m) { return !used[m.id]; });
+    return rest.length ? SYSTEMS.concat([{ id: 'other', domain: 'Other', title: 'Other', color: '#94a3b8', blurb: 'Additional modules.',
+      icon: '<circle cx="12" cy="12" r="8"/>', modules: rest.map(function (m) { return m.id; }), soon: [], flow: [], related: [] }]) : SYSTEMS;
+  }
+  function icBox(icon, c) { var b = el('div', 'sys-ic'); if (c) b.style.setProperty('--c', c); b.appendChild(svgWrap(icon)); return b; }
+  function goSys(id) { state.sys = id; renderHome('home'); homeMain.scrollTop = 0; }
+
+  function renderSystems() {
+    var all = allSystems(), hasOther = all.some(function (s) { return s.id === 'other'; });
+    var doms = ['All'].concat(DOMAINS, hasOther ? ['Other'] : []);
+    var tabs = el('div', 'dom-tabs');
+    doms.forEach(function (d) {
+      var b = el('button', 'dom-tab' + (state.dom === d ? ' on' : ''), d);
+      b.onclick = function () { state.dom = d; renderHome('home'); };
+      tabs.appendChild(b);
+    });
+    homeMain.appendChild(tabs);
+    doms.slice(1).forEach(function (d) {
+      if (state.dom !== 'All' && state.dom !== d) return;
+      var list = all.filter(function (s) { return s.domain === d; });
+      if (!list.length) return;
+      homeMain.appendChild(el('div', 'section-title', d));
+      var g = el('div', 'sys-grid');
+      list.forEach(function (s) {
+        var c = el('button', 'sys-card'); c.style.setProperty('--c', s.color);
+        c.setAttribute('aria-label', s.title);
+        c.appendChild(icBox(s.icon));
+        c.appendChild(el('div', 'sys-name', s.title));
+        c.appendChild(el('div', 'sys-desc', s.blurb));
+        var n = s.modules.length;
+        c.appendChild(el('div', 'sys-foot', n + (n === 1 ? ' module' : ' modules') + (s.soon.length ? ' · ' + s.soon.length + ' coming soon' : '')));
+        c.onclick = function () { goSys(s.id); };
+        g.appendChild(c);
+      });
+      homeMain.appendChild(g);
+    });
+  }
+
+  function modRow(m, i, s) {
+    var mt = META[m.id] || ['Basic', 10, '3D'];
+    var r = el('button', 'mod-row'); r.style.setProperty('--c', m.color || s.color);
+    r.appendChild(el('span', 'mod-num', String(i + 1)));
+    r.appendChild(icBox(m.icon || '', m.color));
+    var cp = el('div', 'mod-copy');
+    cp.appendChild(el('div', 'mod-t', m.title)); cp.appendChild(el('div', 'mod-s', m.subtitle || ''));
+    var bd = el('div', 'mod-badges');
+    bd.appendChild(el('span', 'badge ' + mt[0].toLowerCase(), mt[0]));
+    bd.appendChild(el('span', 'badge', mt[2])); bd.appendChild(el('span', 'badge', '~' + mt[1] + ' min'));
+    cp.appendChild(bd); r.appendChild(cp);
+    r.onclick = function () { openModule(m.id); };
+    return r;
+  }
+
+  function renderSystem(id) {
+    var s = allSystems().filter(function (x) { return x.id === id; })[0];
+    if (!s) { state.sys = null; renderSystems(); return; }
+    var back = el('button', 'sys-back', '‹  All systems');
+    back.onclick = function () { state.sys = null; renderHome('home'); };
+    homeMain.appendChild(back);
+    var h = el('div', 'sys-head'); h.style.setProperty('--c', s.color);
+    h.appendChild(icBox(s.icon));
+    var t = el('div', 'sys-htxt');
+    t.appendChild(el('div', 'sys-kick', s.domain)); t.appendChild(el('h2', 'sys-title', s.title)); t.appendChild(el('p', 'sys-blurb', s.blurb));
+    h.appendChild(t); homeMain.appendChild(h);
+    if (s.flow.length) {
+      homeMain.appendChild(el('div', 'section-title', 'How it works'));
+      var f = el('div', 'flow'); f.style.setProperty('--c', s.color);
+      s.flow.forEach(function (x, i) {
+        var p = x.split('|'), n = el(p[1] ? 'button' : 'span', 'flow-step' + (p[1] ? ' link' : ''), p[0]);
+        if (p[1]) n.onclick = function () { openModule(p[1]); };
+        if (i) f.appendChild(el('span', 'flow-arrow', '→'));
+        f.appendChild(n);
+      });
+      homeMain.appendChild(f);
+    }
+    homeMain.appendChild(el('div', 'section-title', 'Modules'));
+    var l = el('div', 'mod-list'), k = 0;
+    s.modules.forEach(function (mid) { var m = byId(mid); if (m) l.appendChild(modRow(m, k++, s)); });
+    s.soon.forEach(function (n) {
+      var r = el('div', 'mod-row soon'); r.style.setProperty('--c', s.color);
+      r.appendChild(el('span', 'mod-num', '·'));
+      var cp = el('div', 'mod-copy'); cp.appendChild(el('div', 'mod-t', n)); cp.appendChild(el('div', 'mod-s', 'On the roadmap'));
+      r.appendChild(cp); r.appendChild(el('span', 'badge', 'Soon')); l.appendChild(r);
+    });
+    homeMain.appendChild(l);
+    var rel = (s.related || []).map(function (rid) { return allSystems().filter(function (x) { return x.id === rid; })[0]; }).filter(Boolean);
+    if (rel.length) {
+      homeMain.appendChild(el('div', 'section-title', 'Related systems'));
+      var rw = el('div', 'rel');
+      rel.forEach(function (x) { var b = el('button', 'dom-tab', x.title); b.onclick = function () { goSys(x.id); }; rw.appendChild(b); });
+      homeMain.appendChild(rw);
+    }
   }
 
   function buildRecentItem(mod) {
@@ -1386,6 +1524,7 @@
   bottomNav.addEventListener('click', function (e) {
     var btn = e.target.closest('.nav-tab');
     if (!btn) return;
+    if (btn.dataset.tab === 'home' && state.tab === 'home') state.sys = null;
     renderHome(btn.dataset.tab);
   });
   searchInput.addEventListener('input', function () {
