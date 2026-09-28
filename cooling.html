@@ -80,7 +80,7 @@
     border-top: 1px solid var(--border);
   }
   #surface-title {
-    font-size: 9.5px;
+    font-size: 10px;
     text-transform: uppercase;
     letter-spacing: .1em;
     color: var(--text-mute);
@@ -1152,7 +1152,7 @@ const ui = UI.create({
   panel: {
     kicker: 'Engine Cooling',
     title:  'Engine Cooling System',
-    badge:  { text: modeInfo.air.name, color: '#38bdf8' },
+    badge:  { text: modeInfo.air.name, color: '#06b6d4' },
     readout: `
       <div id="system-flow"></div>
       <div id="fins-note" class="fins-on"></div>
@@ -1600,7 +1600,9 @@ function projectLabels() {
   if (state.frame % 2 !== 0) return;
   for (const co of callouts) {
     _proj.copy(co.anchor).project(camera);
-    const visible = state.showLabels && co.modes.includes(state.mode) && _proj.z < 1;
+    const _dens = window.__autolabDensity ?? 2;
+    const _tier = co.tier ?? (callouts.indexOf(co) < Math.ceil(callouts.length / 2) ? 1 : 2);
+    const visible = state.showLabels && _dens >= _tier && co.modes.includes(state.mode) && _proj.z < 1;
     const d = visible ? 'block' : 'none';
     co.label.style.display = d;
     co.dot.style.display = d;

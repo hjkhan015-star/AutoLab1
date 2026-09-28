@@ -240,6 +240,9 @@ export function buildScene(opts = {}) {
     renderer.toneMappingExposure = look.exposure;
   }
   wrap.appendChild(renderer.domElement);
+  renderer.domElement.setAttribute('role', 'img');
+  renderer.domElement.setAttribute('aria-label', (document.title || 'Auto Lab').replace(/\s*—\s*Auto Lab$/, '') + ' — interactive 3D model');
+  window.addEventListener('pagehide', () => { try { renderer.dispose(); renderer.forceContextLoss(); } catch (_) {} });
 
   const controls = new OrbitControls(camera, renderer.domElement);
   const tg = opts.target || [0, 1.9, 0];
@@ -455,17 +458,22 @@ export function createLabelSystem() {
      Tag a label `tier: 2` (or pass it as the 3rd arg to .add) to mark it
      as a "detail" label that disappears first when density drops. */
   let density = 2;
+  const order = [];
+  /* Auto tier: a label without an explicit tier is "key" (1) if it is in the first half added, else "detail" (2) */
+  const tierOf = (id) => tiers[id] ?? (order.indexOf(id) < Math.ceil(order.length / 2) ? 1 : 2);
+  window.__autolabDensity = 2;
   const api = {
-    add(id, text, tier = 1) {
+    add(id, text, tier) {
       const el = document.createElement('div');
       el.className = 'label3d';
       el.textContent = text;
       root.appendChild(el);
       els[id] = el;
-      tiers[id] = tier;
+      tiers[id] = tier;          /* undefined = auto tier */
+      order.push(id);
     },
     setDensity(level) {
-      density = level;
+      density = level; window.__autolabDensity = level;
       if (level === 0) this.hideAll();
     },
     getDensity() { return density; },
@@ -473,7 +481,7 @@ export function createLabelSystem() {
     hide(id) { if (els[id]) els[id].classList.remove('visible'); },
     project(id, worldVec, camera, wrap) {
       const el = els[id]; if (!el) return;
-      if (density === 0 || (tiers[id] || 1) > density) { el.classList.remove('visible'); return; }
+      if (density === 0 || tierOf(id) > density) { el.classList.remove('visible'); return; }
       const w = wrap.clientWidth, h = wrap.clientHeight;
       const p = worldVec.clone().project(camera);
       if (p.z > 1) { el.classList.remove('visible'); return; }
@@ -681,7 +689,7 @@ class UIKit {
       html += `<div class="ui-chip-row"><span>${r.label}</span><b id="chip-row-${r.id}">${r.value ?? ''}</b></div>`;
     });
     if (c.status) {
-      html += `<div class="ui-chip-status" id="chip-status"><i></i><span id="chip-status-text">${c.status.text || ''}</span></div>`;
+      html += `<div class="ui-chip-status" id="chip-status"><i></i><span id="chip-status-text" role="status" aria-live="polite">${c.status.text || ''}</span></div>`;
     }
     el.innerHTML = html;
     slot.appendChild(el);
@@ -711,6 +719,9 @@ class UIKit {
     const iconReset = `<svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>`;
 
     let html = '';
+    /* Standalone (not in the shell): Back button so every module can return to the hub */
+    if (!(window.parent && window.parent !== window))
+      html += `<a class="ui-tb-btn" id="btn-home" href="index.html" aria-label="Back to Auto Lab" title="Back (Esc)"><svg viewBox="0 0 24 24"><path d="M15.4 6 14 4.6 6.6 12 14 19.4 15.4 18 9.4 12z"/></svg></a>`;
     if (t.play !== false)  html += `<button class="ui-tb-btn" id="btn-play" aria-label="Pause">${iconPause}${iconPlay}</button>`;
     if (t.reset !== false) html += `<button class="ui-tb-btn" id="btn-reset" aria-label="Reset">${iconReset}</button>`;
     if (t.speed) {
@@ -724,7 +735,7 @@ class UIKit {
           <span id="rpm-label"></span>
         </div>`;
     }
-    if (t.labels) html += `<button class="ui-tb-btn active" id="btn-density" aria-label="Label density: all" title="Labels: All">
+    if (t.labels) html += `<button class="ui-tb-btn active keep-in-embed" id="btn-density" aria-label="Label density: all" title="Labels: All">
       <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
     </button>`;
     if (t.gas)    html += `<label class="ui-tb-check"><input type="checkbox" id="chk-gas" checked> Flow</label>`;
@@ -908,6 +919,7 @@ class UIKit {
       _densIdx = idx;
       const d = DENS[idx];
       window.__autolabLabels?.setDensity(d.level);
+      window.__autolabDensity = d.level;   /* modules with their own labels (cooling) read this */
       if ('showLabels' in state) state.showLabels = d.level > 0;
       if (_dens) {
         _dens.classList.toggle('active', d.level > 0);
@@ -922,6 +934,18 @@ class UIKit {
       }
     }
     if (_dens) _dens.addEventListener('click', () => _applyDensity((_densIdx + 1) % DENS.length));
+
+    /* Shared shortcuts (same in every module): P play/pause · R reset · D label density · Esc back (standalone).
+       Space is NOT used here — braking, clutch and turbocharger use it as the pedal. */
+    window.addEventListener('keydown', (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+      if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
+      const k = e.key.toLowerCase();
+      if      (k === 'p' && _play)  { _play.click(); }
+      else if (k === 'r' && _reset) { _reset.click(); }
+      else if (k === 'd' && _dens)  { _dens.click(); }
+      else if (e.key === 'Escape' && !embedded) { const h = document.getElementById('btn-home'); if (h) location.href = h.href; }
+    });
     if (_gas)   _gas.addEventListener('change', () => { state.showGas    = _gas.checked; });
 
     /* Wrap defaultHandlers so incoming shell commands keep the visible
@@ -930,7 +954,7 @@ class UIKit {
       ...defaultHandlers,
       setPlaying: v => { defaultHandlers.setPlaying(v); _syncPlayIcons(); },
       setSpeed:   v => { defaultHandlers.setSpeed(v);   if (_speed) _speed.value = state.speedMul; },
-      setLabels:  v => { defaultHandlers.setLabels(v);  if (_lab)   _lab.checked = state.showLabels; },
+      setLabels:  v => { _applyDensity(v ? 0 : 2);      if (_lab)   _lab.checked = state.showLabels; },  /* keeps density button in sync with shell */
       setGas:     v => { defaultHandlers.setGas(v);     if (_gas)   _gas.checked = state.showGas; },
     };
 

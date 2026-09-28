@@ -1,11 +1,12 @@
 /* Auto Lab service worker — offline cache */
-const VERSION = 'autolab-v8.6';
+const VERSION = 'autolab-v8.9';
 const CORE    = VERSION + '-core';
 const RUNTIME = VERSION + '-runtime';
 
 const CORE_ASSETS = [
   './', './index.html', './app.css', './kit.js', './modules.js',
-  './manifest.webmanifest', './icons/icon.svg',
+  './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png',
+  './icons/apple-touch-icon.png', './icons/favicon-32.png',
   /* Module HTMLs — missing files are tolerated (each fetched individually) */
   './engine.html', './carburetor.html', './differential.html', './gearbox.html',
   './automatic.html', './clutch.html', './transmission.html', './steering.html',
@@ -48,10 +49,10 @@ self.addEventListener('fetch', (event) => {
       try {
         const fresh = await fetch(req);
         const cache = await caches.open(CORE);
-        cache.put('./index.html', fresh.clone());
+        cache.put(req, fresh.clone());          /* cache each page under its own URL (was: everything overwrote index.html) */
         return fresh;
       } catch (_) {
-        const cached = await caches.match('./index.html');
+        const cached = (await caches.match(req)) || (await caches.match('./index.html'));
         return cached || new Response('Offline', { status: 503 });
       }
     })());
