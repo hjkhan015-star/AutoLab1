@@ -542,6 +542,70 @@
     color: var(--accent);
     border-color: color-mix(in oklch, var(--accent) 45%, transparent);
   }
+
+  /* ---- Top stack: merges tl (info panel) + tr (readout chip) into one
+     responsive row that WRAPS instead of overlapping on narrow screens.
+     No media query needed — flex-wrap does the job at any width. ---- */
+  #ui-top-stack {
+    position: fixed;
+    top: calc(var(--s-3) + var(--safe-t));
+    left: calc(var(--s-4) + var(--safe-l));
+    right: calc(var(--s-4) + var(--safe-r));
+    z-index: 16;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--s-3);
+    pointer-events: none;
+  }
+  #ui-top-stack > .ui-slot {
+    position: static;
+    top: auto; left: auto; right: auto; bottom: auto;
+    transform: none;
+  }
+  /* Info panel always wins the stacking order over the readout chip */
+  #ui-top-stack #ui-slot-tl { z-index: 2; order: 1; }
+  #ui-top-stack #ui-slot-tr { z-index: 1; order: 2; }
+  /* When wrapped onto its own line, let the chip size to content, not stretch */
+  #ui-top-stack #ui-slot-tr { flex: 0 0 auto; margin-left: auto; }
+
+  /* ---- Collapse-to-orb: any card can shrink to a small round button ---- */
+  .ui-card.is-orb {
+    width: 44px; height: 44px;
+    min-width: 0;
+    padding: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: width var(--dur-base) var(--ease-spring),
+                height var(--dur-base) var(--ease-spring),
+                border-radius var(--dur-base) var(--ease-spring);
+  }
+  .ui-card.is-orb > *:not(.ui-orb-icon) { display: none !important; }
+  .ui-orb-icon {
+    display: none;
+    width: 18px; height: 18px;
+    color: var(--accent);
+  }
+  .ui-card.is-orb .ui-orb-icon { display: block; }
+  .ui-orb-toggle {
+    position: absolute;
+    top: 6px; right: 6px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    color: var(--text-mute);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    pointer-events: auto;
+    z-index: 3;
+  }
+  .ui-card.is-orb .ui-orb-toggle { display: none; }
+  .ui-orb-toggle svg { width: 11px; height: 11px; fill: currentColor; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
