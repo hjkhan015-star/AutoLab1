@@ -1,5 +1,5 @@
 /* Auto Lab service worker — offline cache */
-const VERSION = 'autolab-v9.7';
+const VERSION = 'autolab-v10.0';
 const CORE    = VERSION + '-core';
 const RUNTIME = VERSION + '-runtime';
 
@@ -8,11 +8,48 @@ const CORE_ASSETS = [
   './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png',
   './icons/apple-touch-icon.png', './icons/favicon-32.png',
   /* Module HTMLs — missing files are tolerated (each fetched individually) */
-  './engine.html', './carburetor.html', './differential.html', './gearbox.html',
-  './automatic.html', './clutch.html', './transmission.html', './steering.html',
-  './suspension.html', './braking.html', './cooling.html', './lubrication.html',
-  './mpfi.html', './turbocharger.html', './ignition.html', './electrical.html',
-  './starting-system.html', './exhaustsystem.html'
+  './engine.html',
+  './valvetrain.html',
+  './crankshaft-piston.html',
+  './airfilter.html',
+  './turbocharger.html',
+  './intercooler.html',
+  './fuelpump.html',
+  './carburetor.html',
+  './mpfi.html',
+  './commonrail.html',
+  './ignition.html',
+  './sparkplug.html',
+  './coilplug.html',
+  './lubrication.html',
+  './oilpump.html',
+  './oilfilter.html',
+  './cooling.html',
+  './thermostat.html',
+  './radiator.html',
+  './exhaustsystem.html',
+  './catalytic.html',
+  './egr.html',
+  './dpf.html',
+  './electrical.html',
+  './starting-system.html',
+  './lighting.html',
+  './wiring.html',
+  './sensors.html',
+  './ecu.html',
+  './obd2.html',
+  './transmission.html',
+  './clutch.html',
+  './gearbox.html',
+  './automatic.html',
+  './differential.html',
+  './driveshaft.html',
+  './awd.html',
+  './steering.html',
+  './suspension.html',
+  './braking.html',
+  './abs-esc.html',
+  './tyres.html'
 ];
 
 self.addEventListener('install', (event) => {

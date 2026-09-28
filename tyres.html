@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wheels &amp; Tyres — Auto Lab</title>
+<link rel="stylesheet" href="app.css">
+<style>
+:root { --al-accent: #64748b; }
+html.light-theme { --al-accent: color-mix(in oklch, #64748b 68%, black); }
+#panel-readout .al-read{display:grid;grid-template-columns:1fr auto;gap:3px 12px;font:500 11px/1.45 var(--font-mono);}
+.al-read .k{color:var(--text-dim);}
+.al-read .v{color:var(--text);text-align:right;font-weight:700;}
+.al-read .v.hi{color:var(--al-accent);}
+.al-read .v.ok{color:var(--ok);}
+.al-read .v.warn{color:var(--warn);}
+.al-read .v.crit{color:var(--crit);}
+.al-tabs{margin-top:10px;}
+.al-sec{margin-top:12px;}
+.al-sec:first-child{margin-top:2px;}
+.al-sec h4{margin:0 0 6px;font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--text-mute);font-weight:700;}
+.al-sec p{margin:0 0 8px;font-size:12px;line-height:1.5;color:var(--text-dim);}
+.al-sec ul{margin:0 0 8px;padding-left:16px;font-size:12px;line-height:1.55;color:var(--text-dim);}
+.al-sec li{margin-bottom:3px;}
+.al-sec b{color:var(--text);}
+.al-fault{border:1px solid var(--border);border-radius:var(--r-xs,6px);padding:8px 10px;margin-bottom:6px;background:var(--surface-2);}
+.al-fault .t{font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px;}
+.al-fault .s{font-size:11px;line-height:1.45;color:var(--text-dim);}
+.al-fault .c{font-size:11px;line-height:1.45;color:var(--text-mute);margin-top:4px;}
+.al-q{margin-bottom:12px;}
+.al-q .q{font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;line-height:1.4;}
+.al-opt{display:block;width:100%;text-align:left;min-height:40px;padding:8px 10px;margin-bottom:4px;border:1px solid var(--border);border-radius:var(--r-xs,6px);background:var(--surface-2);color:var(--text-dim);font:inherit;font-size:12px;cursor:pointer;}
+.al-opt:hover{border-color:var(--border-hi);}
+.al-opt:focus-visible{outline:2px solid var(--al-accent);outline-offset:2px;}
+.al-opt.ok{border-color:var(--ok);color:var(--ok);}
+.al-opt.no{border-color:var(--crit);color:var(--crit);}
+.al-exp{display:none;font-size:11px;line-height:1.45;color:var(--text-mute);margin-top:4px;}
+.al-q.done .al-exp{display:block;}
+.al-w{display:flex;flex-direction:column;gap:6px;min-width:170px;}
+.al-w label{display:flex;justify-content:space-between;gap:8px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute);}
+.al-w b{color:var(--text);font-family:var(--font-mono);}
+.al-range{width:100%;height:28px;background:transparent;accent-color:var(--al-accent);cursor:pointer;}
+.al-range:focus-visible{outline:2px solid var(--al-accent);outline-offset:2px;}
+.al-legend{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--text-dim);}
+.al-legend span{display:flex;align-items:center;gap:7px;}
+.al-legend i{width:9px;height:9px;border-radius:50%;display:inline-block;}
+</style>
+</head>
+<body>
+<div id="canvas-wrap"></div>
+<div id="labels-root"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import * as Base from './kit.js';
+
+/* ── CONFIG (module content) ─────────────────────────────────────── */
+const CFG = {"moduleId": "tyres", "title": "Wheels & Tyres", "kicker": "Steering, Suspension & Brakes", "accent": "#64748b", "badge": "Radial tyre", "camPos": [3.6, 1.6, 6.8], "target": [0, -0.2, 0], "floorY": -2.15, "ctl": {"label": "Tyre pressure", "val": 55, "caption": "Inflation"}, "chipLabel": "Pressure", "rows": [["patch", "Contact patch"], ["wear", "Wear"]], "ro": [["psi", "Pressure"], ["patch", "Contact patch"], ["wear", "Wear pattern"], ["rr", "Rolling resistance"], ["grip", "Grip index"]], "legend": [["#22c55e", "Even contact"], ["#ef4444", "Overloaded zone"], ["#111827", "Tread"]], "overview": "<div class=\"al-sec\"><h4>Only contact with the road<\/h4><p>Four palm-sized contact patches transmit all driving, braking and cornering forces. Correct pressure keeps the patch flat, even and predictable.<\/p><\/div><div class=\"al-sec\"><h4>Pressure effects<\/h4><ul><li><b>Under-inflated<\/b> – patch is long, shoulders overloaded, hot, more fuel used, wear on both edges.<\/li><li><b>Over-inflated<\/b> – tyre crowns, small centre patch, less grip, harsh ride, centre wear.<\/li><li><b>Correct<\/b> – even patch and wear; set to placard pressure when cold.<\/li><\/ul><\/div><div class=\"al-sec\"><h4>Reading a tyre<\/h4><p>Sidewall code like 205/55 R16: width 205 mm, aspect 55% of width, radial construction, 16-inch rim.<\/p><\/div>", "faults": [["Uneven wear", "Edge or centre wear; pulling; vibration.", "Check pressures, alignment and suspension wear."], ["Sidewall bulge or cut", "Sudden failure risk.", "Inspect visually; replace immediately if damaged."], ["Slow puncture", "Repeated pressure loss.", "Immerse or soap-test the tyre and valve."]], "quiz": [["Under-inflation mainly wears…", ["Both shoulders", "Centre only", "Inner edge only"], 0, "The shoulders carry more load and wear faster."], ["Check pressure when…", ["Tyres are cold", "After a long drive", "Any time"], 0, "Heat raises pressure; placard values are for cold tyres."], ["“205/55 R16” — 55 means…", ["Width in mm", "Aspect ratio (%)", "Speed rating"], 1, "Sidewall height is 55% of the tyre width."]]};
+
+const state = Base.createUIState();
+const built = Base.buildScene({ fov: 42, camPos: CFG.camPos, target: CFG.target, floorY: CFG.floorY, fogDensity: 0.03 });
+const { scene, camera, renderer, controls, wrap, viewManager, quality } = built;
+Base.attachResize(camera, renderer, wrap, built.baseFov);
+const lowEnd = quality.isLowEnd;
+const root = new THREE.Group();
+scene.add(root);
+const ptex = Base.createParticleTexture();
+
+/* ── Tiny geometry kit ───────────────────────────────────────────── */
+const mat   = (c, m = 0.6, r = 0.4, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: c, metalness: m, roughness: r }, o));
+const glass = (c, op = 0.22) => new THREE.MeshStandardMaterial({ color: c, metalness: 0.1, roughness: 0.2, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide });
+const glow  = (c, i = 1.2) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: i, metalness: 0, roughness: 0.5 });
+const V3 = (a) => new THREE.Vector3(a[0], a[1], a[2]);
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const lc = (a, b, t) => new THREE.Color(a).lerp(new THREE.Color(b), clamp(t));
+function put(o, x, y, z, p) { o.position.set(x || 0, y || 0, z || 0); o.castShadow = !lowEnd; (p || root).add(o); return o; }
+const box  = (w, h, d, m, x, y, z, p) => put(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m), x, y, z, p);
+const cyl  = (rt, rb, h, m, x, y, z, p, seg = 32, open = false) => put(new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg, 1, open), m), x, y, z, p);
+const cylX = (rt, rb, h, m, x, y, z, p, seg, open) => { const o = cyl(rt, rb, h, m, x, y, z, p, seg, open); o.rotation.z = Math.PI / 2; return o; };
+const cylZ = (rt, rb, h, m, x, y, z, p, seg, open) => { const o = cyl(rt, rb, h, m, x, y, z, p, seg, open); o.rotation.x = Math.PI / 2; return o; };
+const sph  = (r, m, x, y, z, p) => put(new THREE.Mesh(new THREE.SphereGeometry(r, 24, 16), m), x, y, z, p);
+const tor  = (R, r, m, x, y, z, p) => put(new THREE.Mesh(new THREE.TorusGeometry(R, r, 12, 44), m), x, y, z, p);
+function pipe(pts, r, m, p) {
+  const c = new THREE.CatmullRomCurve3(pts.map(V3));
+  const me = new THREE.Mesh(new THREE.TubeGeometry(c, Math.max(8, pts.length * 10), r, 10, false), m);
+  (p || root).add(me); return me;
+}
+function stream(pts, n, color, size, closed) {
+  const curve = new THREE.CatmullRomCurve3(pts.map(V3), !!closed);
+  const pos = new Float32Array(n * 3);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const m = new THREE.PointsMaterial({ color, size: size || 0.1, map: ptex, transparent: true, depthWrite: false, opacity: 0.9, blending: THREE.AdditiveBlending });
+  const P = new THREE.Points(g, m);
+  P.frustumCulled = false; root.add(P);
+  const v = new THREE.Vector3();
+  return {
+    points: P, mat: m,
+    update(time, speed, density) {
+      const cnt = Math.round(n * clamp(density == null ? 1 : density));
+      for (let i = 0; i < n; i++) {
+        if (i >= cnt) { pos[i * 3] = pos[i * 3 + 1] = pos[i * 3 + 2] = 1e4; continue; }
+        let u = ((i / n) + time * speed) % 1; if (u < 0) u += 1;
+        curve.getPointAt(u, v);
+        pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z;
+      }
+      g.attributes.position.needsUpdate = true;
+    }
+  };
+}
+const H = { THREE, root, lowEnd, mat, glass, glow, V3, clamp, lerp, lc, put, box, cyl, cylX, cylZ, sph, tor, pipe, stream, Base };
+
+/* ── MODULE SCENE (per-module code) ──────────────────────────────── */
+
+function build(H){
+ const {box,cyl,cylZ,tor,mat,clamp,root,THREE}=H;
+ const rubber=mat(0x1b1f27,.1,.9), steel=mat(0xcbd5e1,.9,.25);
+ const defl=new THREE.Group(); root.add(defl); const wheel=new THREE.Group(); defl.add(wheel);
+ const tire=new THREE.Mesh(new THREE.TorusGeometry(1.5,.55,20,56),rubber); tire.scale.z=1.35; wheel.add(tire);
+ for(let i=0;i<40;i++){ const a=i/40*Math.PI*2, b=new THREE.Mesh(new THREE.BoxGeometry(.34,.12,1.05),mat(0x0f1218,.05,.95)); b.position.set(Math.cos(a)*2.03,Math.sin(a)*2.03,0); b.rotation.z=a+Math.PI/2; wheel.add(b); }
+ cylZ(1.1,1.1,.5,steel,0,0,0,wheel); cylZ(.3,.3,.7,mat(0x9aa3b2,.9,.3),0,0,0,wheel);
+ for(let i=0;i<5;i++){ const s=box(.3,1.0,.14,steel,0,0,.27,wheel); s.rotation.z=i*Math.PI*2/5; s.position.set(Math.sin(i*Math.PI*2/5)*-.55,Math.cos(i*Math.PI*2/5)*.55,.27); }
+ for(let i=0;i<5;i++){ const a=i/5*Math.PI*2; cylZ(.05,.05,.1,mat(0x64748b,.9,.3),Math.cos(a)*.18,Math.sin(a)*.18,.38,wheel); }
+ const mk=()=>new THREE.MeshBasicMaterial({color:0x22c55e,transparent:true,opacity:.85});
+ const mats=[mk(),mk(),mk()], patch=[];
+ [-.6,0,.6].forEach((z,i)=>patch.push(box(1.0,.03,.5,mats[i],0,-2.06,z)));
+ return {
+  labels:[['Tread blocks',[1.6,1.65,.6]],['Sidewall',[-1.9,.6,.8]],['Rim',[0,.5,.7]],['Hub & lug nuts',[0,0,.9]],['Contact patch',[0,-2.3,1.0]]],
+  update(c){
+   const k=c.k, psi=20+25*k, area=880/psi*6.45, len=clamp(1.55-1.1*k,.55,1.5);
+   wheel.rotation.z=-c.t*3; defl.scale.y=.94+.06*k; defl.position.y=-2.05*(1-defl.scale.y); tire.scale.x=1+.04*(1-k);
+   const edge=clamp((.5-k)/.3), ctr=clamp((k-.6)/.3);
+   const cols=[lc(0x22c55e,0xef4444,edge),lc(0x22c55e,0xef4444,ctr),lc(0x22c55e,0xef4444,edge)];
+   patch.forEach((p,i)=>{ mats[i].color.copy(cols[i]); p.scale.x=len; p.scale.z=1; });
+   const wear=k<.4?'Both shoulders':k>.7?'Centre':'Even', rr=k<.5?100+(.5-k)*36:100-(k-.5)*14, grip=100-.9*Math.abs(psi-34);
+   return {big:psi.toFixed(0),unit:' psi',bar:k*100,rows:{patch:area.toFixed(0)+' cm²',wear:wear},
+    ro:{psi:[psi.toFixed(0)+' psi (cold)','hi'],patch:[area.toFixed(0)+' cm²',''],wear:[wear,wear==='Even'?'ok':'warn'],rr:[rr.toFixed(0)+' %',rr>108?'warn':''],grip:[grip.toFixed(0)+' / 100',grip>92?'ok':'warn']},
+    status:[wear==='Even'?'Optimal':'Off-spec',true],ctl:psi.toFixed(0)+' psi'};
+  }};
+}
+const mod = build(H);
+
+/* ── Labels ──────────────────────────────────────────────────────── */
+const labels = Base.createLabelSystem();
+mod.labels.forEach((l, i) => labels.add('l' + i, l[0]));
+const lpos = mod.labels.map(l => V3(l[1]));
+
+/* ── UI ──────────────────────────────────────────────────────────── */
+const TABS = {
+  overview: () => CFG.overview,
+  faults: () => '<div class="al-sec"><h4>Common faults</h4></div>' + CFG.faults.map(f =>
+    `<div class="al-fault"><div class="t">${f[0]}</div><div class="s">${f[1]}</div><div class="c">Check: ${f[2]}</div></div>`).join(''),
+  quiz: () => CFG.quiz.map((q, n) => `<div class="al-q" data-a="${q[2]}"><div class="q">${n + 1}. ${q[0]}</div>` +
+    q[1].map(o => `<button class="al-opt">${o}</button>`).join('') + `<div class="al-exp">${q[3]}</div></div>`).join('')
+};
+const readoutHTML = () => '<div class="al-read">' + CFG.ro.map(r =>
+  `<span class="k">${r[1]}</span><span class="v${r[2] ? ' ' + r[2] : ''}" id="ro-${r[0]}"></span>`).join('') + '</div>';
+
+const ui = Base.UI.create({
+  moduleId: CFG.moduleId,
+  panel: {
+    kicker: CFG.kicker, title: CFG.title,
+    tabs: [{ id: 'overview', label: 'Overview' }, { id: 'faults', label: 'Faults' }, { id: 'quiz', label: 'Self-check' }],
+    onTab: renderTab,
+    badge: { text: CFG.badge, color: CFG.accent },
+    readout: readoutHTML()
+  },
+  chip: { label: CFG.chipLabel, value: '', unit: '', bar: true, rows: CFG.rows.map(r => ({ id: r[0], label: r[1], value: '' })), status: { text: 'Running' } },
+  toolbar: { play: true, reset: true, speed: { label: 'Sim speed', min: 0.15, max: 2.5, step: 0.05, value: 0.85 }, labels: true },
+  widgets: {
+    bl: {
+      html: `<div class="al-w"><label for="ctl">${CFG.ctl.label} <b id="ctl-out"></b></label>
+        <input id="ctl" class="al-range" type="range" min="0" max="100" step="1" value="${CFG.ctl.val}" aria-label="${CFG.ctl.label}"></div>`,
+      caption: CFG.ctl.caption || 'Control'
+    },
+    br: { html: '<div class="al-legend">' + CFG.legend.map(l => `<span><i style="background:${l[0]}"></i>${l[1]}</span>`).join('') + '</div>', caption: 'Legend' }
+  }
+});
+const tabHost = document.createElement('div');
+tabHost.className = 'al-tabs';
+ui.panel.body.appendChild(tabHost);
+tabHost.addEventListener('click', (e) => {
+  const btn = e.target.closest('.al-opt'); if (!btn) return;
+  const q = btn.closest('.al-q'); if (!q || q.classList.contains('done')) return;
+  const answer = Number(q.dataset.a);
+  q.classList.add('done');
+  q.querySelectorAll('.al-opt').forEach((o, i) => { o.disabled = true; if (i === answer) o.classList.add('ok'); else if (o === btn) o.classList.add('no'); });
+});
+function renderTab(id) { tabHost.innerHTML = (TABS[id] || TABS.overview)(); }
+renderTab('overview');
+
+const ctlEl = document.getElementById('ctl');
+const ctlOut = document.getElementById('ctl-out');
+const ROE = {}; CFG.ro.forEach(r => { ROE[r[0]] = document.getElementById('ro-' + r[0]); });
+let k = CFG.ctl.val / 100;
+ctlEl.addEventListener('input', () => { k = ctlEl.value / 100; refresh(0); });
+
+let simT = 0;
+function apply(o) {
+  if (!o) return;
+  if (o.big != null) ui.chip.setBig(o.big, o.unit || '');
+  if (o.bar != null) ui.chip.setBar(o.bar, 'var(--al-accent)');
+  if (o.rows) for (const id in o.rows) ui.chip.set(id, o.rows[id]);
+  if (o.ro) for (const id in o.ro) { const el = ROE[id]; if (el) { el.textContent = o.ro[id][0]; el.className = 'v ' + (o.ro[id][1] || ''); } }
+  if (o.status) ui.chip.setStatus(o.status[0], o.status[1]);
+  if (o.ctl != null) ctlOut.textContent = o.ctl;
+}
+function refresh(dt) { apply(mod.update({ t: simT, dt, k, sp: state.playing ? state.speedMul : 0 })); }
+
+const bridge = ui.wireBridge({
+  viewManager, state,
+  onCommand: (d) => {
+    if (d.action === 'reset') { k = CFG.ctl.val / 100; ctlEl.value = CFG.ctl.val; simT = 0; refresh(0); }
+  }
+});
+bridge.ready();
+bridge.setStatus(CFG.title + ' ready', CFG.accent);
+
+/* ── Animation ───────────────────────────────────────────────────── */
+let last = performance.now(), raf = 0, roClock = 1;
+const tmp = new THREE.Vector3();
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function frame(now) {
+  raf = requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const sp = state.playing ? state.speedMul : 0;
+  simT += dt * sp;
+  const o = mod.update({ t: simT, dt: dt * sp, k, sp });
+  roClock += dt;
+  if (roClock > 0.12) { roClock = 0; apply(o); }
+  labels.hideAll();
+  if (state.showLabels) lpos.forEach((p, i) => labels.project('l' + i, p, camera, wrap));
+  controls.update();
+  renderer.render(scene, camera);
+}
+if (reduced) { setInterval(() => { refresh(0); renderer.render(scene, camera); }, 120); }
+else raf = requestAnimationFrame(frame);
+document.addEventListener('visibilitychange', () => {
+  if (reduced) return;
+  if (document.hidden) { if (raf) { cancelAnimationFrame(raf); raf = 0; } }
+  else if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); }
+});
+refresh(0);
+</script>
+</body>
+</html>
