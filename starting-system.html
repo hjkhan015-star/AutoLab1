@@ -428,6 +428,10 @@
   keyGlow.position.z = 0.14; keyGroup.add(keyGlow);
   labels.add('key-lbl', 'Ignition switch');
 
+  /* Layout (declared early — used by the starter group below): pinion meshes with the ring at −55° (lower right); starter sits behind the flywheel plane */
+  const FLY_C = { x: 2.4, y: 0.55 }, MESH_D = 1.0, MESH_A = -55 * Math.PI / 180;
+  const PIN_XY = { x: FLY_C.x + Math.cos(MESH_A) * MESH_D, y: FLY_C.y + Math.sin(MESH_A) * MESH_D };
+  const PIN_SLIDE = 0.36, ST_Z0 = -(0.80 + PIN_SLIDE);
   const starterGroup = new THREE.Group();
   starterGroup.position.set(PIN_XY.x, PIN_XY.y, ST_Z0); starterGroup.rotation.y = -Math.PI / 2;
   circuitGroup.add(starterGroup);
@@ -460,10 +464,6 @@
   labels.add('sol-lbl', 'Solenoid', 2);
   labels.add('pin-lbl', 'Pinion');
 
-  /* Layout: pinion meshes with the ring at −55° (lower right); starter sits behind the flywheel plane */
-  const FLY_C = { x: 2.4, y: 0.55 }, MESH_D = 1.0, MESH_A = -55 * Math.PI / 180;
-  const PIN_XY = { x: FLY_C.x + Math.cos(MESH_A) * MESH_D, y: FLY_C.y + Math.sin(MESH_A) * MESH_D };
-  const PIN_SLIDE = 0.36, ST_Z0 = -(0.80 + PIN_SLIDE);
   const flyGroup = new THREE.Group();
   flyGroup.position.set(FLY_C.x, FLY_C.y, 0); circuitGroup.add(flyGroup);
   const flySpinGroupCircuit = new THREE.Group(); flyGroup.add(flySpinGroupCircuit);
