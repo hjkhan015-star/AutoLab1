@@ -29,15 +29,25 @@ const SYSTEMS = [
     id: "engine", domain: "Engine", title: "Engine Mechanical", color: "#38bdf8",
     blurb: "The four-stroke cycle, valvetrain and moving parts that turn fuel into rotation.",
     icon: "<circle cx=\"12\" cy=\"15\" r=\"4\"/><line x1=\"12\" y1=\"11\" x2=\"12\" y2=\"7\"/><rect x=\"9\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><line x1=\"4\" y1=\"20\" x2=\"20\" y2=\"20\"/>",
-    flow: ["Intake|engine", "Compression|engine", "Power|engine", "Exhaust|engine"],
-    soon: ["Valvetrain", "Crankshaft & Pistons"],
+    flow: ["Cycle|engine", "Valvetrain|valvetrain", "Crank|valvetrain", "Combustion|engine"],
+    soon: [],
     related: ["fuel", "ignition", "lube"],
     modules: [
       { id: "engine", label: "Engine", title: "4-Stroke Engine",
         subtitle: "Automotive · Cycle & Valvetrain",
         file: "engine.html", color: "#38bdf8",
         level: "Basic", min: 12, mode: "3D",
-        icon: "<circle cx=\"12\" cy=\"15\" r=\"4\"/><line x1=\"12\" y1=\"11\" x2=\"12\" y2=\"7\"/><rect x=\"9\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><line x1=\"4\" y1=\"20\" x2=\"20\" y2=\"20\"/>" }
+        icon: "<circle cx=\"12\" cy=\"15\" r=\"4\"/><line x1=\"12\" y1=\"11\" x2=\"12\" y2=\"7\"/><rect x=\"9\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><line x1=\"4\" y1=\"20\" x2=\"20\" y2=\"20\"/>" },
+      { id: "valvetrain", label: "Valvetrain", title: "Valvetrain",
+        subtitle: "Engine Mechanical · Cam, Lifters & Valves",
+        file: "valvetrain.html", color: "#d946ef",
+        level: "Intermediate", min: 14, mode: "3D",
+        icon: "<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 9V4M9 12H4M12 15v5M15 12h5\"/>" },
+      { id: "crankpiston", label: "Crank & Pistons", title: "Crankshaft & Pistons",
+        subtitle: "Engine Mechanical · Crank, Rods & Rings",
+        file: "crankshaft-pistons.html", color: "#ca8a04",
+        level: "Basic", min: 12, mode: "3D",
+        icon: "<circle cx=\"12\" cy=\"12\" r=\"3\"/><line x1=\"9\" y1=\"12\" x2=\"3\" y2=\"12\"/><line x1=\"15\" y1=\"12\" x2=\"21\" y2=\"12\"/><line x1=\"12\" y1=\"9\" x2=\"12\" y2=\"4\"/><line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"20\"/>" }
     ]
   },
   {
@@ -159,15 +169,25 @@ const SYSTEMS = [
     id: "sensors", domain: "Electrical & Control", title: "Sensors & Control", color: "#22c55e",
     blurb: "How sensors, the ECU and actuators work together to manage the engine.",
     icon: "<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M6 12a6 6 0 0 1 12 0M3 12a9 9 0 0 1 18 0\"/>",
-    flow: ["Sensors|sensors", "ECU", "Actuators", "Engine"],
-    soon: ["ECU", "OBD-II Diagnostics"],
+    flow: ["Sensors|sensors", "ECU|ecu", "Diagnostics|obd2", "Actuators", "Engine"],
+    soon: [],
     related: ["fuel", "ignition", "elec"],
     modules: [
       { id: "sensors", label: "Sensors", title: "Sensors & Wiring",
         subtitle: "Electrical · Sensing & Control",
         file: "sensors.html", color: "#22c55e",
         level: "Intermediate", min: 15, mode: "2D + 3D",
-        icon: "<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M6 12a6 6 0 0 1 12 0M3 12a9 9 0 0 1 18 0\"/>" }
+        icon: "<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M6 12a6 6 0 0 1 12 0M3 12a9 9 0 0 1 18 0\"/>" },
+      { id: "ecu", label: "ECU", title: "Engine Control Unit",
+        subtitle: "Sensors & Control · Inputs → Maps → Outputs",
+        file: "ecu.html", color: "#a855f7",
+        level: "Advanced", min: 15, mode: "3D",
+        icon: "<rect x=\"4\" y=\"6\" width=\"16\" height=\"12\" rx=\"2\"/><rect x=\"8\" y=\"9\" width=\"8\" height=\"6\" rx=\"1\"/><line x1=\"2\" y1=\"10\" x2=\"4\" y2=\"10\"/><line x1=\"2\" y1=\"14\" x2=\"4\" y2=\"14\"/><line x1=\"20\" y1=\"10\" x2=\"22\" y2=\"10\"/><line x1=\"20\" y1=\"14\" x2=\"22\" y2=\"14\"/>" },
+      { id: "obd2", label: "OBD-II", title: "OBD-II Diagnostics",
+        subtitle: "Sensors & Control · DLC, Codes & Live Data",
+        file: "obd2.html", color: "#22d3ee",
+        level: "Intermediate", min: 12, mode: "3D",
+        icon: "<rect x=\"3\" y=\"8\" width=\"18\" height=\"8\" rx=\"2\"/><circle cx=\"8\" cy=\"12\" r=\"1\"/><circle cx=\"12\" cy=\"12\" r=\"1\"/><circle cx=\"16\" cy=\"12\" r=\"1\"/>" }
     ]
   },
   {
@@ -209,8 +229,8 @@ const SYSTEMS = [
     id: "chassis", domain: "Chassis", title: "Steering, Suspension & Brakes", color: "#a855f7",
     blurb: "Directing the vehicle, absorbing the road and bringing it safely to a stop.",
     icon: "<circle cx=\"12\" cy=\"12\" r=\"9\"/><circle cx=\"12\" cy=\"12\" r=\"2.5\"/><line x1=\"12\" y1=\"3\" x2=\"12\" y2=\"9.5\"/><line x1=\"4.5\" y1=\"16.5\" x2=\"9.9\" y2=\"13.2\"/><line x1=\"19.5\" y1=\"16.5\" x2=\"14.1\" y2=\"13.2\"/>",
-    flow: ["Driver", "Steering|steering", "Suspension|suspension", "Tyres", "Brakes|braking"],
-    soon: ["ABS & ESC", "Wheels & Tyres"],
+    flow: ["Driver", "Steering|steering", "Suspension|suspension", "Tyres", "Brakes|braking", "ABS|absesc"],
+    soon: ["Wheels & Tyres"],
     related: ["drive"],
     modules: [
       { id: "steering", label: "Steering", title: "Steering System",
@@ -227,7 +247,12 @@ const SYSTEMS = [
         subtitle: "Chassis · Disc & Drum",
         file: "braking.html", color: "#ef4444",
         level: "Intermediate", min: 14, mode: "3D",
-        icon: "<circle cx=\"11\" cy=\"12\" r=\"7\"/><circle cx=\"11\" cy=\"12\" r=\"2.5\"/><rect x=\"16\" y=\"8\" width=\"4\" height=\"8\" rx=\"1\"/>" }
+        icon: "<circle cx=\"11\" cy=\"12\" r=\"7\"/><circle cx=\"11\" cy=\"12\" r=\"2.5\"/><rect x=\"16\" y=\"8\" width=\"4\" height=\"8\" rx=\"1\"/>" },
+      { id: "absesc", label: "ABS & ESC", title: "ABS & Electronic Stability Control",
+        subtitle: "Chassis · Wheel Speed, Slip & Yaw Control",
+        file: "abs-esc.html", color: "#f43f5e",
+        level: "Advanced", min: 15, mode: "3D",
+        icon: "<circle cx=\"11\" cy=\"12\" r=\"7\"/><circle cx=\"11\" cy=\"12\" r=\"2.5\"/><rect x=\"16\" y=\"8\" width=\"4\" height=\"8\" rx=\"1\"/><path d=\"M18 4l1.5 2h-3z\"/>" }
     ]
   }
 ];
