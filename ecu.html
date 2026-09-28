@@ -6,6 +6,9 @@
 <title>ECU · Auto Lab</title>
 <link rel="stylesheet" href="app.css">
 <style>
+/* ── module-local styles ───────────────────────────────────────────────
+   All colours come from app.css tokens, so both themes work unchanged.
+   Only the accent is module-specific and has an explicit light variant. */
 :root { --al-accent: #a855f7; }
 html.light-theme { --al-accent: #7c3aed; }
 
@@ -54,7 +57,7 @@ html.light-theme { --al-accent: #7c3aed; }
 .al-exp{display:none;font-size:11px;line-height:1.45;color:var(--text-mute);margin-top:4px;}
 .al-q.done .al-exp{display:block;}
 
-.al-w{display:flex;flex-direction:column;gap:6px;min-width:160px;}
+.al-w{display:flex;flex-direction:column;gap:6px;min-width:150px;}
 .al-w label{
   display:flex;justify-content:space-between;gap:8px;font-size:10px;letter-spacing:.06em;
   text-transform:uppercase;color:var(--text-mute);
@@ -64,13 +67,6 @@ html.light-theme { --al-accent: #7c3aed; }
   width:100%;height:28px;background:transparent;accent-color:var(--al-accent);cursor:pointer;
 }
 .al-range:focus-visible{outline:2px solid var(--al-accent);outline-offset:2px;}
-
-.al-map-canvas{
-  width:100%; height:auto; display:block;
-  border-radius:var(--r-xs,6px);
-  background:color-mix(in oklch, var(--bg) 60%, transparent);
-  border:1px solid var(--border);
-}
 
 .ui-tb-btn.active{outline:2px solid var(--al-accent);color:var(--al-accent);}
 </style>
@@ -98,18 +94,12 @@ import * as Base from './kit.js';
 const CFG = {
   moduleId: 'ecu',
   accent:   '#a855f7',
-  flowHz:   0.42,
-  maxRpm:   7000,
-  minRpm:   800,
-  wireColor:    0x556074,   // idle wire tube color
-  wireDeadColor:0xb03030,   // O2 fault wire tube color
-  nodeIdleColor:0x38bdf8,
-  nodeDeadColor:0x8a2222
+  flowHz:   0.40          // particle cycles per second at speedMul = 1
 };
 
-const state = Base.createUIState();
-state.load  = 35;
-state.fault = 'none';
+const state = Base.createUIState();   // { playing, speedMul, showLabels, showGas, isCoarse }
+state.load  = 35;                     // % engine load (widget slider)
+state.fault = 'none';                 // 'none' | 'o2'
 
 /* ═══════════════════════════════════════════════════════════════════════
    SCENE
@@ -123,114 +113,43 @@ const built = Base.buildScene({
 });
 const { scene, camera, renderer, controls, wrap, viewManager, quality } = built;
 Base.attachResize(camera, renderer, wrap, built.baseFov);
+
 const lowEnd = quality.isLowEnd;
 
 /* ═══════════════════════════════════════════════════════════════════════
-   MATERIALS
+   MATERIALS & GEOMETRY
    ═══════════════════════════════════════════════════════════════════════ */
 const M = Base.createMaterials();
 const root = new THREE.Group();
 scene.add(root);
 
-const pcbMat  = new THREE.MeshStandardMaterial({ color: 0x1d6b3c, roughness: 0.78, metalness: 0.06 });
-const chipMat = new THREE.MeshStandardMaterial({ color: 0x15191f, roughness: 0.50, metalness: 0.35 });
-const pinMat  = new THREE.MeshStandardMaterial({ color: 0xc8c8d0, metalness: 0.85, roughness: 0.25 });
-const connMat = new THREE.MeshStandardMaterial({ color: 0x2a3038, roughness: 0.60, metalness: 0.45 });
-const capsMat = new THREE.MeshStandardMaterial({ color: 0x5a3a1a, roughness: 0.55, metalness: 0.35 });
-const smdMat  = new THREE.MeshStandardMaterial({ color: 0x2a2e35, roughness: 0.45, metalness: 0.55 });
-
-/* ═══════════════════════════════════════════════════════════════════════
-   ECU ENCLOSURE
-   ═══════════════════════════════════════════════════════════════════════ */
+/* --- ECU enclosure, lid removed so the board is visible --- */
 const caseMesh = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.72, 1.8), M.matMetalDark);
 caseMesh.position.y = 0.36;
 caseMesh.castShadow = true;
 caseMesh.receiveShadow = true;
 root.add(caseMesh);
 
+const pcbMat = new THREE.MeshStandardMaterial({ color: 0x1d6b3c, roughness: 0.78, metalness: 0.06 });
 const pcb = new THREE.Mesh(new THREE.BoxGeometry(2.32, 0.06, 1.52), pcbMat);
 pcb.position.y = 0.75;
 pcb.castShadow = true;
 root.add(pcb);
 
-/* --- Main CPU --- */
-const cpuGroup = new THREE.Group();
-cpuGroup.position.set(-0.72, 0.86, -0.05);
-root.add(cpuGroup);
-
-const cpuBody = new THREE.Mesh(
-  new THREE.BoxGeometry(0.72, 0.14, 0.72),
-  new THREE.MeshStandardMaterial({ color: 0x0d0f14, roughness: 0.42, metalness: 0.42 })
-);
-cpuBody.castShadow = true;
-cpuGroup.add(cpuBody);
-
-const cpuDie = new THREE.Mesh(
-  new THREE.BoxGeometry(0.30, 0.02, 0.30),
-  new THREE.MeshStandardMaterial({ color: 0x16182a, roughness: 0.35, metalness: 0.60 })
-);
-cpuDie.position.y = 0.08;
-cpuGroup.add(cpuDie);
-
-const cpuGlowMat = new THREE.MeshStandardMaterial({
-  color: 0x000000, emissive: 0xa855f7, emissiveIntensity: 0.6,
-  metalness: 0.0, roughness: 1.0
-});
-const cpuGlow = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.012, 0.22), cpuGlowMat);
-cpuGlow.position.y = 0.093;
-cpuGroup.add(cpuGlow);
-
-/* Pins around the CPU */
-(function addCpuPins() {
-  const perSide = lowEnd ? 5 : 8;
-  const gN = new THREE.BoxGeometry(0.025, 0.03, 0.06);
-  const gEW = new THREE.BoxGeometry(0.06, 0.03, 0.025);
-  for (let i = 0; i < perSide; i++) {
-    const frac = (i / (perSide - 1)) - 0.5;
-    const x = frac * 0.72;
-    const z = frac * 0.72;
-    const nPin = new THREE.Mesh(gN, pinMat); nPin.position.set(x, -0.005, -0.39); cpuGroup.add(nPin);
-    const sPin = new THREE.Mesh(gN, pinMat); sPin.position.set(x, -0.005,  0.39); cpuGroup.add(sPin);
-    const ePin = new THREE.Mesh(gEW, pinMat); ePin.position.set( 0.39, -0.005, z); cpuGroup.add(ePin);
-    const wPin = new THREE.Mesh(gEW, pinMat); wPin.position.set(-0.39, -0.005, z); cpuGroup.add(wPin);
-  }
-})();
-
-/* --- Support chips --- */
+const chipMat = new THREE.MeshStandardMaterial({ color: 0x15191f, roughness: 0.50, metalness: 0.35 });
 [
-  { x: 0.42, z: -0.34, w: 0.46, d: 0.38, h: 0.10 },
-  { x: 0.42, z:  0.34, w: 0.46, d: 0.38, h: 0.10 },
-  { x:-0.05, z:  0.42, w: 0.36, d: 0.24, h: 0.08 }
-].forEach(c => {
-  const chip = new THREE.Mesh(new THREE.BoxGeometry(c.w, c.h, c.d), chipMat);
-  chip.position.set(c.x, 0.79 + c.h / 2, c.z);
-  chip.castShadow = true;
-  root.add(chip);
+  [-0.72, -0.42, 0.66, 0.52],
+  [-0.72,  0.42, 0.66, 0.52],
+  [ 0.42, -0.34, 0.46, 0.38],
+  [ 0.42,  0.34, 0.46, 0.38]
+].forEach(([x, z, w, d]) => {
+  const c = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, d), chipMat);
+  c.position.set(x, 0.84, z);
+  c.castShadow = true;
+  root.add(c);
 });
 
-/* --- SMD scatter (golden-angle) --- */
-(function addSmd() {
-  const n = lowEnd ? 10 : 22;
-  for (let i = 0; i < n; i++) {
-    const angle = (i * 137.5) * Math.PI / 180;
-    const r = 0.15 + (i / n) * 1.05;
-    const px = Math.cos(angle) * r * 0.85;
-    const pz = Math.sin(angle) * r * 0.55;
-    if (Math.abs(px - (-0.72)) < 0.42 && Math.abs(pz - (-0.05)) < 0.42) continue;
-    if (Math.abs(px - 0.42) < 0.30 && Math.abs(Math.abs(pz) - 0.34) < 0.26) continue;
-
-    const isCap = i % 3 === 0;
-    const geo = isCap
-      ? new THREE.CylinderGeometry(0.035, 0.035, 0.08, 8)
-      : new THREE.BoxGeometry(0.06, 0.03, 0.035);
-    const mesh = new THREE.Mesh(geo, isCap ? capsMat : smdMat);
-    mesh.position.set(px, 0.79 + (isCap ? 0.04 : 0.015), pz);
-    if (i % 4 === 1) mesh.rotation.y = Math.PI / 2;
-    root.add(mesh);
-  }
-})();
-
-/* --- Edge connectors --- */
+const connMat = new THREE.MeshStandardMaterial({ color: 0x2a3038, roughness: 0.60, metalness: 0.45 });
 [-1, 1].forEach(s => {
   const c = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.50, 1.30), connMat);
   c.position.set(s * 1.42, 0.36, 0);
@@ -238,113 +157,10 @@ cpuGroup.add(cpuGlow);
   root.add(c);
 });
 
-/* --- MIL lamp on the ECU board --- */
-const milLampMat = new THREE.MeshStandardMaterial({
-  color: 0x3a1010, emissive: 0x000000, emissiveIntensity: 0,
-  metalness: 0.0, roughness: 1.0
-});
-const milLamp = new THREE.Mesh(
-  new THREE.SphereGeometry(0.06, lowEnd ? 8 : 12, lowEnd ? 6 : 8),
-  milLampMat
-);
-milLamp.position.set(1.02, 0.82, 0.56);
-root.add(milLamp);
-
-/* ═══════════════════════════════════════════════════════════════════════
-   SENSOR / ACTUATOR NODES — distinct shape per type
-   ═══════════════════════════════════════════════════════════════════════ */
+/* --- Sensor / actuator nodes ------------------------------------------ */
 const NODE_Y = 0.42;
+const nodeGeo = new THREE.BoxGeometry(0.44, 0.44, 0.44);
 const pGeo = new THREE.SphereGeometry(0.05, lowEnd ? 6 : 10, lowEnd ? 5 : 8);
-
-function makeNodeShape(id, mat) {
-  const g = new THREE.Group();
-  switch (id) {
-    case 'maf': {
-      const tube = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.20, 0.20, 0.50, 12, 1, true),
-        new THREE.MeshStandardMaterial({
-          color: 0x3a4550, metalness: 0.60, roughness: 0.40, side: THREE.DoubleSide
-        })
-      );
-      tube.rotation.z = Math.PI / 2;
-      g.add(tube);
-      const elem = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.18, 8), mat);
-      g.add(elem);
-      break;
-    }
-    case 'ckp': {
-      const cog = Base.makeCog(0.19, 0.14, 10, 0.05, 0.07, mat, mat);
-      cog.rotation.x = Math.PI / 2;
-      g.add(cog);
-      break;
-    }
-    case 'tps': {
-      const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.14, 16), mat);
-      disc.rotation.x = Math.PI / 2;
-      g.add(disc);
-      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.26), mat);
-      arm.position.z = 0.16;
-      g.add(arm);
-      break;
-    }
-    case 'o2': {
-      /* Removed redundant vertical wire stub — the ECU link tube handles the cable. */
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.10, 0.36, 10), mat);
-      g.add(body);
-      const tip = new THREE.Mesh(new THREE.SphereGeometry(0.10, 10, 8), mat);
-      tip.position.y = -0.18;
-      g.add(tip);
-      break;
-    }
-    case 'inj': {
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.24, 12), mat);
-      body.position.y = 0.10;
-      g.add(body);
-      const nozzle = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.16, 12), mat);
-      nozzle.position.y = -0.10;
-      nozzle.rotation.z = Math.PI;
-      g.add(nozzle);
-      const connector = new THREE.Mesh(
-        new THREE.BoxGeometry(0.10, 0.10, 0.06),
-        new THREE.MeshStandardMaterial({ color: 0x2a3038, metalness: 0.55, roughness: 0.50 })
-      );
-      connector.position.y = 0.24;
-      g.add(connector);
-      break;
-    }
-    case 'ign': {
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.34, 12), mat);
-      g.add(body);
-      const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.14, 8), mat);
-      tower.position.y = 0.24;
-      g.add(tower);
-      break;
-    }
-    case 'thr': {
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.32, 14), mat);
-      body.rotation.z = Math.PI / 2;
-      g.add(body);
-      const shaft = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.04, 0.04, 0.16, 8),
-        new THREE.MeshStandardMaterial({ color: 0xb0b8c4, metalness: 0.80, roughness: 0.25 })
-      );
-      shaft.rotation.z = Math.PI / 2;
-      shaft.position.x = 0.22;
-      g.add(shaft);
-      break;
-    }
-    case 'egr': {
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.28, 0.34), mat);
-      g.add(body);
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.10, 12), mat);
-      cap.position.y = 0.19;
-      g.add(cap);
-      break;
-    }
-  }
-  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  return g;
-}
 
 const INPUTS = [
   { id: 'maf', text: 'MAF / MAP',     z: -1.50, color: 0x38bdf8 },
@@ -362,52 +178,36 @@ const OUTPUTS = [
 const lines = [];
 
 function makeLink(a, b, colour) {
-  /* Per-link material so each cable can be tinted independently (fix #1). */
-  const localWireMat = new THREE.MeshStandardMaterial({
-    color: CFG.wireColor, roughness: 0.55, metalness: 0.35
-  });
-  const tube = Base.tubeBetween(a, b, 0.022, 0.022, localWireMat, true);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x556074, roughness: 0.55, metalness: 0.35 });
+  const tube = Base.tubeBetween(a, b, 0.022, 0.022, mat, true);
   tube.castShadow = false;
   root.add(tube);
 
   const parts = [];
-  const n = lowEnd ? 3 : 5;
+  const n = lowEnd ? 2 : 3;
   for (let i = 0; i < n; i++) {
     const p = new THREE.Mesh(pGeo, new THREE.MeshBasicMaterial({ color: colour }));
     root.add(p);
     parts.push(p);
   }
-  const rec = { a: a.clone(), b: b.clone(), parts, mat: localWireMat, tube, dead: false };
+  const rec = { a: a.clone(), b: b.clone(), parts, mat, dead: false };
   lines.push(rec);
   return rec;
 }
 
-function placeNode(spec, side) {
-  const mat = new THREE.MeshStandardMaterial({ color: spec.color, roughness: 0.42, metalness: 0.40 });
-  spec.mat = mat;
-
-  const shape = makeNodeShape(spec.id, mat);
-  shape.position.set(side * 3.0, NODE_Y, spec.z);
-  root.add(shape);
-  spec.nodeGroup = shape;
-  spec.mesh = shape;
-
-  const halo = new THREE.Mesh(
-    new THREE.RingGeometry(0.30, 0.38, lowEnd ? 14 : 24),
-    new THREE.MeshBasicMaterial({
-      color: spec.color, transparent: true, opacity: 0.28,
-      side: THREE.DoubleSide, depthWrite: false
-    })
-  );
-  halo.position.set(side * 3.0, 0.02, spec.z);
-  halo.rotation.x = -Math.PI / 2;
-  root.add(halo);
-  spec.halo = halo;
-  return shape;
+function makeNode(spec, side) {
+  const mat = new THREE.MeshStandardMaterial({ color: spec.color, roughness: 0.45, metalness: 0.35 });
+  const mesh = new THREE.Mesh(nodeGeo, mat);
+  mesh.position.set(side * 3.0, NODE_Y, spec.z);
+  mesh.castShadow = true;
+  root.add(mesh);
+  spec.mesh = mesh;
+  spec.mat  = mat;
+  return mesh;
 }
 
 INPUTS.forEach(n => {
-  placeNode(n, -1);
+  makeNode(n, -1);
   n.link = makeLink(
     new THREE.Vector3(-2.75, NODE_Y, n.z),
     new THREE.Vector3(-1.56, 0.36, n.z * 0.45),
@@ -415,7 +215,7 @@ INPUTS.forEach(n => {
   );
 });
 OUTPUTS.forEach(n => {
-  placeNode(n, 1);
+  makeNode(n, 1);
   n.link = makeLink(
     new THREE.Vector3(1.56, 0.36, n.z * 0.45),
     new THREE.Vector3(2.75, NODE_Y, n.z),
@@ -424,44 +224,10 @@ OUTPUTS.forEach(n => {
 });
 
 /* ═══════════════════════════════════════════════════════════════════════
-   ACTUATOR EFFECTS
-   ═══════════════════════════════════════════════════════════════════════ */
-/* Injector nozzle tip is at world Y = NODE_Y - 0.10 - 0.08 = 0.24. */
-const INJ_NOZZLE_Y = 0.24;
-const SPRAY_HALF_HEIGHT = 0.17;   /* half of ConeGeometry height (0.34) */
-
-const sprayMat = new THREE.MeshBasicMaterial({
-  color: 0xffd070, transparent: true, opacity: 0,
-  side: THREE.DoubleSide, depthWrite: false
-});
-const sprayCone = new THREE.Mesh(
-  new THREE.ConeGeometry(0.16, 0.34, 12, 1, true),
-  sprayMat
-);
-sprayCone.rotation.z = Math.PI;
-sprayCone.position.set(3.0, INJ_NOZZLE_Y - SPRAY_HALF_HEIGHT, -1.50);
-root.add(sprayCone);
-
-const sparkMat = new THREE.MeshBasicMaterial({
-  color: 0xffffff, transparent: true, opacity: 0, depthWrite: false
-});
-const spark = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), sparkMat);
-spark.position.set(3.0, NODE_Y + 0.32, -0.50);
-root.add(spark);
-
-const egrPuffMat = new THREE.MeshBasicMaterial({
-  color: 0x8090a0, transparent: true, opacity: 0, depthWrite: false
-});
-const egrPuff = new THREE.Mesh(new THREE.SphereGeometry(0.10, 10, 8), egrPuffMat);
-egrPuff.position.set(3.0, NODE_Y + 0.32, 1.50);
-root.add(egrPuff);
-
-/* ═══════════════════════════════════════════════════════════════════════
    LABELS
    ═══════════════════════════════════════════════════════════════════════ */
 const labels = Base.createLabelSystem();
 labels.add('ecu', 'ECU');
-labels.add('cpu', 'CPU');
 INPUTS.forEach(n => labels.add('in-' + n.id, n.text));
 OUTPUTS.forEach(n => labels.add('out-' + n.id, n.text));
 
@@ -485,15 +251,15 @@ const TABS = {
       </ul>
     </div>
     <div class="al-sec">
-      <h4>The fuel map</h4>
-      <p>The <b>map grid</b> (bottom-right of this view) is the ECU's lookup table. Columns are
-      engine speed, rows are engine load. Each cell holds the required injection quantity.
-      The crosshair tracks the current operating point as the load slider moves.</p>
-    </div>
-    <div class="al-sec">
       <h4>Closed loop</h4>
       <p>At λ = 1 the upstream O₂ sensor swings between roughly 0.1 V and 0.9 V. The ECU moves the
-      <b>short-term fuel trim</b> until those swings average out. Typical authority is ±25 %.</p>
+      <b>short-term fuel trim</b> until those swings average out; the long-term trim stores the
+      correction for the next drive cycle. Typical authority is ±25 %.</p>
+    </div>
+    <div class="al-sec">
+      <h4>Limp home</h4>
+      <p>When a sensor fails a plausibility check the ECU substitutes a fixed default, lights the
+      MIL and limits load so the car can still reach a workshop.</p>
     </div>`,
   faults: () => `
     <div class="al-sec"><h4>Common faults</h4></div>
@@ -596,16 +362,11 @@ const ui = Base.UI.create({
       </div>`,
       caption: 'Operating point',
       onMount: mountLoadWidget
-    },
-    br: {
-      html: `<canvas id="map-canvas" class="al-map-canvas" width="280" height="150"
-               aria-label="Fuel map lookup table"></canvas>`,
-      caption: 'Fuel map · rpm × load',
-      onMount: mountMapWidget
     }
   }
 });
 
+/* --- tab host (lives under the live readout, inside the kit panel) --- */
 const tabHost = document.createElement('div');
 tabHost.id = 'al-tabs';
 tabHost.className = 'al-tabs';
@@ -625,7 +386,9 @@ tabHost.addEventListener('click', (e) => {
   });
 });
 
-function renderTab(id) { tabHost.innerHTML = (TABS[id] || TABS.overview)(); }
+function renderTab(id) {
+  tabHost.innerHTML = (TABS[id] || TABS.overview)();
+}
 renderTab('overview');
 
 function mountLoadWidget(el) {
@@ -641,26 +404,6 @@ function mountLoadWidget(el) {
   });
 }
 
-/* ─── Map canvas setup ─── */
-let mapCanvas = null;
-let mapCtx = null;
-let mapW = 0, mapH = 0;
-function mountMapWidget(el) {
-  mapCanvas = el.querySelector('#map-canvas');
-  if (!mapCanvas) return;
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const cssW = mapCanvas.width;
-  const cssH = mapCanvas.height;
-  mapCanvas.style.width  = '100%';
-  mapCanvas.style.height = 'auto';
-  mapCanvas.width  = cssW * dpr;
-  mapCanvas.height = cssH * dpr;
-  mapCtx = mapCanvas.getContext('2d');
-  mapCtx.scale(dpr, dpr);
-  mapW = cssW;
-  mapH = cssH;
-}
-
 function toggleFault() {
   state.fault = state.fault === 'o2' ? 'none' : 'o2';
   const b = document.getElementById('btn-fault');
@@ -670,36 +413,16 @@ function toggleFault() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   FAULT VISUALS — fix #1: also tint the O2 wire tube
+   FAULT VISUALS
    ═══════════════════════════════════════════════════════════════════════ */
 function applyFaultVisuals() {
   const dead = state.fault === 'o2';
   const o2 = INPUTS.find(n => n.id === 'o2');
   if (o2) {
     o2.link.dead = dead;
-    /* Node body + tip */
-    o2.mat.color.setHex(dead ? CFG.nodeDeadColor : CFG.nodeIdleColor);
-    /* Halo ring */
-    o2.halo.material.color.setHex(dead ? CFG.nodeDeadColor : CFG.nodeIdleColor);
-    o2.halo.material.opacity = dead ? 0.15 : 0.28;
-    /* Wire tube — now that each link owns its material, tint safely */
-    if (o2.link.mat) {
-      o2.link.mat.color.setHex(dead ? CFG.wireDeadColor : CFG.wireColor);
-    }
+    o2.link.mat.color.setHex(dead ? 0xb03030 : 0x556074);
+    o2.mat.color.setHex(dead ? 0x8a2222 : 0x38bdf8);
   }
-
-  /* MIL lamp on the ECU */
-  if (dead) {
-    milLampMat.color.setHex(0xff2020);
-    milLampMat.emissive.setHex(0xff2020);
-    milLampMat.emissiveIntensity = 1.4;
-  } else {
-    milLampMat.color.setHex(0x3a1010);
-    milLampMat.emissive.setHex(0x000000);
-    milLampMat.emissiveIntensity = 0;
-  }
-
-  /* Badge */
   const badge = document.getElementById('stroke-badge');
   const text  = document.getElementById('badge-text');
   const col   = dead ? '#ef4444' : CFG.accent;
@@ -724,18 +447,13 @@ const ro = {
   mil:  document.getElementById('ro-mil')
 };
 
-function currentRpm() {
-  const load = state.load / 100;
-  return Math.round(CFG.minRpm + load * (CFG.maxRpm - CFG.minRpm));
-}
-
 function updateReadouts() {
   const load = state.load / 100;
   const dead = state.fault === 'o2';
 
-  const rpm  = currentRpm();
-  const pw   = 1.6 + load * 11.5;
-  const adv  = 28 - load * 20 - (dead ? 4 : 0);
+  const rpm = Math.round(800 + load * 6200);
+  const pw  = 1.6 + load * 11.5;
+  const adv = 28 - load * 20 - (dead ? 4 : 0);
   const stft = dead ? 0 : Math.sin(performance.now() * 0.0011) * 3.2;
 
   if (ro.rpm)  ro.rpm.textContent  = rpm + ' rpm';
@@ -752,8 +470,7 @@ function updateReadouts() {
   }
   if (ro.mil) {
     ro.mil.textContent = dead ? 'ON' : 'OFF';
-    /* fix #3: no trailing space */
-    ro.mil.className = dead ? 'v warn' : 'v';
+    ro.mil.className = 'v ' + (dead ? 'warn' : '');
   }
 
   ui.chip.setBig(rpm, ' rpm');
@@ -761,87 +478,6 @@ function updateReadouts() {
   ui.chip.set('adv', adv.toFixed(1) + '°');
   ui.chip.setBar(state.load, dead ? 'var(--crit)' : 'var(--al-accent)');
   ui.chip.setStatus(dead ? 'Limp home' : 'Running', !dead);
-
-  drawFuelMap(rpm, state.load, dead);
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   FUEL MAP VISUALIZATION
-   ═══════════════════════════════════════════════════════════════════════ */
-function lerpRGB(a, b, t) {
-  return [
-    a[0] + (b[0] - a[0]) * t,
-    a[1] + (b[1] - a[1]) * t,
-    a[2] + (b[2] - a[2]) * t
-  ];
-}
-
-function mapValue(speedN, loadN) {
-  return Math.min(1, loadN * 1.05 + speedN * 0.10);
-}
-
-function drawFuelMap(rpm, loadPct, dead) {
-  if (!mapCtx) return;
-  const ctx = mapCtx;
-  const W = mapW, H = mapH;
-  ctx.clearRect(0, 0, W, H);
-
-  const padL = 24, padR = 6, padT = 10, padB = 20;
-  const plotW = W - padL - padR;
-  const plotH = H - padT - padB;
-  const cols = 8, rows = 6;
-  const cw = plotW / cols, ch = plotH / rows;
-
-  const lowC  = [34, 26, 66];
-  const highC = [239, 68, 68];
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const speedN = (c + 0.5) / cols;
-      const loadN  = 1 - (r + 0.5) / rows;
-      const v = mapValue(speedN, loadN);
-      const [cr, cg, cb] = lerpRGB(lowC, highC, v);
-      ctx.fillStyle = `rgb(${cr | 0}, ${cg | 0}, ${cb | 0})`;
-      ctx.fillRect(padL + c * cw, padT + r * ch, cw - 0.5, ch - 0.5);
-    }
-  }
-
-  const speedN = Math.max(0, Math.min(1, (rpm - CFG.minRpm) / (CFG.maxRpm - CFG.minRpm)));
-  const loadN  = Math.max(0, Math.min(1, loadPct / 100));
-  const mx = padL + speedN * plotW;
-  const my = padT + (1 - loadN) * plotH;
-
-  ctx.strokeStyle = dead ? 'rgba(239, 68, 68, 0.85)' : 'rgba(255, 255, 255, 0.75)';
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.moveTo(mx, padT);
-  ctx.lineTo(mx, padT + plotH);
-  ctx.moveTo(padL, my);
-  ctx.lineTo(padL + plotW, my);
-  ctx.stroke();
-
-  ctx.fillStyle = dead ? '#ef4444' : '#ffffff';
-  ctx.beginPath();
-  ctx.arc(mx, my, 3.2, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = 'rgba(226, 232, 240, 0.70)';
-  ctx.font = '8px ui-monospace, SFMono-Regular, Menlo, monospace';
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('100', padL - 4, padT + 4);
-  ctx.fillText('50',  padL - 4, padT + plotH / 2);
-  ctx.fillText('0',   padL - 4, padT + plotH - 4);
-
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.fillText(String(CFG.minRpm), padL, padT + plotH + 4);
-  ctx.fillText(String(CFG.maxRpm), padL + plotW, padT + plotH + 4);
-
-  ctx.fillStyle = 'rgba(148, 163, 184, 0.65)';
-  ctx.textAlign = 'left';
-  ctx.fillText('load', 2, padT - 2);
-  ctx.textAlign = 'right';
-  ctx.fillText('rpm', W - padR, padT - 2);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -887,82 +523,31 @@ function frame(now) {
   const sp = state.playing ? state.speedMul : 0;
   t += dt * sp;
 
-  const load = state.load / 100;
-  const dead = state.fault === 'o2';
-
-  /* --- Signal particles on wires --- */
+  /* --- flowing signal particles --- */
   for (const L of lines) {
     const n = L.parts.length;
-    const wireActive = !L.dead;
     for (let i = 0; i < n; i++) {
       const p = L.parts[i];
-      if (!wireActive) { p.visible = false; continue; }
+      if (L.dead) { p.visible = false; continue; }
       p.visible = true;
       let u = (t * CFG.flowHz + i / n) % 1;
       if (u < 0) u += 1;
       p.position.lerpVectors(L.a, L.b, u);
-      const pulse = 0.55 + 0.55 * Math.sin(Math.PI * u);
-      const gain  = 0.7 + 0.6 * load;
-      p.scale.setScalar(pulse * gain);
+      p.scale.setScalar(0.55 + 0.55 * Math.sin(Math.PI * u));
     }
   }
 
-  /* --- CPU activity --- */
-  const busy = 0.4 + 0.6 * load;
-  const blink = 0.55 + 0.45 * Math.abs(Math.sin(t * 12));
-  cpuGlowMat.emissiveIntensity = busy * blink * 1.3;
-  cpuGlowMat.emissive.setHex(dead ? 0xef4444 : 0xa855f7);
-
-  /* --- MIL lamp blink --- */
-  if (dead) {
-    milLampMat.emissiveIntensity = 1.0 + 0.5 * Math.abs(Math.sin(t * 5));
-  }
-
-  /* --- Injector spray — fix #2: anchor the cone base to the nozzle tip --- */
-  if (load > 0.05 && !dead) {
-    const sprayStrength = Math.min(1, load * 1.2);
-    const pulse = 0.75 + 0.25 * Math.sin(t * 40);
-    sprayMat.opacity = sprayStrength * pulse * 0.7;
-    sprayCone.scale.y = 0.7 + load * 0.7;
-    sprayCone.position.y = INJ_NOZZLE_Y - sprayCone.scale.y * SPRAY_HALF_HEIGHT;
-  } else {
-    sprayMat.opacity = 0;
-  }
-
-  /* --- Ignition coil spark --- */
-  {
-    const cycle = (t * 3.5) % 1;
-    const flash = cycle < 0.10 ? Math.sin(cycle / 0.10 * Math.PI) : 0;
-    if (!dead) {
-      sparkMat.opacity = flash * (0.6 + load * 0.4);
-      spark.scale.setScalar(0.6 + flash * 0.8);
-    } else {
-      sparkMat.opacity = 0;
-    }
-  }
-
-  /* --- EGR puff --- */
-  if (load > 0.25 && !dead) {
-    const cycle = (t * 0.9) % 1;
-    const puff  = cycle < 0.55 ? Math.sin(cycle / 0.55 * Math.PI) : 0;
-    egrPuffMat.opacity = puff * 0.4 * load;
-    egrPuff.scale.setScalar(0.7 + puff * 0.9);
-  } else {
-    egrPuffMat.opacity = 0;
-  }
-
-  /* --- Labels --- */
+  /* --- labels --- */
   labels.hideAll();
   if (state.showLabels) {
-    labels.project('ecu', tmp.set(0, 1.18, 0), camera, wrap);
-    labels.project('cpu', tmp.set(-0.72, 1.06, -0.05), camera, wrap);
+    labels.project('ecu', tmp.set(0, 1.15, 0), camera, wrap);
     for (const n of INPUTS) {
       labels.project('in-' + n.id,
-        tmp.set(n.mesh.position.x, n.mesh.position.y + 0.42, n.mesh.position.z), camera, wrap);
+        tmp.set(n.mesh.position.x, n.mesh.position.y + 0.46, n.mesh.position.z), camera, wrap);
     }
     for (const n of OUTPUTS) {
       labels.project('out-' + n.id,
-        tmp.set(n.mesh.position.x, n.mesh.position.y + 0.42, n.mesh.position.z), camera, wrap);
+        tmp.set(n.mesh.position.x, n.mesh.position.y + 0.46, n.mesh.position.z), camera, wrap);
     }
   }
 
@@ -974,6 +559,7 @@ function frame(now) {
 }
 
 if (reduced) {
+  /* still render, just slower */
   setInterval(() => renderer.render(scene, camera), 120);
 } else {
   raf = requestAnimationFrame(frame);
