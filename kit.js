@@ -448,18 +448,32 @@ export function createParticleTexture() {
 export function createLabelSystem() {
   const root = document.getElementById('labels-root') || document.body;
   const els = {};
-  return {
-    add(id, text) {
+  const tiers = {};
+  /* density: 2 = all labels, 1 = key labels only, 0 = none.
+     A label's own tier defaults to 1 ("key") so any module that hasn't
+     curated tiers yet behaves exactly as before — nothing regresses.
+     Tag a label `tier: 2` (or pass it as the 3rd arg to .add) to mark it
+     as a "detail" label that disappears first when density drops. */
+  let density = 2;
+  const api = {
+    add(id, text, tier = 1) {
       const el = document.createElement('div');
       el.className = 'label3d';
       el.textContent = text;
       root.appendChild(el);
       els[id] = el;
+      tiers[id] = tier;
     },
+    setDensity(level) {
+      density = level;
+      if (level === 0) this.hideAll();
+    },
+    getDensity() { return density; },
     hideAll() { for (const k in els) els[k].classList.remove('visible'); },
     hide(id) { if (els[id]) els[id].classList.remove('visible'); },
     project(id, worldVec, camera, wrap) {
       const el = els[id]; if (!el) return;
+      if (density === 0 || (tiers[id] || 1) > density) { el.classList.remove('visible'); return; }
       const w = wrap.clientWidth, h = wrap.clientHeight;
       const p = worldVec.clone().project(camera);
       if (p.z > 1) { el.classList.remove('visible'); return; }
@@ -468,6 +482,8 @@ export function createLabelSystem() {
       el.classList.add('visible');
     }
   };
+  window.__autolabLabels = api;   /* lets the toolbar density button find us */
+  return api;
 }
 
 export function createBridge(moduleId, onCommand) {
@@ -532,10 +548,46 @@ class UIKit {
       el = document.createElement('div');
       el.id = 'ui-slot-' + name;
       el.className = 'ui-slot ui-slot-' + name;
-      document.body.appendChild(el);
+      /* tl (info panel) + tr (readout chip) share one responsive row that
+         wraps instead of overlapping — see #ui-top-stack in app.css. */
+      if (name === 'tl' || name === 'tr') {
+        let stack = document.getElementById('ui-top-stack');
+        if (!stack) {
+          stack = document.createElement('div');
+          stack.id = 'ui-top-stack';
+          document.body.appendChild(stack);
+        }
+        stack.appendChild(el);
+      } else {
+        document.body.appendChild(el);
+      }
     }
     this._slots[name] = el;
     return el;
+  }
+
+  /* Adds a small round toggle to `card` that shrinks it to a 44px orb
+     pinned in its corner, and back again on tap. `icon` is inline SVG
+     shown only while collapsed. */
+  _makeCollapsible(card, icon) {
+    const orbIcon = document.createElement('div');
+    orbIcon.className = 'ui-orb-icon';
+    orbIcon.innerHTML = icon || '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/></svg>';
+    card.appendChild(orbIcon);
+
+    const toggle = document.createElement('button');
+    toggle.className = 'ui-orb-toggle';
+    toggle.setAttribute('aria-label', 'Minimize');
+    toggle.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14z"/></svg>';
+    card.appendChild(toggle);
+
+    function set(collapsed) {
+      card.classList.toggle('is-orb', collapsed);
+      toggle.setAttribute('aria-label', collapsed ? 'Expand' : 'Minimize');
+    }
+    toggle.addEventListener('click', (e) => { e.stopPropagation(); set(!card.classList.contains('is-orb')); });
+    card.addEventListener('click', () => { if (card.classList.contains('is-orb')) set(false); });
+    return { set };
   }
 
   _buildPanel(p) {
@@ -633,6 +685,7 @@ class UIKit {
     }
     el.innerHTML = html;
     slot.appendChild(el);
+    this._makeCollapsible(el, '<svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3zm4 0h2v-2H7zm4 0h2v-2h-2zm4 0h2v-2h-2zm4 0h2v-2h-2z"/></svg>');
 
     this._chipEls = {
       root: el,
@@ -671,7 +724,9 @@ class UIKit {
           <span id="rpm-label"></span>
         </div>`;
     }
-    if (t.labels) html += `<label class="ui-tb-check"><input type="checkbox" id="chk-labels" checked> Labels</label>`;
+    if (t.labels) html += `<button class="ui-tb-btn active" id="btn-density" aria-label="Label density: all" title="Labels: All">
+      <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </button>`;
     if (t.gas)    html += `<label class="ui-tb-check"><input type="checkbox" id="chk-gas" checked> Flow</label>`;
     html += `<div class="ui-tb-extras" id="toolbar-extras"></div>`;
 
@@ -840,6 +895,33 @@ class UIKit {
       state.speedMul = parseFloat(_speed.value);
     });
     if (_lab)   _lab.addEventListener('change', () => { state.showLabels = _lab.checked; });
+
+    /* 3-state label density: All -> Key -> None -> All ... */
+    const _dens = document.getElementById('btn-density');
+    const DENS = [
+      { level: 2, name: 'All',  dots: 3 },
+      { level: 1, name: 'Key',  dots: 2 },
+      { level: 0, name: 'None', dots: 0 },
+    ];
+    let _densIdx = 0;
+    function _applyDensity(idx) {
+      _densIdx = idx;
+      const d = DENS[idx];
+      window.__autolabLabels?.setDensity(d.level);
+      if ('showLabels' in state) state.showLabels = d.level > 0;
+      if (_dens) {
+        _dens.classList.toggle('active', d.level > 0);
+        _dens.title = 'Labels: ' + d.name;
+        _dens.setAttribute('aria-label', 'Label density: ' + d.name);
+        _dens.innerHTML = '<svg viewBox="0 0 24 24">' +
+          (d.dots >= 1 ? '<path d="M3 6h18v2H3z"/>' : '') +
+          (d.dots >= 3 ? '<path d="M3 11h18v2H3z"/>' : '') +
+          (d.dots >= 2 ? '<path d="M3 16h18v2H3z"/>' : '') +
+          (d.dots === 0 ? '<path d="M4 4l16 16-1.4 1.4L2.6 5.4z"/><path d="M3 11h18v2H3z" opacity=".35"/>' : '') +
+          '</svg>';
+      }
+    }
+    if (_dens) _dens.addEventListener('click', () => _applyDensity((_densIdx + 1) % DENS.length));
     if (_gas)   _gas.addEventListener('change', () => { state.showGas    = _gas.checked; });
 
     /* Wrap defaultHandlers so incoming shell commands keep the visible
