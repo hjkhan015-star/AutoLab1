@@ -40,13 +40,13 @@ window.AUTO_MODULES = [
   {
     id: 'automatic', label: 'Auto', title: 'Automatic Transmission',
     subtitle: 'Drivetrain · Torque Converter',
-    file: 'automatic.html', color: '#38bdf8',
+    file: 'automatic.html', color: '#2dd4bf',
     icon: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="4" x2="12" y2="9"/><line x1="12" y1="15" x2="12" y2="20"/><line x1="4" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="20" y2="12"/>'
   },
   {
     id: 'clutch', label: 'Clutch', title: 'Clutch',
     subtitle: 'Transmission · Friction Disc',
-    file: 'clutch.html', color: '#ef4444',
+    file: 'clutch.html', color: '#e11d48',
     icon: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="3" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="21"/><line x1="3" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="21" y2="12"/>'
   },
   {
@@ -64,7 +64,7 @@ window.AUTO_MODULES = [
   {
     id: 'suspension', label: 'Suspension', title: 'Suspension System',
     subtitle: 'Chassis · Springs & Dampers',
-    file: 'suspension.html', color: '#a855f7',
+    file: 'suspension.html', color: '#ec4899',
     icon: '<path d="M7 3h10M7 21h10M6 3c0 3 12 3 12 6s-12 3-12 6 12 3 12 6"/>'
   },
   {
@@ -82,31 +82,31 @@ window.AUTO_MODULES = [
   {
     id: 'lubrication', label: 'Lubrication', title: 'Lubrication System',
     subtitle: 'Engine · Oil & Wear',
-    file: 'lubrication.html', color: '#f59e0b',
+    file: 'lubrication.html', color: '#84cc16',
     icon: '<path d="M12 3c-2 3-5 7-5 10a5 5 0 0 0 10 0c0-3-3-7-5-10z"/><circle cx="12" cy="14" r="2"/>'
   },
   {
     id: 'mpfi', label: 'Injection', title: 'Electronic Fuel Injection (MPFI)',
     subtitle: 'Fuel System · Port / Common Rail',
-    file: 'mpfi.html', color: '#22c55e',
+    file: 'mpfi.html', color: '#10b981',
     icon: '<rect x="9" y="3" width="6" height="5" rx="1"/><line x1="12" y1="8" x2="12" y2="13"/><path d="M8 17l4-4 4 4M9 21h6"/>'
   },
   {
     id: 'turbo', label: 'Turbo', title: 'Turbocharger',
     subtitle: 'Forced Induction · Boost',
-    file: 'turbocharger.html', color: '#ef4444',
+    file: 'turbocharger.html', color: '#fb7185',
     icon: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/><line x1="12" y1="4" x2="12" y2="9.5"/><line x1="12" y1="14.5" x2="12" y2="20"/><line x1="4" y1="12" x2="9.5" y2="12"/><line x1="14.5" y1="12" x2="20" y2="12"/>'
   },
   {
     id: 'ignition', label: 'Ignition', title: 'Ignition System',
     subtitle: 'Electrical · Coil & Timing',
-    file: 'ignition.html', color: '#f59e0b',
+    file: 'ignition.html', color: '#f97316',
     icon: '<path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/>'
   },
   {
     id: 'electrical', label: 'Electrical', title: 'Battery · Starter · Alternator',
     subtitle: 'Electrical · Charging',
-    file: 'electrical.html', color: '#f59e0b',
+    file: 'electrical.html', color: '#fbbf24',
     icon: '<rect x="3" y="8" width="14" height="8" rx="1.5"/><line x1="17" y1="10" x2="21" y2="10"/><line x1="17" y1="14" x2="21" y2="14"/><line x1="5" y1="10" x2="5" y2="14"/><line x1="9" y1="10" x2="9" y2="14"/>'
   },
   {
@@ -118,7 +118,7 @@ window.AUTO_MODULES = [
   {
     id: 'exhaustsystem', label: 'Exhaust', title: 'Exhaust System',
     subtitle: 'Emissions · Silencer & Catalyst',
-    file: 'exhaustsystem.html', color: '#f59e0b',
+    file: 'exhaustsystem.html', color: '#78909c',
     icon: '<path d="M3 14h4l2-6 4 10 3-6h5"/><circle cx="6" cy="17" r="1.2"/><circle cx="20" cy="17" r="1.2"/>'
   }
 ];

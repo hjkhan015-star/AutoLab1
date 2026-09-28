@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0b0e14">
+<meta name="theme-color" content="#0a0d13">
 <title>Clutch — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
 <style>
@@ -43,6 +43,8 @@
     will-change: transform;
   }
 
+  html.light-theme .cp-bg { fill: rgba(255,255,255,.96); stroke: rgba(15,23,42,.14); }
+  html.light-theme #clutch-pedal-state { background: rgba(255,255,255,.94); color: #475569; border-color: rgba(15,23,42,.14); }
   .cp-bg    { fill: rgba(10,14,20,.74); stroke: rgba(255,255,255,.10); stroke-width: 1.5; }
   .cp-arm   { fill: #303947; stroke: #8f9bad; stroke-width: 1.5; }
   .cp-joint { fill: #171c24; stroke: #9ca9bb; stroke-width: 1.5; }
@@ -925,7 +927,7 @@
 
     panel: {
       kicker: 'Transmission',
-      title:  'Clutch Working Principle',
+      title:  'Clutch · Working Principle',
       badge:  { text: 'Clutch', color: '#ef4444' },
       desc: `<strong>Clutch.</strong> The flywheel spins with the engine. The friction disc is splined to the gearbox input shaft
              and squeezed between the flywheel and the pressure plate by a diaphragm spring. Releasing the pedal lets the spring
@@ -1168,6 +1170,7 @@
     onCommand: (d) => {
       switch (d.action) {
         case 'reset': resetClutch(); break;
+        case 'setPedal': if (+d.value) pedalDown(); else pedalUp(); break;
       }
     }
   });

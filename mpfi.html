@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0b0e14">
-<title>Fuel Injection — Auto Lab</title>
+<meta name="theme-color" content="#0a0d13">
+<title>Electronic Fuel Injection (MPFI) — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
 <style>
   /* ═══════════════════════════════════════════════════════════
@@ -33,10 +33,10 @@
   }
   .mp-rows .mp-row {
     display: flex; justify-content: space-between; gap: 10px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
   }
   .mp-rows .mp-row > span:first-child {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-sans);
     font-weight: 500; letter-spacing: .01em;
   }
   .mp-rows .mp-row b {
@@ -978,7 +978,7 @@
     moduleId: 'mpfi',
 
     panel: {
-      kicker: 'Fuel Systems',
+      kicker: 'Fuel',
       title:  'Fuel Injection Systems',
       tabs: [
         { id: 'mpfi', label: 'MPFI (Petrol)', color: '#22c55e',

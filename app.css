@@ -257,6 +257,7 @@
 
   /* ---- Card ---- */
   .ui-card {
+    position: relative;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--r-lg);
@@ -565,6 +566,10 @@
     top: auto; left: auto; right: auto; bottom: auto;
     transform: none;
   }
+  /* Embedded: sit below the shell's floating back / ⋯ buttons (42px @ top:12px) */
+  body.embedded.uses-ui-kit #ui-top-stack {
+    top: calc(var(--shell-header-h, calc(64px + var(--safe-t))) + var(--s-1));
+  }
   /* Info panel always wins the stacking order over the readout chip */
   #ui-top-stack #ui-slot-tl { z-index: 2; order: 1; }
   #ui-top-stack #ui-slot-tr { z-index: 1; order: 2; }
@@ -573,6 +578,7 @@
 
   /* ---- Collapse-to-orb: any card can shrink to a small round button ---- */
   .ui-card.is-orb {
+    pointer-events: auto;
     width: 44px; height: 44px;
     min-width: 0;
     padding: 0;
@@ -705,10 +711,18 @@
     --ui-left:   calc(var(--s-3) + var(--safe-l));
   }
 
+  body.embedded.uses-ui-kit #ui-top-stack {
+    top: calc(var(--shell-header-h) + var(--s-1));
+    left: calc(var(--s-3) + var(--safe-l));
+    right: calc(var(--s-3) + var(--safe-r));
+  }
   body.embedded.uses-ui-kit .ui-slot-tl,
   body.embedded.uses-ui-kit .ui-slot-tr {
     top: calc(var(--shell-header-h) + var(--s-3));
   }
+  body.embedded.uses-ui-kit #ui-top-stack > .ui-slot { top: auto; }
+  body.embedded.uses-ui-kit .ui-panel.expanded { max-width: min(400px, calc(100vw - 2 * var(--s-3) - var(--safe-l) - var(--safe-r))); }
+  body.embedded.uses-ui-kit .ui-card.is-orb { z-index: 5; }
   body.embedded.uses-ui-kit .ui-slot-bl,
   body.embedded.uses-ui-kit .ui-slot-br {
     bottom: calc(var(--shell-pill-h) + var(--s-4));

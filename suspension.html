@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0b0e14">
+<meta name="theme-color" content="#0a0d13">
 <title>Suspension System — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
 <style>
@@ -18,7 +18,7 @@
     letter-spacing: .03em; text-transform: uppercase;
   }
   .susp-shock-head b {
-    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
     color: var(--text, #e5e7eb); font-weight: 800;
   }
   .susp-shock-bar {
@@ -37,7 +37,7 @@
     font-size: 10.5px; color: var(--text-dim, #9aa7b9); font-weight: 600;
   }
   #susp-danger-pct {
-    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
     color: var(--text, #e5e7eb); font-weight: 800;
   }
   #susp-danger-bar {
@@ -74,7 +74,7 @@
   #road-info .label { opacity: .6; }
   #road-info .val {
     color: var(--text, #e5e7eb);
-    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
   }
   #road-info .val.pot  { color: #f87171; }
   #road-info .val.bump { color: #fbbf24; }
@@ -845,8 +845,8 @@
     moduleId: 'suspension',
 
     panel: {
-      kicker: 'Suspension Systems',
-      title:  'Suspension — Real Uneven Road',
+      kicker: 'Suspension',
+      title:  'Suspension · Real Uneven Road',
       badge:  { text: 'With Suspension', color: '#a855f7' },
       readout: `
         <div id="susp-readout">
