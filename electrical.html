@@ -8,39 +8,29 @@
 <link rel="stylesheet" href="app.css">
 <style>
   /* ═══════════════════════════════════════════════════════════
-     PANEL READOUT INTERIOR — badge, description, chemistry equation
+     Module-specific widget interiors.
+     Panel/chip/toolbar chrome comes from app.css + kit.js.
      ═══════════════════════════════════════════════════════════ */
-  #electrical-readout { margin-top: 4px; }
 
-  .el-badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 10px; font-weight: 700;
-    letter-spacing: .08em; text-transform: uppercase;
-    padding: 4px 9px; border-radius: 999px;
-    margin-bottom: 10px;
-  }
-  .el-badge .dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    display: inline-block;
-  }
-
-  #mode-desc {
+  /* Readout rows inside the info panel */
+  #electrical-readout #mode-desc {
     font-size: 12.5px; line-height: 1.55;
     color: var(--text-dim, #94a3b8);
+    margin-bottom: 8px;
   }
-  #mode-desc strong { color: var(--text, #e5e7eb); font-weight: 700; }
-  #mode-desc em { color: #f59e0b; font-style: normal; font-weight: 700; }
+  #electrical-readout #mode-desc strong { color: var(--text, #e5e7eb); font-weight: 700; }
+  #electrical-readout #mode-desc em { color: #f59e0b; font-style: normal; font-weight: 700; }
 
   #chem-eq {
-    margin-top: 10px; padding: 7px 10px; border-radius: 8px;
+    margin-top: 6px; padding: 7px 10px; border-radius: 8px;
     background: rgba(34,197,94,.10);
     border: 1px solid rgba(34,197,94,.28);
-    font-family: var(--font-mono);
+    font-family: var(--font-mono, ui-monospace, Menlo, monospace);
     font-size: 11px; font-weight: 700;
     color: #86efac;
     text-align: center; letter-spacing: .02em;
   }
-  html.light-theme #chem-eq { background: rgba(34,197,94,.10); color: #15803d; }
+  html.light-theme #chem-eq { color: #15803d; }
   #chem-eq .arrow { color: #f59e0b; padding: 0 6px; }
 
   .el-rows {
@@ -53,34 +43,30 @@
   .el-rows .row {
     display: flex; justify-content: space-between; align-items: center;
     gap: 10px;
-    font-family: var(--font-mono);
+    font-family: var(--font-mono, ui-monospace, Menlo, monospace);
   }
   .el-rows .row > span:first-child {
-    font-family: var(--font-sans);
-    font-weight: 500; letter-spacing: .01em;
+    font-family: var(--font-sans, system-ui, sans-serif);
+    font-weight: 500;
   }
   .el-rows .val {
     color: var(--text, #e5e7eb);
     font-weight: 700; font-variant-numeric: tabular-nums;
-    letter-spacing: .01em;
   }
   html.light-theme .el-rows .val { color: #0a0d13; }
 
-  /* ═══════════════════════════════════════════════════════════
-     WIDGET INTERIOR — direction toggle (battery mode)
-     ═══════════════════════════════════════════════════════════ */
-  #direction-toggle {
-    display: flex; flex-direction: column; gap: 4px;
-  }
+  /* ── Direction toggle (battery mode widget) ── */
+  #direction-toggle { display: none; flex-direction: column; gap: 4px; }
+  #direction-toggle.visible { display: flex; }
   #direction-toggle .dt-btn {
     width: 92px; height: 44px; border-radius: 11px;
     background: rgba(10,14,20,.82);
-    border: 1px solid var(--border, rgba(255,255,255,.10));
-    color: var(--text-dim, #94a3b8);
+    border: 1px solid rgba(255,255,255,.10);
+    color: #94a3b8;
     font-size: 11px; font-weight: 800; letter-spacing: .06em;
     text-transform: uppercase; cursor: pointer;
-    transition: all var(--dur-fast, .18s) var(--ease-out, ease);
-    font-family: var(--font-mono);
+    transition: all .18s ease;
+    font-family: var(--font-mono, ui-monospace, Menlo, monospace);
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     box-shadow: 0 6px 16px rgba(0,0,0,.5);
     display: flex; align-items: center; justify-content: center; gap: 5px;
@@ -105,12 +91,9 @@
     color: #475569;
   }
 
-  /* ═══════════════════════════════════════════════════════════
-     WIDGET INTERIOR — ignition key selector (charging mode)
-     ═══════════════════════════════════════════════════════════ */
-  #key-selector {
-    display: flex; flex-direction: column; gap: 4px;
-  }
+  /* ── Ignition key selector (charging mode widget) ── */
+  #key-selector { display: none; flex-direction: column; gap: 4px; }
+  #key-selector.visible { display: flex; }
   #key-selector .ks-caption {
     font-size: 10px; font-weight: 800; letter-spacing: .16em;
     text-transform: uppercase; color: #64748b;
@@ -119,12 +102,12 @@
   #key-selector .ks-item {
     width: 64px; height: 42px; border-radius: 11px;
     background: rgba(10,14,20,.82);
-    border: 1px solid var(--border, rgba(255,255,255,.10));
-    color: var(--text-dim, #94a3b8);
+    border: 1px solid rgba(255,255,255,.10);
+    color: #94a3b8;
     font-size: 10.5px; font-weight: 800; letter-spacing: .06em;
     text-transform: uppercase; cursor: pointer;
-    transition: all var(--dur-fast, .18s) var(--ease-out, ease);
-    font-family: var(--font-mono);
+    transition: all .18s ease;
+    font-family: var(--font-mono, ui-monospace, Menlo, monospace);
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     box-shadow: 0 6px 16px rgba(0,0,0,.5);
   }
@@ -147,23 +130,21 @@
     color: #475569;
   }
 
-  /* ═══════════════════════════════════════════════════════════
-     WIDGET INTERIOR — 3-phase waveform canvas (alternator mode)
-     ═══════════════════════════════════════════════════════════ */
+  /* ── 3-phase waveform (alternator mode widget) ── */
   #waveform-panel {
-    display: flex; flex-direction: column; gap: 6px;
+    display: none; flex-direction: column; gap: 6px;
     background: rgba(10,14,20,.86);
-    border: 1px solid var(--border, rgba(255,255,255,.10));
+    border: 1px solid rgba(255,255,255,.10);
     border-radius: 12px;
     padding: 10px 12px;
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     min-width: 220px;
     box-shadow: 0 6px 20px rgba(0,0,0,.5);
   }
+  #waveform-panel.visible { display: flex; }
   #waveform-panel .wf-label {
     font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
     color: #8d9aaa; font-weight: 700;
-    font-family: var(--font-sans);
   }
   #waveform-canvas {
     display: block; width: 100%; height: 70px; border-radius: 6px;
@@ -171,14 +152,13 @@
   }
   #waveform-panel .wf-legend {
     display: flex; gap: 12px; font-size: 10px;
-    color: var(--text-dim, #94a3b8);
+    color: #94a3b8;
     font-weight: 700; letter-spacing: .03em;
   }
   #waveform-panel .wf-legend span { display: flex; align-items: center; gap: 4px; }
   #waveform-panel .wf-legend i {
     width: 8px; height: 8px; border-radius: 50%; display: inline-block;
   }
-
   html.light-theme #waveform-panel {
     background: rgba(255,255,255,.94);
     border-color: rgba(15,23,42,.14);
@@ -204,36 +184,34 @@
   </script>
 
   <script type="module">
-  import * as THREE from 'three';
   import * as Base from './kit.js';
-  import { UI } from './kit.js';
+  import { UI, THREE } from './kit.js';
 
   const TAU = Math.PI * 2;
   const DEG = Math.PI / 180;
 
-  /* ============================================================
-     BOOTSTRAP
-     ============================================================ */
-  const isCoarse = matchMedia('(pointer: coarse)').matches;
-  const cores    = navigator.hardwareConcurrency || 4;
-  const mem      = navigator.deviceMemory || 4;
-  const isLowEnd = cores <= 4 || mem <= 2;
-  const isMidEnd = !isLowEnd && (cores <= 6 || isCoarse);
-
-  const { scene, camera, renderer, controls, wrap, viewManager } = Base.buildScene({
+  /* ═══════════════════════════════════════════════════════════
+     BOOTSTRAP — base scene, labels, particles, shared UI state
+     ═══════════════════════════════════════════════════════════ */
+  const built = Base.buildScene({
     fov: 42,
-    camPos: isCoarse ? [2.6, 2.2, 4.6] : [3.0, 2.5, 5.4],
+    camPos: [3.0, 2.5, 5.4],
     target: [0, 0.10, 0],
     floorY: -2.15
   });
+  const { scene, camera, renderer, controls, wrap, quality, viewManager } = built;
   Base.attachResize(camera, renderer, wrap, 42);
-  const particleTex = Base.createParticleTexture();
-  const labels = Base.createLabelSystem();
-  const state = Base.createUIState();
 
-  /* ============================================================
+  const particleTex = Base.createParticleTexture();
+  const labels      = Base.createLabelSystem();
+  const state       = Base.createUIState();
+
+  const isLowEnd = quality.isLowEnd;
+  const isMidEnd = quality.isMidEnd;
+
+  /* ═══════════════════════════════════════════════════════════
      MATERIALS
-     ============================================================ */
+     ═══════════════════════════════════════════════════════════ */
   const M = {
     steel:      new THREE.MeshStandardMaterial({ color:0xa8b0be, metalness:0.88, roughness:0.28 }),
     steelDark:  new THREE.MeshStandardMaterial({ color:0x3d4555, metalness:0.78, roughness:0.40 }),
@@ -275,20 +253,18 @@
     needle:     new THREE.MeshBasicMaterial({ color:0xdc2626 })
   };
 
-  /* ============================================================
-     THREE VIEWS in one scene
-     ============================================================ */
+  /* ═══════════════════════════════════════════════════════════
+     THREE VIEWS — all live in one scene, toggled by mode
+     ═══════════════════════════════════════════════════════════ */
   const systemRoot = new THREE.Group();
   scene.add(systemRoot);
 
-  const batteryView = new THREE.Group();
+  const batteryView    = new THREE.Group();
   const alternatorView = new THREE.Group();
-  const chargingView = new THREE.Group();
+  const chargingView   = new THREE.Group();
   systemRoot.add(batteryView, alternatorView, chargingView);
 
-  /* ============================================================
-     BATTERY VIEW
-     ============================================================ */
+  /* ─────────────── BATTERY VIEW ─────────────── */
   const BAT_W = 1.9, BAT_H = 0.9, BAT_D = 0.62;
   const CELL_COUNT = 6;
 
@@ -320,8 +296,7 @@
 
     if (c < CELL_COUNT - 1) {
       const sep = new THREE.Mesh(
-        new THREE.BoxGeometry(0.012, BAT_H - 0.08, BAT_D - 0.08),
-        M.batteryCap
+        new THREE.BoxGeometry(0.012, BAT_H - 0.08, BAT_D - 0.08), M.batteryCap
       );
       sep.position.set(cx + cellWidth / 2, 0, 0);
       batteryView.add(sep);
@@ -336,7 +311,6 @@
     for (let p = 0; p < plateCount; p++) {
       const isPositive = (p % 2 === 0);
       const pz = -(BAT_D - 0.14) / 2 + (p + 0.5) * plateGap;
-
       const plate = new THREE.Mesh(
         new THREE.BoxGeometry(plateW, plateH, plateD),
         isPositive ? M.leadPos : M.leadNeg
@@ -347,15 +321,13 @@
     }
 
     const cellTag = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.018, 0.018, 0.05, 10),
-      M.brass
+      new THREE.CylinderGeometry(0.018, 0.018, 0.05, 10), M.brass
     );
     cellTag.position.set(cx, BAT_H / 2 + 0.06, -BAT_D / 4);
     batteryView.add(cellTag);
 
     const cap = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.032, 0.032, 0.03, 12),
-      M.battBlk
+      new THREE.CylinderGeometry(0.032, 0.032, 0.03, 12), M.battBlk
     );
     cap.position.set(cx, BAT_H / 2 + 0.06, BAT_D / 4);
     batteryView.add(cap);
@@ -375,8 +347,7 @@
   for (let c = 0; c < CELL_COUNT - 1; c++) {
     const strapX = -(BAT_W / 2 - 0.05) + (c + 1) * cellWidth;
     const strap = new THREE.Mesh(
-      new THREE.BoxGeometry(0.06, 0.03, 0.10),
-      M.leadDark
+      new THREE.BoxGeometry(0.06, 0.03, 0.10), M.leadDark
     );
     strap.position.set(strapX, BAT_H / 2 + 0.045, -BAT_D / 6);
     batteryView.add(strap);
@@ -427,10 +398,8 @@
     new THREE.Vector3(-BAT_W / 2 - 0.30, BAT_H / 2 + 0.15, 0),
     new THREE.Vector3(-BAT_W / 2 + 0.15, BAT_H / 2 + 0.10, 0)
   ]);
-
   const extWire = new THREE.Mesh(
-    new THREE.TubeGeometry(dischargeCurve, 60, 0.016, 8, false),
-    M.wireRed
+    new THREE.TubeGeometry(dischargeCurve, 60, 0.016, 8, false), M.wireRed
   );
   batteryView.add(extWire);
 
@@ -492,9 +461,7 @@
   ];
   batteryLabelDefs.forEach(d => labels.add(d.id, d.text));
 
-  /* ============================================================
-     ALTERNATOR VIEW
-     ============================================================ */
+  /* ─────────────── ALTERNATOR VIEW ─────────────── */
   const ALT_R = 0.55;
   const ALT_LEN = 0.85;
 
@@ -504,8 +471,7 @@
   alternatorView.add(altShell);
 
   const altCut = new THREE.Mesh(
-    new THREE.CircleGeometry(ALT_R, 32, Math.PI * 0.5, Math.PI),
-    M.cut
+    new THREE.CircleGeometry(ALT_R, 32, Math.PI * 0.5, Math.PI), M.cut
   );
   altCut.rotation.y = Math.PI / 2;
   altCut.position.x = -ALT_LEN / 2;
@@ -526,8 +492,7 @@
   alternatorView.add(altRotorGroup);
 
   const rotorCore = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.16, 0.16, ALT_LEN * 0.70, 20),
-    M.steelDark
+    new THREE.CylinderGeometry(0.16, 0.16, ALT_LEN * 0.70, 20), M.steelDark
   );
   rotorCore.rotation.z = Math.PI / 2;
   altRotorGroup.add(rotorCore);
@@ -542,8 +507,7 @@
   altRotorGroup.add(frontClaws);
 
   const frontHub = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.18, 0.18, 0.08, 20),
-    M.rotor
+    new THREE.CylinderGeometry(0.18, 0.18, 0.08, 20), M.rotor
   );
   frontHub.rotation.z = Math.PI / 2;
   frontHub.position.x = -clawLength * 0.5;
@@ -552,8 +516,7 @@
   for (let i = 0; i < CLAW_N; i++) {
     const a = (i / CLAW_N) * TAU;
     const claw = new THREE.Mesh(
-      new THREE.BoxGeometry(clawLength, 0.10, 0.09),
-      M.rotor
+      new THREE.BoxGeometry(clawLength, 0.10, 0.09), M.rotor
     );
     claw.position.set(0, Math.cos(a) * clawRadius * 0.72, Math.sin(a) * clawRadius * 0.72);
     claw.rotation.x = a;
@@ -565,8 +528,7 @@
   altRotorGroup.add(rearClaws);
 
   const rearHub = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.18, 0.18, 0.08, 20),
-    M.rotor
+    new THREE.CylinderGeometry(0.18, 0.18, 0.08, 20), M.rotor
   );
   rearHub.rotation.z = Math.PI / 2;
   rearHub.position.x = clawLength * 0.5;
@@ -575,8 +537,7 @@
   for (let i = 0; i < CLAW_N; i++) {
     const a = (i / CLAW_N) * TAU + Math.PI / CLAW_N;
     const claw = new THREE.Mesh(
-      new THREE.BoxGeometry(clawLength, 0.10, 0.09),
-      M.rotor
+      new THREE.BoxGeometry(clawLength, 0.10, 0.09), M.rotor
     );
     claw.position.set(0, Math.cos(a) * clawRadius * 0.72, Math.sin(a) * clawRadius * 0.72);
     claw.rotation.x = a;
@@ -584,15 +545,13 @@
   }
 
   const fieldCoil = new THREE.Mesh(
-    new THREE.TorusGeometry(0.22, 0.075, 10, 24),
-    M.copper
+    new THREE.TorusGeometry(0.22, 0.075, 10, 24), M.copper
   );
   fieldCoil.rotation.y = Math.PI / 2;
   altRotorGroup.add(fieldCoil);
 
   const rotorShaft = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.038, 0.038, ALT_LEN + 0.90, 14),
-    M.steel
+    new THREE.CylinderGeometry(0.038, 0.038, ALT_LEN + 0.90, 14), M.steel
   );
   rotorShaft.rotation.z = Math.PI / 2;
   altRotorGroup.add(rotorShaft);
@@ -611,10 +570,8 @@
     for (let i = 0; i < COILS_PER_PHASE; i++) {
       const slotIdx = i * PHASES + phase;
       const a = (slotIdx / (COILS_PER_PHASE * PHASES)) * TAU;
-
       const coil = new THREE.Mesh(
-        new THREE.BoxGeometry(0.09, 0.10, 0.09),
-        M.statorCoil
+        new THREE.BoxGeometry(0.09, 0.10, 0.09), M.statorCoil
       );
       coil.position.set(0, Math.cos(a) * statorRadius, Math.sin(a) * statorRadius);
       coil.rotation.x = a;
@@ -628,8 +585,7 @@
         mid.x = -ALT_LEN * 0.42;
         const curve = new THREE.CatmullRomCurve3([p1, mid, p2]);
         const wire = new THREE.Mesh(
-          new THREE.TubeGeometry(curve, 12, 0.010, 6, false),
-          M.copper
+          new THREE.TubeGeometry(curve, 12, 0.010, 6, false), M.copper
         );
         phaseGroup.add(wire);
       }
@@ -668,24 +624,18 @@
   alternatorView.add(diodeGroup);
 
   const heatSink = new THREE.Mesh(
-    new THREE.BoxGeometry(0.55, 0.05, 0.30),
-    M.steelDark
+    new THREE.BoxGeometry(0.55, 0.05, 0.30), M.steelDark
   );
   diodeGroup.add(heatSink);
 
   const diodeMeshes = [];
   const DIODE_POSITIONS = [
-    { x: -0.22, z: -0.10 },
-    { x:  0.00, z: -0.10 },
-    { x:  0.22, z: -0.10 },
-    { x: -0.22, z:  0.10 },
-    { x:  0.00, z:  0.10 },
-    { x:  0.22, z:  0.10 }
+    { x: -0.22, z: -0.10 }, { x: 0.00, z: -0.10 }, { x: 0.22, z: -0.10 },
+    { x: -0.22, z:  0.10 }, { x: 0.00, z:  0.10 }, { x: 0.22, z:  0.10 }
   ];
   DIODE_POSITIONS.forEach(p => {
     const diode = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.032, 0.032, 0.09, 10),
-      M.diodeOff.clone()
+      new THREE.CylinderGeometry(0.032, 0.032, 0.09, 10), M.diodeOff.clone()
     );
     diode.position.set(p.x, 0.05, p.z);
     diodeGroup.add(diode);
@@ -763,9 +713,7 @@
   ];
   altLabelDefs.forEach(d => labels.add(d.id, d.text));
 
-  /* ============================================================
-     CHARGING VIEW
-     ============================================================ */
+  /* ─────────────── CHARGING VIEW ─────────────── */
   const CHG_BAT_X = -1.40;
   const CHG_ALT_X =  1.40;
   const CHG_LOADS_X = 0.10;
@@ -812,8 +760,7 @@
   chgAltGroup.add(chgAltBody);
 
   const chgAltRotor = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.17, 0.17, 0.40, 16),
-    M.rotor
+    new THREE.CylinderGeometry(0.17, 0.17, 0.40, 16), M.rotor
   );
   chgAltRotor.rotation.z = Math.PI / 2;
   chgAltGroup.add(chgAltRotor);
@@ -826,16 +773,13 @@
   chgAltGroup.add(chgAltPulley);
 
   const loads = [
-    { label: 'Lights',  color: 0xffd166, y:  0.30, z:  0.10 },
-    { label: 'ECU',     color: 0x38bdf8, y:  0.30, z: -0.20 },
-    { label: 'Fan',     color: 0x22c55e, y:  0.30, z:  0.30 }
+    { label: 'Lights', color: 0xffd166, y:  0.30, z:  0.10 },
+    { label: 'ECU',    color: 0x38bdf8, y:  0.30, z: -0.20 },
+    { label: 'Fan',    color: 0x22c55e, y:  0.30, z:  0.30 }
   ];
   const loadMeshes = [];
   loads.forEach(l => {
-    const box = new THREE.Mesh(
-      new THREE.BoxGeometry(0.22, 0.14, 0.14),
-      M.loadBox
-    );
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.14, 0.14), M.loadBox);
     box.position.set(CHG_LOADS_X, l.y, l.z);
     chargingView.add(box);
 
@@ -943,44 +887,44 @@
   }
 
   const E_N = isLowEnd ? 8 : 12;
-  const eStreamAltToBat = makeElectronStream(wireAltToBat.curve, E_N, 0x4ade80, 0.095);
-  const eStreamBatToLoads = makeElectronStream(wireBatToLoads.curve, E_N, 0xffd166, 0.085);
-  const eStreamLoadsToNeg = makeElectronStream(wireLoadsToNeg.curve, E_N, 0x94a3b8, 0.075);
+  const eStreamAltToBat    = makeElectronStream(wireAltToBat.curve,    E_N, 0x4ade80, 0.095);
+  const eStreamBatToLoads  = makeElectronStream(wireBatToLoads.curve,  E_N, 0xffd166, 0.085);
+  const eStreamLoadsToNeg  = makeElectronStream(wireLoadsToNeg.curve,  E_N, 0x94a3b8, 0.075);
 
   const chgLabelDefs = [
-    { id:'chg-bat',  text:'Battery (12 V)',       pos: new THREE.Vector3(CHG_BAT_X, -0.95, 0) },
-    { id:'chg-alt',  text:'Alternator',           pos: new THREE.Vector3(CHG_ALT_X, 0.55, 0) },
-    { id:'chg-load', text:'Electrical loads',     pos: new THREE.Vector3(CHG_LOADS_X, 0.72, 0) },
-    { id:'chg-amp',  text:'Ammeter',              pos: new THREE.Vector3(CHG_LOADS_X, -0.98, 0.10) },
-    { id:'chg-wire', text:'Charge wire (B+)',     pos: new THREE.Vector3(CHG_BAT_X + 0.90, 0.95, 0) }
+    { id:'chg-bat',  text:'Battery (12 V)',    pos: new THREE.Vector3(CHG_BAT_X, -0.95, 0) },
+    { id:'chg-alt',  text:'Alternator',        pos: new THREE.Vector3(CHG_ALT_X, 0.55, 0) },
+    { id:'chg-load', text:'Electrical loads',  pos: new THREE.Vector3(CHG_LOADS_X, 0.72, 0) },
+    { id:'chg-amp',  text:'Ammeter',           pos: new THREE.Vector3(CHG_LOADS_X, -0.98, 0.10) },
+    { id:'chg-wire', text:'Charge wire (B+)',  pos: new THREE.Vector3(CHG_BAT_X + 0.90, 0.95, 0) }
   ];
   chgLabelDefs.forEach(d => labels.add(d.id, d.text));
 
-  /* ============================================================
-     STATE
-     ============================================================ */
-  let mode = 'battery';
-  let direction = 'discharge';
-  let keyState = 'on';
+  /* ═══════════════════════════════════════════════════════════
+     MODULE STATE (mode-specific; shared flags live in `state`)
+     ═══════════════════════════════════════════════════════════ */
+  const moduleState = {
+    mode: 'battery',
+    direction: 'discharge',
+    keyState: 'on',
+    batterySOC: 0.85,
+    batteryVoltage: 12.6,
+    batteryCurrent: 0,
+    engineRPM: 900,
+    alternatorOutput: 0,
+    loadAmps: 8,
+    rotorAngle: 0,
+    electronicsTime: 0
+  };
 
-  let batterySOC = 0.85;
-  let batteryVoltage = 12.6;
-  let batteryCurrent = 0;
-  let engineRPM = 900;
-  let alternatorOutput = 0;
-  let loadAmps = 8;
-  let rotorAngle = 0;
-  let electronicsTime = 0;
-
-  /* ============================================================
+  /* ═══════════════════════════════════════════════════════════
      MODE INFO
-     ============================================================ */
+     ═══════════════════════════════════════════════════════════ */
   const MODE_INFO = {
     battery: {
       badge: 'Lead-Acid Battery',
       badgeColor: '#22c55e',
       badgeBg: 'rgba(34,197,94,.18)',
-      title: 'Battery · Chemical Energy Storage',
       desc: `<strong>Lead-acid battery.</strong> Six cells in series, each producing about
              2.1&nbsp;V — hence the familiar 12.6&nbsp;V nominal. Inside each cell, lead
              dioxide (PbO₂) and sponge lead (Pb) plates sit in dilute sulfuric acid.
@@ -992,7 +936,6 @@
       badge: 'Alternator · 3-phase',
       badgeColor: '#38bdf8',
       badgeBg: 'rgba(56,189,248,.18)',
-      title: 'Alternator · Mechanical → Electrical',
       desc: `<strong>Alternator.</strong> A belt spins the <strong>rotor</strong>, whose
              <strong>field winding</strong> is energized by a small current through
              <strong>slip rings</strong>. The rotor's claw-pole fingers alternate
@@ -1006,7 +949,6 @@
       badge: 'Charging Circuit',
       badgeColor: '#f59e0b',
       badgeBg: 'rgba(245,158,11,.18)',
-      title: 'Charging · Balance of Supply & Load',
       desc: `<strong>Charging system.</strong> The alternator feeds the battery and every
              electrical load simultaneously. If alternator output exceeds total load,
              the extra current flows <em>into</em> the battery — <strong>charging</strong>.
@@ -1016,9 +958,9 @@
     }
   };
 
-  /* ============================================================
+  /* ═══════════════════════════════════════════════════════════
      UI — kit-driven chrome + module widgets
-     ============================================================ */
+     ═══════════════════════════════════════════════════════════ */
   const ui = UI.create({
     moduleId: 'electrical',
 
@@ -1046,11 +988,9 @@
         }
       ],
       onTab: (id) => applyMode(id),
+      badge: { text: 'Lead-Acid Battery', color: '#22c55e' },
       readout: `
         <div id="electrical-readout">
-          <div id="mode-badge" class="el-badge">
-            <span class="dot"></span><span data-el="badge-text">Lead-Acid Battery</span>
-          </div>
           <div id="mode-desc"></div>
           <div id="chem-eq">Pb + PbO₂ + 2H₂SO₄ <span class="arrow" data-el="chem-arrow">→</span> 2PbSO₄ + 2H₂O</div>
           <div class="el-rows">
@@ -1087,7 +1027,7 @@
       bl: {
         caption: '',
         html: `
-          <div id="direction-toggle" style="display:none">
+          <div id="direction-toggle">
             <button class="dt-btn discharge active" data-dir="discharge">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
               Discharge
@@ -1097,7 +1037,7 @@
               Charge
             </button>
           </div>
-          <div id="waveform-panel" style="display:none">
+          <div id="waveform-panel">
             <div class="wf-label">3-phase AC → rectified DC</div>
             <canvas id="waveform-canvas" width="480" height="160"></canvas>
             <div class="wf-legend">
@@ -1111,10 +1051,11 @@
         onMount: (el) => {
           el.querySelectorAll('#direction-toggle .dt-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-              direction = btn.dataset.dir;
+              moduleState.direction = btn.dataset.dir;
               el.querySelectorAll('#direction-toggle .dt-btn').forEach(b =>
                 b.classList.toggle('active', b === btn));
-              if (elChemArrow) elChemArrow.textContent = direction === 'discharge' ? '→' : '←';
+              if (elChemArrow)
+                elChemArrow.textContent = moduleState.direction === 'discharge' ? '→' : '←';
             });
           });
         }
@@ -1122,7 +1063,7 @@
       br: {
         caption: '',
         html: `
-          <div id="key-selector" style="display:none">
+          <div id="key-selector">
             <div class="ks-caption">Ignition</div>
             <button class="ks-item" data-key="off">Off</button>
             <button class="ks-item" data-key="acc">ACC</button>
@@ -1133,12 +1074,12 @@
         onMount: (el) => {
           el.querySelectorAll('#key-selector .ks-item').forEach(btn => {
             btn.addEventListener('click', () => {
-              keyState = btn.dataset.key;
+              moduleState.keyState = btn.dataset.key;
               el.querySelectorAll('#key-selector .ks-item').forEach(b =>
                 b.classList.toggle('active', b === btn));
-              if (keyState === 'start') {
+              if (moduleState.keyState === 'start') {
                 setTimeout(() => {
-                  keyState = 'on';
+                  moduleState.keyState = 'on';
                   el.querySelectorAll('#key-selector .ks-item').forEach(b =>
                     b.classList.toggle('active', b.dataset.key === 'on'));
                 }, 1600);
@@ -1150,43 +1091,41 @@
     }
   });
 
-  /* ── panel readout refs ── */
-  const panelBody    = ui.panel.body;
-  const elModeBadge  = panelBody ? panelBody.querySelector('#mode-badge') : null;
-  const elBadgeText  = panelBody ? panelBody.querySelector('[data-el="badge-text"]') : null;
-  const elModeDesc   = panelBody ? panelBody.querySelector('#mode-desc') : null;
-  const elChemEq     = panelBody ? panelBody.querySelector('#chem-eq') : null;
-  const elChemArrow  = panelBody ? panelBody.querySelector('[data-el="chem-arrow"]') : null;
-  const elR1Label    = panelBody ? panelBody.querySelector('[data-el="r1-label"]') : null;
-  const elR2Label    = panelBody ? panelBody.querySelector('[data-el="r2-label"]') : null;
-  const elR3Label    = panelBody ? panelBody.querySelector('[data-el="r3-label"]') : null;
-  const elR1         = panelBody ? panelBody.querySelector('[data-el="r1"]') : null;
-  const elR2         = panelBody ? panelBody.querySelector('[data-el="r2"]') : null;
-  const elR3         = panelBody ? panelBody.querySelector('[data-el="r3"]') : null;
+  /* ── Panel readout element refs ── */
+  const panelBody   = ui.panel.body;
+  const elBadge     = panelBody ? panelBody.querySelector('#stroke-badge')    : null;
+  const elBadgeText = panelBody ? panelBody.querySelector('#badge-text')      : null;
+  const elModeDesc  = panelBody ? panelBody.querySelector('#mode-desc')       : null;
+  const elChemEq    = panelBody ? panelBody.querySelector('#chem-eq')         : null;
+  const elChemArrow = panelBody ? panelBody.querySelector('[data-el="chem-arrow"]') : null;
+  const elR1Label   = panelBody ? panelBody.querySelector('[data-el="r1-label"]')   : null;
+  const elR2Label   = panelBody ? panelBody.querySelector('[data-el="r2-label"]')   : null;
+  const elR3Label   = panelBody ? panelBody.querySelector('[data-el="r3-label"]')   : null;
+  const elR1        = panelBody ? panelBody.querySelector('[data-el="r1"]')         : null;
+  const elR2        = panelBody ? panelBody.querySelector('[data-el="r2"]')         : null;
+  const elR3        = panelBody ? panelBody.querySelector('[data-el="r3"]')         : null;
 
-  /* ── waveform canvas refs (widget built by kit) ── */
-  const waveCanvas  = document.getElementById('waveform-canvas');
-  const waveCtx     = waveCanvas ? waveCanvas.getContext('2d') : null;
+  /* ── Waveform canvas refs ── */
+  const waveCanvas = document.getElementById('waveform-canvas');
+  const waveCtx    = waveCanvas ? waveCanvas.getContext('2d') : null;
   let wavePhase = 0;
 
-  /* ============================================================
+  /* ═══════════════════════════════════════════════════════════
      MODE SWITCHING
-     ============================================================ */
+     ═══════════════════════════════════════════════════════════ */
   function applyMode(m) {
-    mode = m;
-
+    moduleState.mode = m;
     const info = MODE_INFO[m];
 
-    if (elModeBadge) {
-      elModeBadge.style.background = info.badgeBg;
-      elModeBadge.style.color = info.badgeColor;
-      const dot = elModeBadge.querySelector('.dot');
+    if (elBadge) {
+      elBadge.style.background = info.badgeBg;
+      elBadge.style.color = info.badgeColor;
+      const dot = elBadge.querySelector('.dot');
       if (dot) dot.style.background = info.badgeColor;
     }
     if (elBadgeText) elBadgeText.textContent = info.badge;
     if (elModeDesc)  elModeDesc.innerHTML = info.desc;
-
-    if (elChemEq) elChemEq.style.display = m === 'battery' ? 'block' : 'none';
+    if (elChemEq)    elChemEq.style.display = (m === 'battery') ? 'block' : 'none';
 
     if (m === 'battery') {
       if (elR1Label) elR1Label.textContent = 'Voltage';
@@ -1206,81 +1145,82 @@
     const dirWrap  = document.getElementById('direction-toggle');
     const waveWrap = document.getElementById('waveform-panel');
     const keyWrap  = document.getElementById('key-selector');
-    if (dirWrap)  dirWrap.style.display  = m === 'battery'    ? 'flex' : 'none';
-    if (waveWrap) waveWrap.style.display = m === 'alternator' ? 'flex' : 'none';
-    if (keyWrap)  keyWrap.style.display  = m === 'charging'   ? 'flex' : 'none';
+    if (dirWrap)  dirWrap.classList.toggle('visible',  m === 'battery');
+    if (waveWrap) waveWrap.classList.toggle('visible', m === 'alternator');
+    if (keyWrap)  keyWrap.classList.toggle('visible',  m === 'charging');
 
+    /* keep 3D label DOM clean when modes flip */
     labels.hideAll();
   }
 
-  /* ============================================================
+  /* ═══════════════════════════════════════════════════════════
      PHYSICS
-     ============================================================ */
+     ═══════════════════════════════════════════════════════════ */
   function stepPhysics(dt) {
-    electronicsTime += dt;
-    engineRPM = 700 + state.speedMul * 3300;
+    moduleState.electronicsTime += dt;
+    moduleState.engineRPM = 700 + state.speedMul * 3300;
 
-    const rpmFactor = Math.max(0, Math.min(1, (engineRPM - 600) / 3800));
-    alternatorOutput = 40 + rpmFactor * 50;
-    loadAmps = 8 + Math.max(0, (engineRPM - 700) / 4000) * 25;
+    const rpmFactor = Math.max(0, Math.min(1, (moduleState.engineRPM - 600) / 3800));
+    moduleState.alternatorOutput = 40 + rpmFactor * 50;
+    moduleState.loadAmps = 8 + Math.max(0, (moduleState.engineRPM - 700) / 4000) * 25;
 
-    if (mode === 'battery') {
-      if (direction === 'discharge') {
-        batteryCurrent = -(12 + Math.random() * 3);
-        const drain = Math.abs(batteryCurrent) / 3600 / 60 * 20;
-        batterySOC = Math.max(0.05, batterySOC - drain * dt * 30);
+    if (moduleState.mode === 'battery') {
+      if (moduleState.direction === 'discharge') {
+        moduleState.batteryCurrent = -(12 + Math.random() * 3);
+        const drain = Math.abs(moduleState.batteryCurrent) / 3600 / 60 * 20;
+        moduleState.batterySOC = Math.max(0.05, moduleState.batterySOC - drain * dt * 30);
       } else {
-        batteryCurrent = +(15 + Math.random() * 3);
-        const gain = batteryCurrent / 3600 / 60 * 20;
-        batterySOC = Math.min(1.0, batterySOC + gain * dt * 30);
+        moduleState.batteryCurrent = +(15 + Math.random() * 3);
+        const gain = moduleState.batteryCurrent / 3600 / 60 * 20;
+        moduleState.batterySOC = Math.min(1.0, moduleState.batterySOC + gain * dt * 30);
       }
-    } else if (mode === 'alternator') {
-      batteryCurrent = alternatorOutput - 8;
-      const netDrain = -batteryCurrent;
-      if (netDrain > 0) batterySOC = Math.max(0.05, batterySOC - netDrain / 3600 / 60 * dt * 30);
-      else              batterySOC = Math.min(1.0, batterySOC + (-netDrain) / 3600 / 60 * dt * 30);
+    } else if (moduleState.mode === 'alternator') {
+      moduleState.batteryCurrent = moduleState.alternatorOutput - 8;
+      const netDrain = -moduleState.batteryCurrent;
+      if (netDrain > 0) moduleState.batterySOC = Math.max(0.05, moduleState.batterySOC - netDrain / 3600 / 60 * dt * 30);
+      else              moduleState.batterySOC = Math.min(1.0, moduleState.batterySOC + (-netDrain) / 3600 / 60 * dt * 30);
     } else {
-      if (keyState === 'off') {
-        alternatorOutput = 0;
-        loadAmps = 0;
-        batteryCurrent = 0;
-      } else if (keyState === 'acc') {
-        alternatorOutput = 0;
-        loadAmps = 4;
-        batteryCurrent = -loadAmps;
-      } else if (keyState === 'start') {
-        alternatorOutput = 0;
-        loadAmps = 180;
-        batteryCurrent = -loadAmps;
+      if (moduleState.keyState === 'off') {
+        moduleState.alternatorOutput = 0;
+        moduleState.loadAmps = 0;
+        moduleState.batteryCurrent = 0;
+      } else if (moduleState.keyState === 'acc') {
+        moduleState.alternatorOutput = 0;
+        moduleState.loadAmps = 4;
+        moduleState.batteryCurrent = -moduleState.loadAmps;
+      } else if (moduleState.keyState === 'start') {
+        moduleState.alternatorOutput = 0;
+        moduleState.loadAmps = 180;
+        moduleState.batteryCurrent = -moduleState.loadAmps;
       } else {
-        loadAmps = 8 + Math.max(0, (engineRPM - 700) / 4000) * 25;
-        batteryCurrent = alternatorOutput - loadAmps;
+        moduleState.loadAmps = 8 + Math.max(0, (moduleState.engineRPM - 700) / 4000) * 25;
+        moduleState.batteryCurrent = moduleState.alternatorOutput - moduleState.loadAmps;
       }
-      const dSOC = -batteryCurrent / 3600 / 60 * dt * 30;
-      batterySOC = Math.max(0.05, Math.min(1.0, batterySOC + dSOC));
+      const dSOC = -moduleState.batteryCurrent / 3600 / 60 * dt * 30;
+      moduleState.batterySOC = Math.max(0.05, Math.min(1.0, moduleState.batterySOC + dSOC));
     }
 
-    if (batteryCurrent > 0) {
-      const targetV = 12.6 + Math.min(1.8, batteryCurrent * 0.020);
-      batteryVoltage += (targetV - batteryVoltage) * Math.min(1, dt * 2.0);
-    } else if (batteryCurrent < 0) {
-      const targetV = 12.6 - Math.min(2.5, Math.abs(batteryCurrent) * 0.008);
-      batteryVoltage += (targetV - batteryVoltage) * Math.min(1, dt * 2.0);
+    if (moduleState.batteryCurrent > 0) {
+      const targetV = 12.6 + Math.min(1.8, moduleState.batteryCurrent * 0.020);
+      moduleState.batteryVoltage += (targetV - moduleState.batteryVoltage) * Math.min(1, dt * 2.0);
+    } else if (moduleState.batteryCurrent < 0) {
+      const targetV = 12.6 - Math.min(2.5, Math.abs(moduleState.batteryCurrent) * 0.008);
+      moduleState.batteryVoltage += (targetV - moduleState.batteryVoltage) * Math.min(1, dt * 2.0);
     } else {
-      batteryVoltage += (12.6 - batteryVoltage) * Math.min(1, dt * 1.0);
+      moduleState.batteryVoltage += (12.6 - moduleState.batteryVoltage) * Math.min(1, dt * 1.0);
     }
 
-    rotorAngle += dt * engineRPM * 0.0012 * 2.5;
-    altRotorGroup.rotation.x = rotorAngle;
+    moduleState.rotorAngle += dt * moduleState.engineRPM * 0.0012 * 2.5;
+    altRotorGroup.rotation.x = moduleState.rotorAngle;
   }
 
-  /* ============================================================
+  /* ═══════════════════════════════════════════════════════════
      VISUAL UPDATES
-     ============================================================ */
+     ═══════════════════════════════════════════════════════════ */
   function updateBatteryVisuals(dt) {
     if (state.showGas !== false) {
       const posAttr = battElecGeo.attributes.position;
-      const speed = direction === 'discharge' ? 0.25 : -0.25;
+      const speed = moduleState.direction === 'discharge' ? 0.25 : -0.25;
       for (let i = 0; i < battElectronCount; i++) {
         const p = battElecData[i];
         p.t = ((p.t + dt * speed * 2.0) % 1 + 1) % 1;
@@ -1294,7 +1234,7 @@
     }
 
     const bPosAttr = bubbleGeo.attributes.position;
-    const charging = direction === 'charge';
+    const charging = moduleState.direction === 'charge';
     for (let i = 0; i < BUBBLE_N; i++) {
       const b = bubbleData[i];
       if (charging) {
@@ -1314,30 +1254,30 @@
   }
 
   function updateAlternatorVisuals(dt) {
-    const rpmFactor = Math.max(0, Math.min(1, (engineRPM - 600) / 3800));
+    const rpmFactor = Math.max(0, Math.min(1, (moduleState.engineRPM - 600) / 3800));
     const pulseSpeed = 2 + rpmFactor * 8;
     phaseRings.forEach((ring, i) => {
-      const phase = electronicsTime * pulseSpeed - i * (TAU / 3);
+      const phase = moduleState.electronicsTime * pulseSpeed - i * (TAU / 3);
       const intensity = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(phase));
       ring.material.opacity = intensity * (0.4 + rpmFactor * 0.5);
       ring.scale.setScalar(1 + 0.06 * Math.sin(phase));
     });
 
-    const diodeCycle = (electronicsTime * pulseSpeed * 0.5) % 6;
+    const diodeCycle = (moduleState.electronicsTime * pulseSpeed * 0.5) % 6;
     for (let i = 0; i < 6; i++) {
       const near = Math.abs(((i - diodeCycle + 3) % 6) - 3) < 0.8;
       diodeMeshes[i].material = near ? M.diodeOn : M.diodeOff;
     }
 
-    regLed.material.color.setHex(alternatorOutput > 20 ? 0x22c55e : 0xf59e0b);
-    M.statorCoil.emissiveIntensity = 0.20 + (alternatorOutput / 90) * 0.5;
+    regLed.material.color.setHex(moduleState.alternatorOutput > 20 ? 0x22c55e : 0xf59e0b);
+    M.statorCoil.emissiveIntensity = 0.20 + (moduleState.alternatorOutput / 90) * 0.5;
   }
 
   function updateChargingVisuals(dt) {
     const showFlow = state.showGas !== false;
 
-    const altToBatActive = (alternatorOutput > 5);
-    const altToBatSpeed = 0.15 + (alternatorOutput / 90) * 0.5;
+    const altToBatActive = (moduleState.alternatorOutput > 5);
+    const altToBatSpeed = 0.15 + (moduleState.alternatorOutput / 90) * 0.5;
     eStreamAltToBat.mat.opacity = showFlow && altToBatActive ? 0.95 : 0;
     if (altToBatActive && showFlow) {
       const posA = eStreamAltToBat.geo.attributes.position;
@@ -1350,8 +1290,8 @@
       posA.needsUpdate = true;
     }
 
-    const batToLoadsActive = (batteryCurrent < -0.5 || alternatorOutput > loadAmps);
-    const batToLoadsSpeed = 0.20 + Math.min(1, loadAmps / 60) * 0.4;
+    const batToLoadsActive = (moduleState.batteryCurrent < -0.5 || moduleState.alternatorOutput > moduleState.loadAmps);
+    const batToLoadsSpeed = 0.20 + Math.min(1, moduleState.loadAmps / 60) * 0.4;
     eStreamBatToLoads.mat.opacity = showFlow && batToLoadsActive ? 0.85 : 0;
     if (batToLoadsActive && showFlow) {
       const posA = eStreamBatToLoads.geo.attributes.position;
@@ -1372,80 +1312,80 @@
         const p = eStreamLoadsToNeg.data[i];
         p.t = (p.t + dt * batToLoadsSpeed) % 1;
         const pt = eStreamLoadsToNeg.curve.getPoint(p.t);
-        posA.setXYZ(i, pt.x, pt.y, pt.z);
+        posA.setXhYZ ? posA.setXYZ(i, pt.x, pt.y, pt.z) : posA.setXYZ(i, pt.x, pt.y, pt.z);
       }
       posA.needsUpdate = true;
     }
 
-    const netCurrent = batteryCurrent;
+    const netCurrent = moduleState.batteryCurrent;
     const clampNet = Math.max(-50, Math.min(50, netCurrent));
     const needleAngle = (clampNet / 50) * (Math.PI * 0.75);
     needleGroup.rotation.z = -needleAngle;
 
     loadMeshes.forEach((lm, i) => {
-      const active = loadAmps > 0.5 && (keyState === 'on' || keyState === 'start');
+      const active = moduleState.loadAmps > 0.5 &&
+                     (moduleState.keyState === 'on' || moduleState.keyState === 'start');
       lm.led.material.color.setHex(active ? lm.data.color : 0x334155);
-      const flicker = active ? 0.8 + 0.2 * Math.sin(electronicsTime * 8 + i * 2) : 0.2;
-      lm.led.material.color.multiplyScalar(flicker);
     });
 
-    chgAltRotor.rotation.x = rotorAngle;
+    chgAltRotor.rotation.x = moduleState.rotorAngle;
   }
 
-  /* ============================================================
+  /* ═══════════════════════════════════════════════════════════
      READOUTS
-     ============================================================ */
+     ═══════════════════════════════════════════════════════════ */
   function updateReadouts() {
-    const socPct = Math.round(batterySOC * 100);
+    const socPct = Math.round(moduleState.batterySOC * 100);
+    const ms = moduleState;
 
-    if (mode === 'battery') {
+    if (ms.mode === 'battery') {
       ui.chip.setBig(socPct, '% SOC');
       const col = socPct > 60 ? '#22c55e' : socPct > 25 ? '#f59e0b' : '#ef4444';
       ui.chip.setColor(col);
       ui.chip.setBar(socPct, col);
-      if (elR1) elR1.textContent = batteryVoltage.toFixed(2) + ' V';
-      if (elR2) elR2.textContent = batteryCurrent.toFixed(1) + ' A';
-      ui.chip.set('eng', Math.round(engineRPM) + ' rpm');
-      ui.chip.set('net', batteryCurrent.toFixed(1) + ' A');
-      ui.chip.setStatus(direction === 'charge' ? 'Charging' : 'Discharging',
-                        direction === 'charge');
-    } else if (mode === 'alternator') {
-      const outA = Math.round(alternatorOutput);
+      if (elR1) elR1.textContent = ms.batteryVoltage.toFixed(2) + ' V';
+      if (elR2) elR2.textContent = ms.batteryCurrent.toFixed(1) + ' A';
+      ui.chip.set('eng', Math.round(ms.engineRPM) + ' rpm');
+      ui.chip.set('net', ms.batteryCurrent.toFixed(1) + ' A');
+      ui.chip.setStatus(ms.direction === 'charge' ? 'Charging' : 'Discharging',
+                        ms.direction === 'charge');
+    } else if (ms.mode === 'alternator') {
+      const outA = Math.round(ms.alternatorOutput);
       ui.chip.setBig(outA, 'A out');
       const col = outA > 60 ? '#22c55e' : outA > 30 ? '#38bdf8' : '#f59e0b';
       ui.chip.setColor(col);
       ui.chip.setBar(Math.min(100, (outA / 90) * 100), col);
-      if (elR1) elR1.textContent = Math.round(engineRPM) + ' rpm';
-      if (elR2) elR2.textContent = Math.round(engineRPM / 60 * 6) + ' Hz';
-      if (elR3) elR3.textContent = (13.8 + alternatorOutput / 90 * 0.9).toFixed(2) + ' V';
-      ui.chip.set('eng', Math.round(engineRPM) + ' rpm');
+      if (elR1) elR1.textContent = Math.round(ms.engineRPM) + ' rpm';
+      if (elR2) elR2.textContent = Math.round(ms.engineRPM / 60 * 6) + ' Hz';
+      if (elR3) elR3.textContent = (13.8 + ms.alternatorOutput / 90 * 0.9).toFixed(2) + ' V';
+      ui.chip.set('eng', Math.round(ms.engineRPM) + ' rpm');
       ui.chip.set('net', outA + ' A');
       ui.chip.setStatus('Generating', true);
     } else {
-      const netA = batteryCurrent;
+      const netA = ms.batteryCurrent;
       ui.chip.setBig((netA >= 0 ? '+' : '') + Math.round(netA), 'A');
       const col = netA > 2 ? '#22c55e' : netA > -2 ? '#38bdf8' : '#f59e0b';
       ui.chip.setColor(col);
       ui.chip.setBar(socPct, socPct > 60 ? '#22c55e' : socPct > 25 ? '#f59e0b' : '#ef4444');
-      if (elR1) elR1.textContent = Math.round(loadAmps) + ' A';
-      if (elR2) elR2.textContent = Math.round(alternatorOutput) + ' A';
+      if (elR1) elR1.textContent = Math.round(ms.loadAmps) + ' A';
+      if (elR2) elR2.textContent = Math.round(ms.alternatorOutput) + ' A';
       if (elR3) elR3.textContent = (netA > 0 ? 'charging ' : netA < 0 ? 'discharging ' : 'float ') + socPct + '%';
-      ui.chip.set('eng', Math.round(engineRPM) + ' rpm');
-      ui.chip.set('net', Math.round(loadAmps) + ' A');
-      if (keyState === 'off')       ui.chip.setStatus('Off', false);
-      else if (keyState === 'acc')  ui.chip.setStatus('ACC', false);
-      else if (keyState === 'start') ui.chip.setStatus('Cranking', false);
-      else if (netA > 2)             ui.chip.setStatus('Charging', true);
-      else if (netA < -2)            ui.chip.setStatus('Discharging', false);
-      else                           ui.chip.setStatus('Float', true);
+      ui.chip.set('eng', Math.round(ms.engineRPM) + ' rpm');
+      ui.chip.set('net', Math.round(ms.loadAmps) + ' A');
+      if (ms.keyState === 'off')        ui.chip.setStatus('Off', false);
+      else if (ms.keyState === 'acc')   ui.chip.setStatus('ACC', false);
+      else if (ms.keyState === 'start') ui.chip.setStatus('Cranking', false);
+      else if (netA > 2)                ui.chip.setStatus('Charging', true);
+      else if (netA < -2)               ui.chip.setStatus('Discharging', false);
+      else                              ui.chip.setStatus('Float', true);
     }
 
-    ui.toolbar.setRpmLabel('~' + Math.round(engineRPM) + ' rpm');
+    ui.toolbar.setRpmLabel('~' + Math.round(ms.engineRPM) + ' rpm');
   }
 
-  /* ============================================================
+  /* ═══════════════════════════════════════════════════════════
      WAVEFORM CANVAS
-     ============================================================ */
+     ═══════════════════════════════════════════════════════════ */
   function drawWaveform() {
     if (!waveCtx) return;
     const W = waveCanvas.width;
@@ -1499,18 +1439,20 @@
     waveCtx.stroke();
   }
 
-  /* ============================================================
+  /* ═══════════════════════════════════════════════════════════
      RESET
-     ============================================================ */
+     ═══════════════════════════════════════════════════════════ */
   function resetSim() {
-    batterySOC = 0.85;
-    batteryVoltage = 12.6;
-    batteryCurrent = 0;
-    alternatorOutput = 0;
-    rotorAngle = 0;
-    electronicsTime = 0;
-    direction = 'discharge';
-    keyState = 'on';
+    const ms = moduleState;
+    ms.batterySOC = 0.85;
+    ms.batteryVoltage = 12.6;
+    ms.batteryCurrent = 0;
+    ms.alternatorOutput = 0;
+    ms.rotorAngle = 0;
+    ms.electronicsTime = 0;
+    ms.direction = 'discharge';
+    ms.keyState = 'on';
+
     document.querySelectorAll('#direction-toggle .dt-btn').forEach(b =>
       b.classList.toggle('active', b.dataset.dir === 'discharge'));
     document.querySelectorAll('#key-selector .ks-item').forEach(b =>
@@ -1518,9 +1460,9 @@
     if (elChemArrow) elChemArrow.textContent = '→';
   }
 
-  /* ============================================================
-     BRIDGE
-     ============================================================ */
+  /* ═══════════════════════════════════════════════════════════
+     BRIDGE — shell integration
+     ═══════════════════════════════════════════════════════════ */
   const bridge = ui.wireBridge({
     viewManager,
     state,
@@ -1535,9 +1477,9 @@
 
   applyMode('battery');
 
-  /* ============================================================
+  /* ═══════════════════════════════════════════════════════════
      LOOP
-     ============================================================ */
+     ═══════════════════════════════════════════════════════════ */
   const clock = new THREE.Clock();
   let frame = 0;
   let lastReadout = 0;
@@ -1551,9 +1493,9 @@
     if (sim > 0) {
       stepPhysics(sim);
 
-      if (mode === 'battery') {
+      if (moduleState.mode === 'battery') {
         updateBatteryVisuals(sim);
-      } else if (mode === 'alternator') {
+      } else if (moduleState.mode === 'alternator') {
         updateAlternatorVisuals(sim);
       } else {
         updateChargingVisuals(sim);
@@ -1561,7 +1503,7 @@
     }
 
     wavePhase += dt * 1.6;
-    if (mode === 'alternator') drawWaveform();
+    if (moduleState.mode === 'alternator') drawWaveform();
 
     lastReadout += dt;
     if (lastReadout > 0.10) {
@@ -1569,15 +1511,16 @@
       updateReadouts();
     }
 
-    if (state.showLabels && frame % 2 === 0) {
-      if (mode === 'battery') {
+    /* Label projection — driven by `state.showLabels`, tier-aware via kit */
+    if (state.showLabels) {
+      if (moduleState.mode === 'battery') {
         batteryLabelDefs.forEach(d => labels.project(d.id, d.pos, camera, wrap));
-      } else if (mode === 'alternator') {
+      } else if (moduleState.mode === 'alternator') {
         altLabelDefs.forEach(d => labels.project(d.id, d.pos, camera, wrap));
       } else {
         chgLabelDefs.forEach(d => labels.project(d.id, d.pos, camera, wrap));
       }
-    } else if (!state.showLabels) {
+    } else {
       labels.hideAll();
     }
 
