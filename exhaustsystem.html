@@ -844,6 +844,18 @@
   /* ═══════════════════════════════════════════════════════════
      UI — kit chrome + sound widget
      ═══════════════════════════════════════════════════════════ */
+  /* State — declared before UI.create's onMount runs */
+  let mode = 'principle';
+  let sndMode = 'silencer';
+  let time = 0, runTime = 0, catT = 20, rpm = 2880;
+  const isCold = () => runTime < TUNING.coldStartDur;
+  const backpressure = () => sndMode === 'silencer' ? 95 : 18;
+  const bpLossFactor = () => sndMode === 'silencer' ? 0.035 : 0.0;
+
+  /* Sound widget refs */
+  let specCanvas = null, specCtx = null, specW = 0, specH = 0;
+  let soundToggleEl = null, soundLabelEl = null, specNoteEl = null;
+
   const ui = UI.create({
     moduleId: 'exhaustsystem',
 
@@ -922,17 +934,6 @@
   const moduleKickerEl= document.getElementById('module-kicker');
   const strokeDescEl  = document.getElementById('stroke-desc');
 
-  /* State — declared before UI.create's onMount runs */
-  let mode = 'principle';
-  let sndMode = 'silencer';
-  let time = 0, runTime = 0, catT = 20, rpm = 2880;
-  const isCold = () => runTime < TUNING.coldStartDur;
-  const backpressure = () => sndMode === 'silencer' ? 95 : 18;
-  const bpLossFactor = () => sndMode === 'silencer' ? 0.035 : 0.0;
-
-  /* Sound widget refs */
-  let specCanvas = null, specCtx = null, specW = 0, specH = 0;
-  let soundToggleEl = null, soundLabelEl = null, specNoteEl = null;
 
   function wireSoundWidget(root) {
     soundToggleEl = root.querySelector('#sound-toggle');
