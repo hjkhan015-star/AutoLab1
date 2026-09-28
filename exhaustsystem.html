@@ -27,6 +27,65 @@
   }
   html.light-theme #ex-readout .ex-row b { color: #0a0d13; }
 
+  /* ═══════ Catalyst chemistry block (inside info panel) ═══════ */
+  #cat-chem {
+    margin-top: 12px; padding-top: 10px;
+    border-top: 1px solid var(--border, rgba(255,255,255,.10));
+    font-size: 11px; color: var(--text-dim, #94a3b8);
+  }
+  #cat-chem .cc-title {
+    font-size: 9.5px; font-weight: 800; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text-mute, #64748b);
+    margin: 12px 0 5px;
+  }
+  #cat-chem .cc-title:first-child { margin-top: 0; }
+  #cat-chem .cc-seg { display: flex; gap: 4px; }
+  #cat-chem .lam-btn {
+    flex: 1; padding: 6px 2px; border-radius: 8px;
+    background: var(--surface-2, rgba(255,255,255,.06));
+    border: 1px solid var(--border, rgba(255,255,255,.10));
+    color: var(--text, #e5e7eb);
+    font-size: 11px; font-weight: 800; line-height: 1.25;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  #cat-chem .lam-btn small {
+    font-size: 9px; font-weight: 600; opacity: .7;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+  #cat-chem .lam-btn.active { color: #0b0e14; border-color: transparent; background: #22c55e; }
+  #cat-chem .lam-btn[data-lam="rich"].active { background: #ef4444; }
+  #cat-chem .lam-btn[data-lam="lean"].active { background: #3b82f6; }
+  #cat-chem .cc-note { margin-top: 7px; line-height: 1.5; }
+  #cat-chem .cc-eff {
+    display: grid; grid-template-columns: 50px 1fr 104px;
+    align-items: center; gap: 8px; margin: 5px 0;
+  }
+  #cat-chem .cc-eff b {
+    text-align: right; color: var(--text, #e5e7eb);
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums;
+  }
+  #cat-chem .cc-bar, #cat-chem .cc-act {
+    height: 6px; border-radius: 99px; overflow: hidden;
+    background: var(--surface-3, rgba(255,255,255,.08));
+  }
+  #cat-chem .cc-act { height: 4px; }
+  #cat-chem .cc-bar i, #cat-chem .cc-act i {
+    display: block; height: 100%; width: 0; border-radius: 99px;
+    background: currentColor; transition: width .25s linear;
+  }
+  #cat-chem .cc-grp { margin: 11px 0 3px; font-size: 10px; font-weight: 800; letter-spacing: .03em; }
+  #cat-chem .cc-rx {
+    display: grid; grid-template-columns: 8px 1fr 38px;
+    align-items: center; gap: 8px; padding: 3px 0;
+  }
+  #cat-chem .cc-dot { width: 8px; height: 8px; border-radius: 50%; }
+  #cat-chem .cc-eq {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 10.5px; line-height: 1.4; color: var(--text, #e5e7eb);
+  }
+  html.light-theme #cat-chem .cc-eq, html.light-theme #cat-chem .cc-eff b { color: #0a0d13; }
+
   .ex-legend {
     display: flex; flex-wrap: wrap; gap: 6px 12px;
     margin-top: 10px; padding-top: 8px;
@@ -658,7 +717,12 @@
     { id:'cat-post',  text:'Post-cat O₂',          pos: v3(CAT_LEN/2 + 0.20, CAT_R + 0.50, 0) },
     { id:'cat-ecu',   text:'ECU · closed-loop',    pos: v3(0, 1.20, -0.35) }
   ];
-  catLabelDefs.forEach(d => labels.add(d.id, d.text));
+  catLabelDefs.push(
+    { id:'cat-in',  text:'CO · HC · NOx in',    pos: v3(-0.95, -0.02, 0), tier: 2 },
+    { id:'cat-out', text:'CO₂ · H₂O · N₂ out',  pos: v3( 0.95, -0.02, 0), tier: 2 },
+    { id:'cat-eq',  text:'CO → CO₂ · HC → CO₂ + H₂O · NOx → N₂', pos: v3(0, -CAT_R - 0.62, 0), tier: 2 }
+  );
+  catLabelDefs.forEach(d => labels.add(d.id, d.text, d.tier || 1));
 
   /* ═══════════════════════════════════════════════════════════
      FULL SYSTEM VIEW
@@ -836,6 +900,16 @@
     }
   };
 
+  MODE_INFO.catalyst.desc = `<strong>Three jobs, one honeycomb.</strong> Exhaust flows through thousands of ceramic channels coated with a few grams of platinum, palladium and rhodium. Two families of reaction run side by side:
+             <br><br>
+             <strong>Oxidation (Pt / Pd)</strong> — CO → CO₂, and unburnt fuel (HC) → CO₂ + H₂O. These <em>need oxygen</em>.
+             <br>
+             <strong>Reduction (Rh)</strong> — NOx → N₂. This needs a reducer (CO, HC or H₂) and <em>no spare O₂</em>.
+             <br><br>
+             That is the catch: one wants oxygen, the other doesn't. Only at <em>λ = 1</em> (14.7 : 1 air to fuel) are both happy, so the ECU trims fuel by about ±1 % from the pre-cat sensor while the post-cat sensor checks the catalyst is doing its job. <em>Ceria (CeO₂)</em> in the coating stores O₂ when lean and gives it back when rich, widening the window slightly.
+             <br><br>
+             Use <em>Rich / Stoich / Lean</em> below and watch which pollutant slips through. Heat matters too: <em>light-off ≈ 250–300 °C</em>, so most trip emissions leave in the first minute. Lead, sulphur, oil ash and misfires (raw fuel burning inside the brick above 1000 °C) all destroy a catalyst.`;
+
   const SND_MODES = {
     silencer: { name:'Silencer',      dB: 78, atten: 0.42, reflect: 0.55, gain: 0.34, noise: 0.45, q: 1.2 },
     straight: { name:'Straight Pipe', dB: 96, atten: 1.00, reflect: 0.05, gain: 0.80, noise: 1.00, q: 7.0 }
@@ -934,6 +1008,140 @@
   const moduleKickerEl= document.getElementById('module-kicker');
   const strokeDescEl  = document.getElementById('stroke-desc');
 
+  /* ═══════════════════════════════════════════════════════════
+     THREE-WAY CATALYST CHEMISTRY
+     ═══════════════════════════════════════════════════════════ */
+  const LAMBDA = { rich: 0.97, stoich: 1.00, lean: 1.03 };
+  let catLam = 'stoich';
+  let oscLevel = 0.5;                       /* ceria oxygen store, 0..1 */
+  const catEff = { co: 0, hc: 0, nox: 0 };  /* conversion 0..1 */
+  const catPPM = { co: 0, hc: 0, nox: 0 };  /* tailpipe ppm */
+  const catLight = () => 1 / (1 + Math.exp(-(catT - 290) / 25));  /* light-off S-curve, T50 ≈ 290 °C */
+  const catRich = () => clamp((1 - LAMBDA[catLam]) / 0.03, 0, 1);
+  const catLean = () => clamp((LAMBDA[catLam] - 1) / 0.03, 0, 1);
+
+  function catLambdaNow() {
+    /* closed-loop ECU dithers the mixture around 1.000 */
+    return catLam === 'stoich' ? 1 + 0.008 * Math.sin(time * 3) : LAMBDA[catLam];
+  }
+
+  function stepCatChem(dt) {
+    const lam = catLambdaNow();
+    if (catLam === 'rich')      oscLevel = Math.max(0, oscLevel - dt * 0.05);
+    else if (catLam === 'lean') oscLevel = Math.min(1, oscLevel + dt * 0.05);
+    else                        oscLevel += (0.5 - oscLevel) * Math.min(1, dt * 0.3);
+
+    const light  = catLight();
+    const rawOx  = lam >= 1 ? 1 : clamp(1 - (1 - lam) * 22, 0.10, 1);
+    const rawNox = lam <= 1 ? 1 : clamp(1 - (lam - 1) * 25, 0.10, 1);
+    /* ceria buffers: rich -> releases stored O2 (helps oxidation)
+                      lean -> soaks up spare O2 (helps NOx) until full */
+    const ox  = clamp(rawOx  + (lam < 1 ? oscLevel * 0.55 : 0),       0.05, 1);
+    const nox = clamp(rawNox + (lam > 1 ? (1 - oscLevel) * 0.55 : 0), 0.05, 1);
+    catEff.co  = 0.98 * ox  * light;
+    catEff.hc  = 0.96 * ox  * light;
+    catEff.nox = 0.97 * nox * light;
+
+    const rich = Math.max(0, 1 - lam), lean = Math.max(0, lam - 1);
+    const coIn  = lam <= 1 ? 4000 + rich * 300000 : 1500;
+    const hcIn  = lam <= 1 ? 900 + rich * 10000   : 700;
+    const noxIn = lam <= 1 ? 1800 - rich * 20000  : 1800 + lean * 30000;
+    catPPM.co  = coIn  * (1 - catEff.co);
+    catPPM.hc  = hcIn  * (1 - catEff.hc);
+    catPPM.nox = noxIn * (1 - catEff.nox);
+  }
+
+  function catStatus() {
+    if (catLight() < 0.5)    return { text: 'Below light-off',   on: false };
+    if (catLam === 'rich')   return { text: 'Rich · CO/HC slip', on: false };
+    if (catLam === 'lean')   return { text: 'Lean · NOx slip',   on: false };
+    return { text: 'In the λ window', on: true };
+  }
+
+  function setChipLabel(text) {
+    const root = ui.chip && ui.chip.root;
+    const el = root && root.querySelector('.ui-chip-label');
+    if (el && el.textContent !== text) el.textContent = text;
+  }
+
+  const lightOf = catLight;
+  const CAT_GROUPS = [
+    { name: 'Oxidation · Pt / Pd', color: '#ef4444', rows: [
+      { eq: '2 CO + O₂ → 2 CO₂',                    act: () => catEff.co },
+      { eq: 'C₃H₆ + 4.5 O₂ → 3 CO₂ + 3 H₂O',        act: () => catEff.hc } ] },
+    { name: 'Reduction · Rh', color: '#3b82f6', rows: [
+      { eq: '2 NO + 2 CO → N₂ + 2 CO₂',             act: () => catEff.nox },
+      { eq: '2 NO + 2 H₂ → N₂ + 2 H₂O',             act: () => catEff.nox * (0.2 + 0.8 * catRich()) } ] },
+    { name: 'Oxygen storage · CeO₂', color: '#14b8a6', rows: [
+      { eq: 'Ce₂O₃ + ½ O₂ → 2 CeO₂   (lean: stores)',  act: () => lightOf() * (0.1 + 0.9 * catLean() * (1 - oscLevel)) },
+      { eq: '2 CeO₂ + CO → Ce₂O₃ + CO₂   (rich: gives)', act: () => lightOf() * (0.1 + 0.9 * catRich() * oscLevel) } ] },
+    { name: 'Rich-mixture helpers · Pd', color: '#a855f7', rows: [
+      { eq: 'CO + H₂O → CO₂ + H₂   (water-gas shift)',   act: () => lightOf() * (0.1 + 0.8 * catRich()) },
+      { eq: 'C₃H₆ + 3 H₂O → 3 CO + 6 H₂   (steam reform)', act: () => lightOf() * 0.7 * catRich() } ] },
+    { name: 'Unwanted side reactions', color: '#94a3b8', rows: [
+      { eq: 'SO₂ + 3 H₂ → H₂S + 2 H₂O   (rotten-egg smell)', act: () => lightOf() * 0.6 * catRich() },
+      { eq: '2 NO + 5 H₂ → 2 NH₃ + 2 H₂O',               act: () => lightOf() * 0.5 * catRich() } ] }
+  ];
+  const CAT_NOTES = {
+    rich:   'Rich: too little O₂. CO and HC slip through, but NOx is reduced easily. Ceria hands back stored O₂ until it runs out; H₂S and NH₃ appear.',
+    stoich: 'λ ≈ 1 (14.7 : 1): the ECU dithers the mixture ±1 %, so oxidation and reduction both run at over 95 % — the catalyst window.',
+    lean:   'Lean: spare O₂ burns the CO that NOx needed. NOx conversion collapses once the ceria store is full.'
+  };
+
+  const catChemEl = document.createElement('div');
+  catChemEl.id = 'cat-chem';
+  catChemEl.style.display = 'none';
+  let catRxHtml = '', catRxCount = 0;
+  CAT_GROUPS.forEach(g => {
+    catRxHtml += `<div class="cc-grp" style="color:${g.color}">${g.name}</div>`;
+    g.rows.forEach(r => {
+      r.idx = catRxCount++;
+      catRxHtml += `<div class="cc-rx"><i class="cc-dot" style="background:${g.color}"></i>` +
+                   `<span class="cc-eq">${r.eq}</span>` +
+                   `<div class="cc-act" style="color:${g.color}"><i data-rx="${r.idx}"></i></div></div>`;
+    });
+  });
+  catChemEl.innerHTML = `
+    <div class="cc-title">Air–fuel mixture (λ)</div>
+    <div class="cc-seg">
+      <button class="lam-btn" data-lam="rich">Rich<small>λ 0.97</small></button>
+      <button class="lam-btn active" data-lam="stoich">Stoich<small>λ 1.00</small></button>
+      <button class="lam-btn" data-lam="lean">Lean<small>λ 1.03</small></button>
+    </div>
+    <div class="cc-note" id="cc-note">${CAT_NOTES.stoich}</div>
+    <div class="cc-title">Conversion · tailpipe</div>
+    <div class="cc-eff"><span>CO</span><div class="cc-bar" style="color:#ef4444"><i data-eff="co"></i></div><b data-val="co"></b></div>
+    <div class="cc-eff"><span>HC</span><div class="cc-bar" style="color:#f59e0b"><i data-eff="hc"></i></div><b data-val="hc"></b></div>
+    <div class="cc-eff"><span>NOx</span><div class="cc-bar" style="color:#3b82f6"><i data-eff="nox"></i></div><b data-val="nox"></b></div>
+    <div class="cc-eff"><span>O₂ store</span><div class="cc-bar" style="color:#14b8a6"><i data-eff="osc"></i></div><b data-val="osc"></b></div>
+    <div class="cc-title">Reactions · bar = how active</div>
+    ${catRxHtml}`;
+  if (panelBody) panelBody.appendChild(catChemEl);
+
+  const ccNote = catChemEl.querySelector('#cc-note');
+  function setCatLam(key) {
+    catLam = key;
+    catChemEl.querySelectorAll('.lam-btn').forEach(b => b.classList.toggle('active', b.dataset.lam === key));
+    if (ccNote) ccNote.textContent = CAT_NOTES[key];
+  }
+  catChemEl.querySelectorAll('.lam-btn').forEach(b => b.addEventListener('click', () => setCatLam(b.dataset.lam)));
+
+  function updateCatChemUI() {
+    const q = (sel) => catChemEl.querySelector(sel);
+    const bar = (k, v) => { const el = q(`[data-eff="${k}"]`); if (el) el.style.width = (clamp(v, 0, 1) * 100).toFixed(0) + '%'; };
+    const val = (k, t) => { const el = q(`[data-val="${k}"]`); if (el) el.textContent = t; };
+    ['co', 'hc', 'nox'].forEach(k => {
+      bar(k, catEff[k]);
+      val(k, Math.round(catEff[k] * 100) + '% · ' + Math.round(catPPM[k]) + 'ppm');
+    });
+    bar('osc', oscLevel);
+    val('osc', Math.round(oscLevel * 100) + ' % full');
+    CAT_GROUPS.forEach(g => g.rows.forEach(r => {
+      const el = q(`[data-rx="${r.idx}"]`);
+      if (el) el.style.width = (clamp(r.act(), 0, 1) * 100).toFixed(0) + '%';
+    }));
+  }
+
 
   function wireSoundWidget(root) {
     soundToggleEl = root.querySelector('#sound-toggle');
@@ -1030,6 +1238,7 @@
     if (strokeDescEl) strokeDescEl.innerHTML = info.desc;
 
     if (bridge) bridge.setStatus(info.badge, info.badgeColor);
+    if (catChemEl) catChemEl.style.display = (m === 'catalyst') ? '' : 'none';
 
     labels.hideAll();
 
@@ -1072,7 +1281,51 @@
     updateWaveTube(compareTopTube, dt, rf, SND_MODES.silencer, time);
     updateWaveTube(compareBotTube, dt, rf, SND_MODES.straight, time);
   }
+  function catReroll(p) {
+    p.roll = Math.random();                                       /* does this molecule react? */
+    p.xc   = -CAT_LEN / 2 + 0.08 + Math.random() * CAT_LEN * 0.70; /* where in the brick */
+    p.done = false;
+  }
   function updateCatalyst(dt, rf) {
+    catT += (250 + 550 * rf - catT) * Math.min(1, dt * 0.15);   /* thermal mass: ~7 s time constant */
+    stepCatChem(dt);
+    const heat = clamp((catT - 200) / 450, 0, 1);
+    M.honeycomb.emissiveIntensity = 0.05 + heat * (0.40 + 0.10 * Math.sin(time * 4));
+    lightOffRing.material.opacity = catT > 270 ? 0.30 + 0.30 * (0.5 + 0.5 * Math.sin(time * 5)) : 0.0;
+    preO2glow.material.opacity  = 0.45 + 0.35 * Math.sin(time * 6);
+    postO2glow.material.opacity = 0.45 + 0.35 * Math.sin(time * 6 + 2.4);
+    ecuLed.material.color.setHex(Math.sin(time * 8) > 0 ? 0x22c55e : 0x0e3f22);
+
+    if (!state.showGas) return;
+    /* reactant colours, product colours (CO->CO2, HC->H2O/CO2, NOx->N2) */
+    const REACT = [[1.00, 0.30, 0.12], [1.00, 0.85, 0.20], [0.25, 0.45, 1.00]];
+    const PROD  = [[0.85, 0.90, 1.00], [0.25, 0.90, 1.00], [0.30, 1.00, 0.50]];
+    for (let i = 0; i < CAT_N; i++) {
+      const p = catFlowData[i];
+      if (p.roll === undefined) catReroll(p);
+      p.x += dt * p.speed * (0.5 + rf);
+      if (p.x > CAT_LEN / 2 + 0.30) { p.x = -CAT_LEN / 2 - 0.30; catReroll(p); }
+
+      const eff = p.species === 0 ? catEff.co : p.species === 1 ? catEff.hc : catEff.nox;
+      if (!p.done && p.x > p.xc && p.roll < eff) p.done = true;   /* this molecule reacts here */
+      p.converted = p.done ? 1 : 0;
+
+      catFlowPos[i * 3]     = p.x;
+      catFlowPos[i * 3 + 1] = p.y + Math.sin(time * 4 + p.j * TAU) * 0.02;
+      catFlowPos[i * 3 + 2] = p.z + Math.cos(time * 4 + p.j * TAU) * 0.02;
+
+      const src = p.done ? PROD[p.species] : REACT[p.species];
+      let r = src[0], g = src[1], b = src[2];
+      if (p.done) {                                   /* white flash at the reaction site */
+        const f = clamp(1 - (p.x - p.xc) / 0.12, 0, 1);
+        r += (1 - r) * f; g += (1 - g) * f; b += (1 - b) * f;
+      }
+      catFlowCol[i * 3] = r; catFlowCol[i * 3 + 1] = g; catFlowCol[i * 3 + 2] = b;
+    }
+    catFlowGeo.attributes.position.needsUpdate = true;
+    catFlowGeo.attributes.color.needsUpdate = true;
+  }
+  function updateCatalystLegacy(dt, rf) {
     catT += (90 + 630 * rf - catT) * Math.min(1, dt * 0.25);
     const heat = clamp((catT - 200) / 450, 0, 1);
     M.honeycomb.emissiveIntensity = 0.05 + heat * (0.40 + 0.10 * Math.sin(time * 4));
@@ -1389,7 +1642,7 @@
     const rpmTxt = Math.round(rpm / 50) * 50;
     ui.toolbar.setRpmLabel(`~${rpmTxt} rpm`);
 
-    ui.chip.set('eng', rpmTxt);
+    ui.chip.set('eng', rpmTxt + ' rpm');
     ui.chip.set('bp', Math.round(backpressure()) + ' mbar');
 
     if (mode === 'principle') {
@@ -1406,6 +1659,7 @@
       ui.chip.setBig(cut, '% cut');
       ui.chip.setColor('#0ea5e9');
       ui.chip.setBar(cut, '#0ea5e9');
+      setChipLabel('Noise reduction');
       ui.chip.setStatus('Silenced', true);
     } else if (mode === 'compare') {
       const aTop = clamp(compareTopTube.bars[2].fill.scale.y - 0.08, 0, 1);
@@ -1420,19 +1674,22 @@
       ui.chip.setBig(delta, 'pts');
       ui.chip.setColor('#f59e0b');
       ui.chip.setBar(Math.min(100, Math.max(0, delta)), '#f59e0b');
+      setChipLabel('Silencer advantage');
       ui.chip.setStatus('Compare', true);
     } else if (mode === 'catalyst') {
-      const conv = Math.round(conversionFromTemp(catT) * 96);
+      const conv = Math.round((catEff.co + catEff.hc + catEff.nox) / 3 * 100);
+      setChipLabel('Pollutant conversion');
+      updateCatChemUI();
       if (exR1l) exR1l.textContent = 'Engine RPM';
       if (exR2l) exR2l.textContent = 'Substrate temp';
       if (exR3l) exR3l.textContent = 'Lambda (λ)';
       if (exR1)  exR1.textContent = rpmTxt + ' rpm';
       if (exR2)  exR2.textContent = Math.round(catT) + ' °C';
-      if (exR3)  exR3.textContent = (1 + Math.sin(time * 3) * 0.008).toFixed(3);
+      if (exR3)  exR3.textContent = 'λ ' + catLambdaNow().toFixed(3);
       ui.chip.setBig(conv, '%');
       ui.chip.setColor('#22c55e');
       ui.chip.setBar(conv, '#22c55e');
-      ui.chip.setStatus('Catalyst', true);
+      { const st = catStatus(); ui.chip.setStatus(st.text, st.on); }
     } else {
       if (exR1l) exR1l.textContent = 'Engine RPM';
       if (exR2l) exR2l.textContent = 'Gas temp';
@@ -1443,6 +1700,7 @@
       ui.chip.setBig(noise, 'dB');
       ui.chip.setColor('#38bdf8');
       ui.chip.setBar(clamp((noise - 60) / 45, 0, 1) * 100, '#38bdf8');
+      setChipLabel('Tailpipe noise');
       ui.chip.setStatus('Full system', true);
     }
   }
