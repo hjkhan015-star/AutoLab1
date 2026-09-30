@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#0a0d13">
 <title>Automatic Transmission — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="controls.css">
 <style>
   /* ═══════════════════════════════════════════════════════════════════
      Module-specific widget styles.
@@ -806,12 +807,7 @@
   }
 
   /* ─── Wire local toolbar controls (play/reset/speed/labels/gas) ── */
-  (function wireToolbar() {
-    const playBtn  = document.getElementById('btn-play');
-    const resetBtn = document.getElementById('btn-reset');
-    const speedInp = document.getElementById('speed');
-    const chkLab   = document.getElementById('chk-labels');
-    const chkGas   = document.getElementById('chk-gas');
+  (function syncToolbarIcons() {   /* Phase 2: click wiring removed — the kit (dock.js/kit.js) owns btn-play / btn-reset; only icon sync stays */
 
     function syncPlayIcons() {
       const ip  = document.getElementById('icon-play');
@@ -821,16 +817,6 @@
     }
     syncPlayIcons();
 
-    if (playBtn) playBtn.addEventListener('click', () => {
-      state.playing = !state.playing;
-      syncPlayIcons();
-    });
-    if (resetBtn) resetBtn.addEventListener('click', resetSim);
-    if (speedInp) speedInp.addEventListener('input', () => {
-      state.speedMul = parseFloat(speedInp.value);
-    });
-    if (chkLab) chkLab.addEventListener('change', () => { state.showLabels = chkLab.checked; });
-    if (chkGas) chkGas.addEventListener('change', () => { state.showGas    = chkGas.checked; });
   })();
 
   /* ─── Sync speed input + rpm label each frame (cheap) ─── */

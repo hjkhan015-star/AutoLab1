@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#0a0d13">
 <title>Cooling System — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="controls.css">
 <style>
   /* ═══════════════════════════════════════════════════════════════════
      Cooling module — only the pieces that aren't part of the universal
@@ -1203,11 +1204,7 @@ ui.chip.root.appendChild(surfaceRowEl);
 /* ═══════════════════════════════════════════════════════════════════════
    ★ DEFENSIVE TOOLBAR WIRING
    ═══════════════════════════════════════════════════════════════════════ */
-(function wireToolbar() {
-  const playBtn  = document.getElementById('btn-play');
-  const resetBtn = document.getElementById('btn-reset');
-  const speedInp = document.getElementById('speed');
-  const chkLab   = document.getElementById('chk-labels');
+(function syncToolbarIcons() {   /* Phase 2: click wiring removed — the kit (dock.js/kit.js) owns btn-play / btn-reset; only icon sync stays */
 
   function syncIcons() {
     const ip  = document.getElementById('icon-play');
@@ -1217,15 +1214,6 @@ ui.chip.root.appendChild(surfaceRowEl);
   }
   syncIcons();
 
-  if (playBtn)  playBtn.addEventListener('click', () => {
-    state.playing = !state.playing;
-    syncIcons();
-  });
-  if (resetBtn) resetBtn.addEventListener('click', resetSim);
-  if (speedInp) speedInp.addEventListener('input', () => {
-    state.speedMul = parseFloat(speedInp.value);
-  });
-  if (chkLab) chkLab.addEventListener('change', () => { state.showLabels = chkLab.checked; });
 
   setInterval(syncIcons, 500);
   window.__coolingSyncIcons = syncIcons;

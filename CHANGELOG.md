@@ -1,5 +1,15 @@
 # Changelog
 
+## 8.2.0 - Control-system refactor, Phase 2 (stage layout & dock)
+- New `dock.js`: one control dock per module document (embedded AND standalone) - handle (swipe up = options row, down = 56 px slim bar), transport (play/pause, reset - one node each), primary zone (1 = centred, 2 = left/right thumb zones, 3+ = pages with dots), options row (Flow + module extras). Default 24 vh, max 30 vh; landscape phones get two 140 px side rails; desktop is one auto-height bar. State persists per module in `sessionStorage` (`autolab.dock.<moduleId>`); the dock hides while a `<select>` soft keyboard is open. Pure logic is unit-tested (`tests/dock.test.mjs`).
+- Stage: `#canvas-wrap` (and `#labels-root`, so labels never draw over the dock) is inset by `--stage-top` (0 embedded, header height standalone) and `--dock-h`. `kit.js` adds a `ResizeObserver` on the stage; the camera view is nudged up on portrait phones.
+- `UI.create` keeps `widgets:{bl,br}`, `toolbar`, `extras` but mounts them inside the dock. Bottom slots `bl`/`br`/`bc` are removed. Info panel is a bottom sheet (<= 50 vh, closed by default) opened by the header i on phones and a side panel on desktop; the readout chip is a one-line strip on phones.
+- Standalone modules draw the same `chrome.js` header + menu as the shell (owner = module; D/L/W/X keep the menu in sync). Standalone Back button removed. Default label density is Key on phones.
+- Flow toggle restored (dock options row). Play/reset restored for embedded modules.
+- Fixed double click-wiring of play/reset in `automatic`, `braking`, `carburetor`, `cooling`.
+- z-index limited to the R10 scale in `app.css`/`index.html`; `100vh` -> `100dvh` in `wiring.html`/`404.html`; Phase 1 leftovers removed from `app.css`. The `!important` LEGACY block moved to `legacy.css` (loaded by `sensors.html` only, until Phase 8).
+- Cache `autolab-v8.2`.
+
 ## 8.1.0 - Control-system refactor, Phase 1 (shell & chrome)
 - New `chrome.js` (32 px header + single ⋯ menu), `keys.js` (one keymap), chrome styles in `controls.css`.
 - Shell: removed the floating pill, the floating back/⋯ buttons and the old settings sheet. The menu now holds only sim speed, label density, theme, wireframe, x-ray. Sim speed is shown as a multiplier (it used to be labelled in rpm).

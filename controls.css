@@ -10,6 +10,10 @@
   --dock-default: 24vh;       /* control dock, default                    */
   --dock-max: 30vh;           /* control dock, hard ceiling               */
   --dock-kbd: 34vh;           /* approx. soft-keyboard height; dock stays below */
+  --dock-handle: 20px;        /* grab handle row                          */
+  --dock-slim: 56px;          /* slim bar (transport + one primary)       */
+  --dock-options: 44px;       /* options row                              */
+  --dock-rail-w: 140px;       /* landscape-phone side rails               */
   --monitor-strip-h: 28px;    /* one-line monitor strip                   */
   --monitor-max: 40vh;        /* expanded monitor card, phone             */
 
@@ -221,4 +225,243 @@
 
 @media (prefers-reduced-motion: reduce) {
   .al-menu, .al-menu-backdrop, .al-switch-knob, .al-switch-knob::after { transition: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PHASE 2 — stage layout + dock (built by dock.js / kit.js)
+   Phone = max-width:720px OR max-height:540px (R2).
+   Tokens only (R3). z-index only from the R10 scale.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── stage insets ──────────────────────────────────────────────────────
+   --stage-top   the header lives INSIDE the module document when standalone
+                 (var(--hdr-h), var(--hdr-h-land) on landscape phones), but OUTSIDE the
+                 iframe when embedded (the shell draws it) → 0. Never reserved twice.
+   --dock-h      set in px by dock.js from the iframe's own viewport
+                 (vh here = this document's height = screen − 32 px shell header).
+                 These are only the first-paint fallbacks before dock.js runs.
+   --dock-rail   landscape phones: width of each side rail (0 elsewhere).            */
+:root {
+  --stage-top: calc(var(--hdr-h) + var(--safe-t, 0px));
+  --dock-h: var(--dock-default);
+  --dock-rail: 0px;
+}
+@media (max-height: 540px) { :root { --stage-top: calc(var(--hdr-h-land) + var(--safe-t, 0px)); } }
+@media (max-height: 540px) and (min-aspect-ratio: 1/1) { :root { --dock-h: 0px; --dock-rail: var(--dock-rail-w); } }
+@media (min-width: 721px) and (min-height: 541px) { :root { --dock-h: 72px; } }
+body.embedded { --stage-top: 0px; }
+
+#canvas-wrap { inset: var(--stage-top) var(--dock-rail) var(--dock-h) var(--dock-rail); }
+/* labels are clipped to the stage, so they can never draw over the dock or the header */
+#labels-root {
+  position: fixed;
+  inset: var(--stage-top) var(--dock-rail) var(--dock-h) var(--dock-rail);
+  overflow: hidden;
+}
+
+/* standalone header: same chrome.js header as the shell, fixed above the stage */
+body:not(.embedded) > .al-hdr {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: var(--z-dock);
+}
+
+/* ── dock: shared ── */
+.al-dock[hidden] { display: none; }
+.al-dock {
+  position: fixed;
+  z-index: var(--z-dock);
+  box-sizing: border-box;
+  color: var(--text);
+  background: var(--bg-elev, var(--surface));
+  font-family: var(--font-sans);
+}
+.al-dock-handle {
+  display: grid; place-items: center;
+  padding: 0; border: 0; background: transparent;
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  cursor: grab;
+}
+.al-dock-handle span { width: 38px; height: 4px; border-radius: var(--r-pill, 999px); background: var(--border-hi, var(--border)); }
+.al-dock-handle:focus-visible { outline: 2px solid var(--ctl-focus); outline-offset: -2px; }
+.al-dock-transport { display: flex; align-items: center; gap: var(--ctl-gap); }
+.al-dock-transport .ui-tb-btn { width: var(--ctl-tap); height: var(--ctl-tap); }
+.al-dock-pages { display: flex; min-width: 0; }
+.al-dock-page { display: flex; align-items: center; gap: var(--ctl-gap); min-width: 0; }
+.al-dock-slot { min-width: 0; min-height: 0; max-height: 100%; overflow: auto; overscroll-behavior: contain; }
+.al-dock-slot[data-side="left"]   { margin-right: auto; }
+.al-dock-slot[data-side="right"]  { margin-left: auto; }
+.al-dock-slot[data-side="center"] { margin-left: auto; margin-right: auto; }
+.al-dock-dots { display: flex; justify-content: center; gap: 0; }
+.al-dock-dots[hidden] { display: none; }
+.al-dock-dot { position: relative; width: 24px; height: 14px; padding: 0; border: 0; background: transparent; }
+.al-dock-dot::before {
+  content: ""; position: absolute; left: 50%; top: 50%;
+  width: 8px; height: 8px; margin: -4px 0 0 -4px;
+  border-radius: 50%; background: var(--ctl-track); border: 1px solid var(--ctl-border);
+}
+.al-dock-dot::after { content: ""; position: absolute; inset: -15px -4px; }     /* >= 44 px hit area */
+.al-dock-dot[aria-selected="true"]::before { background: var(--ctl-fill); border-color: var(--ctl-fill); }
+.al-dock-options { display: flex; align-items: center; gap: var(--ctl-gap); min-width: 0; }
+.al-dock-flow { display: contents; }
+.al-dock-flow .ui-tb-check { min-height: var(--ctl-tap); padding: 0 var(--ctl-gap); }
+.al-dock-extras { display: flex; align-items: center; gap: var(--ctl-gap); }
+.al-dock-extras:empty { display: none; }
+
+/* ── dock: phone portrait = bottom sheet, 24 vh default / 30 vh max ── */
+.al-dock[data-mode="portrait"] {
+  left: 0; right: 0; bottom: 0;
+  height: var(--dock-h);
+  max-height: var(--dock-max);
+  padding: 0 calc(var(--safe-r, 0px) + var(--ctl-gap)) var(--safe-b, 0px) calc(var(--safe-l, 0px) + var(--ctl-gap));
+  border-top: 1px solid var(--border);
+  border-radius: var(--r-xl, 16px) var(--r-xl, 16px) 0 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: var(--dock-handle) minmax(0, 1fr) auto;
+  grid-template-areas: "handle handle" "transport primary" "options options";
+  column-gap: var(--ctl-gap);
+  overflow: hidden;
+  transition: height var(--dur-base, .2s) var(--ease-out, ease-out);
+}
+.al-dock[data-mode="portrait"] .al-dock-handle    { grid-area: handle; width: 100%; height: var(--dock-handle); }
+.al-dock[data-mode="portrait"] .al-dock-transport { grid-area: transport; flex-direction: column; justify-content: center; }
+.al-dock[data-mode="portrait"] .al-dock-primary   { grid-area: primary; display: flex; flex-direction: column; min-height: 0; }
+.al-dock[data-mode="portrait"] .al-dock-pages {
+  flex: 1 1 auto; min-height: 0;
+  overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory; scrollbar-width: none;
+}
+.al-dock[data-mode="portrait"] .al-dock-pages::-webkit-scrollbar { display: none; }
+.al-dock[data-mode="portrait"] .al-dock-page { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; }
+.al-dock[data-mode="portrait"] .al-dock-options {
+  grid-area: options;
+  height: var(--dock-options);
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+  display: none;
+}
+.al-dock[data-mode="portrait"] .al-dock-options::-webkit-scrollbar { display: none; }
+.al-dock[data-mode="portrait"][data-state="options"] .al-dock-options { display: flex; }
+
+/* slim: transport + ONE primary control in a 56 px bar; the handle shrinks to a pill */
+.al-dock[data-mode="portrait"][data-state="slim"] {
+  grid-template-rows: 12px minmax(0, 1fr) 0;
+}
+.al-dock[data-mode="portrait"][data-state="slim"] .al-dock-handle { height: 12px; }
+.al-dock[data-mode="portrait"][data-state="slim"] .al-dock-transport { flex-direction: row; }
+.al-dock[data-mode="portrait"][data-state="slim"] .al-dock-page:not([data-page="0"]),
+.al-dock[data-mode="portrait"][data-state="slim"] .al-dock-page[data-page="0"] .al-dock-slot ~ .al-dock-slot,
+.al-dock[data-mode="portrait"][data-state="slim"] .al-dock-dots { display: none; }
+
+/* ── dock: phone landscape = two 140 px side rails ── */
+.al-dock[data-mode="landscape"] {
+  top: var(--stage-top); left: 0; right: 0; bottom: 0;
+  padding: var(--ctl-gap) calc(var(--safe-r, 0px) + var(--ctl-gap)) calc(var(--safe-b, 0px) + var(--ctl-gap)) calc(var(--safe-l, 0px) + var(--ctl-gap));
+  background: transparent;
+  display: grid;
+  grid-template-columns: calc(var(--dock-rail-w) - 2 * var(--ctl-gap)) minmax(0, 1fr) calc(var(--dock-rail-w) - 2 * var(--ctl-gap));
+  grid-auto-rows: min-content;
+  grid-auto-flow: row dense;
+  align-content: start;
+  gap: var(--ctl-gap);
+  pointer-events: none;
+}
+.al-dock[data-mode="landscape"] > *,
+.al-dock[data-mode="landscape"] .al-dock-slot { pointer-events: auto; }
+.al-dock[data-mode="landscape"] .al-dock-handle,
+.al-dock[data-mode="landscape"] .al-dock-dots { display: none; }
+.al-dock[data-mode="landscape"] .al-dock-transport { grid-column: 1; grid-row: 1; }
+.al-dock[data-mode="landscape"] .al-dock-primary,
+.al-dock[data-mode="landscape"] .al-dock-pages,
+.al-dock[data-mode="landscape"] .al-dock-page { display: contents; }
+.al-dock[data-mode="landscape"] .al-dock-slot {
+  grid-column: 1;
+  max-height: calc(100dvh - var(--stage-top) - 2 * var(--ctl-tap));
+  margin: 0;
+  background: var(--bg-elev, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: var(--ctl-radius);
+}
+.al-dock[data-mode="landscape"] .al-dock-slot[data-side="right"] { grid-column: 3; grid-row: 2; }
+.al-dock[data-mode="landscape"] .al-dock-options {
+  grid-column: 3; grid-row: 1;
+  flex-direction: column; align-items: stretch;
+  max-height: calc(100dvh - var(--stage-top) - 2 * var(--ctl-tap));
+  overflow-y: auto;
+  background: var(--bg-elev, var(--surface));
+  border-radius: var(--ctl-radius);
+}
+.al-dock[data-mode="landscape"] .al-dock-options:not(:has(*)) { display: none; }
+.al-dock[data-mode="landscape"] .al-dock-transport,
+.al-dock[data-mode="landscape"] .al-dock-options { padding: var(--ctl-gap) 0; justify-content: center; }
+
+/* ── dock: desktop = one auto-height bar ── */
+.al-dock[data-mode="desktop"] {
+  left: 50%; bottom: calc(var(--s-3, 12px) + var(--safe-b, 0px));
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 2 * var(--s-3, 12px));
+  height: auto;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: var(--ctl-gap) var(--s-3, 12px);
+  padding: var(--ctl-gap) var(--s-3, 12px);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl, 16px);
+  box-shadow: var(--shadow-md, none);
+}
+.al-dock[data-mode="desktop"] .al-dock-handle,
+.al-dock[data-mode="desktop"] .al-dock-dots { display: none; }
+.al-dock[data-mode="desktop"] .al-dock-primary,
+.al-dock[data-mode="desktop"] .al-dock-pages { display: contents; }
+.al-dock[data-mode="desktop"] .al-dock-page { flex: 0 0 auto; }
+
+/* ── info: header ⓘ opens a bottom sheet on phones (closed by default); desktop keeps the side panel ── */
+.al-sheet-scrim { position: fixed; inset: 0; z-index: var(--z-menu); background: color-mix(in oklch, var(--bg) 62%, transparent); display: none; }
+body.al-sheet-open .al-sheet-scrim { display: block; }
+
+@media (max-width: 720px), (max-height: 540px) {
+  /* the top stack dissolves: the panel becomes a fixed sheet, the chip a fixed one-line strip */
+  #ui-top-stack, .ui-slot-tl { position: static; display: contents; }
+  .ui-panel {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: calc(var(--z-menu) + 1);
+    width: min(100%, 560px); max-width: none;
+    margin: 0 auto;
+    max-height: 50vh; max-height: 50dvh;                 /* R2: sheet <= 50 vh */
+    border-radius: var(--r-xl, 16px) var(--r-xl, 16px) 0 0;
+    padding-bottom: var(--safe-b, 0px);
+    transform: translateY(105%);
+    visibility: hidden;
+    transition: transform var(--dur-slow, .3s) var(--ease-in-out, ease-in-out), visibility 0s linear var(--dur-slow, .3s);
+  }
+  .ui-panel.expanded { transform: translateY(0); visibility: visible; transition-delay: 0s; }
+  .ui-panel-toggle svg { transform: rotate(0deg); }
+
+  /* readout chip → one-line strip at the top of the stage (full monitor: Phase 7) */
+  .ui-slot-tr {
+    position: fixed;
+    top: calc(var(--stage-top) + var(--s-1, 4px));
+    left: calc(var(--safe-l, 0px) + var(--dock-rail) + var(--s-2, 8px));
+    right: calc(var(--safe-r, 0px) + var(--dock-rail) + var(--s-2, 8px));
+    z-index: var(--z-monitor);
+  }
+  .ui-chip {
+    display: flex; align-items: center; gap: var(--s-3, 12px);
+    width: 100%; min-width: 0;
+    height: var(--monitor-strip-h);
+    padding: 0 var(--s-3, 12px);
+    border-radius: var(--r-pill, 999px);
+    white-space: nowrap; overflow: hidden;
+  }
+  .ui-chip-label { margin: 0; flex: 0 0 auto; }
+  .ui-chip-value { font-size: 14px; flex: 0 0 auto; }
+  .ui-chip-bar { display: none; }
+  .ui-chip-row { margin: 0; gap: var(--s-1, 4px); flex: 0 0 auto; }
+  .ui-chip-status { margin: 0 0 0 auto; flex: 0 0 auto; }
+  .ui-orb-toggle, .ui-orb-icon { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .al-dock[data-mode="portrait"], .ui-panel { transition: none; }
 }

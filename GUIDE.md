@@ -50,6 +50,13 @@ The old floating pill and the old settings sheet are gone. Title and accent colo
   module→shell `{type:'key', action}` and `{type:'state', playing | density}`. `setLabels` is kept for compatibility.
 - **Theme has one path:** the shell sends `setTheme`; it no longer writes `light-theme` into the iframe.
 
+## The dock and the standalone header (Phase 2)
+- **Dock** (`dock.js`, styles in `controls.css`): every module document has one. Bottom sheet on phones (24 vh, max 30 vh), two 140 px rails on landscape phones, one bar on desktop. Phone = `max-width:720px` or `max-height:540px`.
+- **Put controls in it through `UI.create`**: `toolbar` (play/reset/Flow/`extras`), `widgets.bl` (primary-left), `widgets.br` (primary-right). Do not add `position:fixed` elements at the bottom of a module.
+- **Height inside the shell:** `vh` in an iframe is the iframe height (screen minus the 32 px shell header), so the dock is a few px shorter than 24 % of the screen when embedded.
+- **Standalone header:** opened directly, a module draws the same `chrome.js` header (back, title, i, ...) and menu as the shell; title and colour come from `modules.js`. Embedded, the shell draws it and the module reserves no top space (`--stage-top: 0`).
+- **Info:** header i opens the info sheet (phones, closed by default) or the side panel (desktop).
+
 ## What's NOT done yet: simulation depth for the other 43 modules
 
 The valvetrain module previously had a cam-advance slider that only

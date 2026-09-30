@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#0a0d13">
 <title>Hydraulic Braking System — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="controls.css">
 <style>
   .br-readout {
     display: flex; flex-direction: column;
@@ -1471,12 +1472,7 @@ import { Parts } from './components.js';
      Works even if the shell's kit.js hasn't auto-wired yet. If your kit.js
      has been updated, this block is harmless (idempotent duplicate).
      ═════════════════════════════════════════════════════════════════════ */
-  (function wireToolbar() {
-    const playBtn  = document.getElementById('btn-play');
-    const resetBtn = document.getElementById('btn-reset');
-    const speedInp = document.getElementById('speed');
-    const chkLab   = document.getElementById('chk-labels');
-    const chkGas   = document.getElementById('chk-gas');
+  (function syncToolbarIcons() {   /* Phase 2: click wiring removed — the kit (dock.js/kit.js) owns btn-play / btn-reset; only icon sync stays */
 
     function syncIcons() {
       const ip  = document.getElementById('icon-play');
@@ -1486,16 +1482,6 @@ import { Parts } from './components.js';
     }
     syncIcons();
 
-    if (playBtn)  playBtn.addEventListener('click', () => {
-      state.playing = !state.playing;
-      syncIcons();
-    });
-    if (resetBtn) resetBtn.addEventListener('click', resetSim);
-    if (speedInp) speedInp.addEventListener('input', () => {
-      state.speedMul = parseFloat(speedInp.value);
-    });
-    if (chkLab) chkLab.addEventListener('change', () => { state.showLabels = chkLab.checked; });
-    if (chkGas) chkGas.addEventListener('change', () => { state.showGas    = chkGas.checked; });
 
     /* Watch state.playing in case it changes from the shell — keep icons honest */
     setInterval(syncIcons, 500);
