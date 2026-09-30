@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a0d13">
 <title>Suspension System — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
@@ -158,6 +158,7 @@
     <span class="label" id="road-next-label"></span>
   </div>
 
+  <script src="guard.js"></script>
   <script type="importmap">
   { "imports": {
     "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
@@ -168,6 +169,7 @@
   <script type="module">
   import * as THREE from 'three';
   import * as Base from './kit.js';
+import { Parts } from './components.js';
   import { UI } from './kit.js';
 
   const isCoarse = matchMedia('(pointer: coarse)').matches;
@@ -529,15 +531,7 @@
 
   /* Coil spring */
   function makeCoilSpring(radius, wireR, coils, height, mat) {
-    const pts = [];
-    const N = Math.max(90, Math.round(coils * 24));
-    for (let i = 0; i <= N; i++) {
-      const t = i / N;
-      const a = coils * TAU * t;
-      pts.push(new THREE.Vector3(radius * Math.cos(a), height * t, radius * Math.sin(a)));
-    }
-    const curve = new THREE.CatmullRomCurve3(pts);
-    return new THREE.Mesh(new THREE.TubeGeometry(curve, N, wireR, 10, false), mat);
+    return Parts.coilSpring({ radius, length: height, turns: coils, wire: wireR, mat, axis: 'y', centered: false, samples: Math.max(90, Math.round(coils * 24)), radial: 10 });
   }
 
   /* Damper */

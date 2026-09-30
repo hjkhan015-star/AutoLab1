@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a0d13">
 <title>4-Stroke Engine — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
@@ -202,6 +202,7 @@
   <div id="canvas-wrap"></div>
   <div id="labels-root"></div>
 
+  <script src="guard.js"></script>
   <script type="importmap">
   { "imports": {
     "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
@@ -656,7 +657,7 @@ const matLiner    = new THREE.MeshStandardMaterial({ color: 0x7a8a9c, metalness:
 const matExhaust  = new THREE.MeshStandardMaterial({ color: 0x5a616a, metalness: 0.85, roughness: 0.40 });
 const matIntake   = new THREE.MeshStandardMaterial({ color: 0x3d4653, metalness: 0.75, roughness: 0.45 });
 
-const DEG      = Math.PI / 180;
+const DEG      = Base.DEG;
 const R        = 0.45;
 const L        = 1.55;
 const R_LINK   = 0.22;

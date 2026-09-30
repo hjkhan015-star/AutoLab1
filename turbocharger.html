@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a0d13">
 <title>Turbocharger — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
@@ -148,6 +148,7 @@
   <div id="canvas-wrap"></div>
   <div id="labels-root"></div>
 
+  <script src="guard.js"></script>
   <script type="importmap">
   { "imports": {
     "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
@@ -158,10 +159,11 @@
   <script type="module">
   import * as THREE from 'three';
   import * as Base from './kit.js';
+import { Parts } from './components.js';
   import { UI } from './kit.js';
 
-  const TAU = Math.PI * 2;
-  const DEG = Math.PI / 180;
+  const TAU = Base.TAU;
+  const DEG = Base.DEG;
 
   /* ═══════════════════════════════════════════════════════════
      ADAPTIVE QUALITY
@@ -1109,17 +1111,7 @@
   };
 
   function makeStream(curve, count, size, opacity) {
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
-    geo.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(count * 3), 3));
-    const mat = new THREE.PointsMaterial({
-      map: particleTex, size, sizeAttenuation: true,
-      vertexColors: true, transparent: true, opacity,
-      depthWrite: false, blending: THREE.AdditiveBlending
-    });
-    const points = new THREE.Points(geo, mat);
-    points.frustumCulled = false; points.renderOrder = 1;
-    system.add(points);
+    const { geo, mat, points } = Parts.additivePoints(particleTex, count, size, opacity, { renderOrder: 1, parent: system });
     const data = [];
     for (let i = 0; i < count; i++) {
       data.push({
@@ -1443,20 +1435,8 @@
     }
   });
 
-  /* Spacebar as accelerator — consistent UX */
-  window.addEventListener('keydown', e => {
-    if (e.code === 'Space' && !e.repeat && !e.target.closest('button, input, select, textarea')) {
-      e.preventDefault();
-      cancelAccelReturn();
-      if (accelTrackEl) accelTrackEl.classList.add('active');
-    }
-  });
-  window.addEventListener('keyup', e => {
-    if (e.code === 'Space' && accelTrackEl && !accelDragging) {
-      accelTrackEl.classList.remove('active');
-      springReleaseAccel();
-    }
-  });
+  /* Space is play/pause everywhere now (keys.js). The accelerator is pointer / arrow-key only
+     until Phase 4 adds Shift-hold quick-press. */
 
   /* ═══════════════════════════════════════════════════════════
      PANEL READOUT REFS

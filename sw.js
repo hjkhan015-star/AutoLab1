@@ -1,11 +1,11 @@
 /* Auto Lab service worker — offline cache */
-const VERSION = 'autolab-v10.0';
+const VERSION = 'autolab-v8.1';
 const CORE    = VERSION + '-core';
 const RUNTIME = VERSION + '-runtime';
 
 const CORE_ASSETS = [
-  './', './index.html', './app.css', './kit.js', './modules.js',
-  './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png',
+  './', './index.html', './app.css', './kit.js', './labels.js', './components.js', './components.css', './controls-core.js', './controls.css', './chrome.js', './keys.js', './modules.js', './guard.js', './404.html',
+  './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-512-maskable.png',
   './icons/apple-touch-icon.png', './icons/favicon-32.png',
   /* Module HTMLs — missing files are tolerated (each fetched individually) */
   './engine.html',
@@ -61,7 +61,6 @@ self.addEventListener('install', (event) => {
         if (res && res.ok) await cache.put(url, res);
       } catch (_) {}
     }));
-    self.skipWaiting();
   })());
 });
 

@@ -12,8 +12,11 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { createLabelSystem as _createLabelSystem, KINDS as LABEL_KINDS, DENSITY_INFO } from './labels.js';
+import { createKeyRouter, installKeys } from './keys.js';
+import { nextDensity } from './chrome.js';
 
-export { THREE, OrbitControls };
+export { THREE, OrbitControls, LABEL_KINDS, DENSITY_INFO };
 export const DEG = Math.PI / 180;
 export const TAU = Math.PI * 2;
 
@@ -35,15 +38,15 @@ function detectQuality() {
   const isLowEnd = cores <= 4 || mem <= 2;
   const isMidEnd = !isLowEnd && (cores <= 6 || mem <= 4 || (isCoarse && dpr >= 2.5));
   const isHighEnd = !isLowEnd && !isMidEnd;
-  const dprCap = isLowEnd ? 1.5 : isMidEnd ? 1.75 : 2;
+  const dprCap = isLowEnd ? 1.75 : isMidEnd ? 2 : 2.5;
   const look = isLowEnd
-    ? { antialias:false, shadows:false, shadowMapSize:0, rimLight:false,
-        grid:false, floorSegments:32, fogDensityMul:1.15, toneMapping:false, exposure:1.0 }
+    ? { antialias: dpr < 2, shadows:false, shadowMapSize:0, rimLight:false,
+        grid:false, floorSegments:32, fogDensityMul:1.15, toneMapping:true, exposure:1.1, enhance:false }
     : isMidEnd
-    ? { antialias:true, shadows:true, shadowMapSize:1024, rimLight:true,
-        grid:true, floorSegments:48, fogDensityMul:1.0, toneMapping:true, exposure:1.05 }
-    : { antialias:true, shadows:true, shadowMapSize:2048, rimLight:true,
-        grid:true, floorSegments:64, fogDensityMul:0.9, toneMapping:true, exposure:1.1 };
+    ? { antialias:true, shadows:true, shadowMapSize:2048, rimLight:true,
+        grid:true, floorSegments:48, fogDensityMul:1.0, toneMapping:true, exposure:1.18, enhance:true }
+    : { antialias:true, shadows:true, shadowMapSize:isCoarse ? 2048 : 4096, rimLight:true,
+        grid:true, floorSegments:64, fogDensityMul:0.9, toneMapping:true, exposure:1.25, enhance:true };
   return { isCoarse, cores, mem, dpr, isLowEnd, isMidEnd, isHighEnd, dprCap, look };
 }
 
@@ -193,7 +196,23 @@ function createViewManager(scene, renderer, camera) {
       applyMaterials(); applyTheme();
     },
     refresh() { applyMaterials(); },
-    getState() { return { ...state }; }
+    getState() { return { ...state }; },
+    /* ── Fix for "wireframe/xray stops working" in modules that swap a
+       mesh's base material at runtime (e.g. a diode turning on/off, a
+       valve glowing hot). Calling mesh.material = X directly bypasses
+       the tracked "original" material, so the next render silently
+       reverts that one mesh out of wireframe/x-ray mode. Modules should
+       call viewManager.setMeshMaterial(mesh, newBaseMaterial) instead of
+       assigning mesh.material directly whenever the mesh could be
+       wireframed/x-rayed; this keeps the tracked original in sync and
+       re-applies the current view mode to it immediately. */
+    setMeshMaterial(mesh, newMat) {
+      if (!mesh) return;
+      originals.meshMap.set(mesh, newMat);
+      if (newMat && newMat.color) originals.matSet.add(newMat);
+      if (!state.wireframe && !state.xray) { mesh.material = newMat; return; }
+      mesh.material = state.wireframe ? makeWireMaterial(newMat) : makeXrayMaterial(newMat);
+    }
   };
 
   window.addEventListener('message', (e) => {
@@ -232,6 +251,28 @@ export function buildScene(opts = {}) {
     stencil: false, alpha: false
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, dprCap));
+  /* Adaptive resolution (conservative): stay at full sharpness; only step down when the
+     device is clearly struggling (<~30 fps for two consecutive windows), never below 80%
+     of full resolution, and step back up as soon as there is headroom. */
+  (function () {
+    const maxR = Math.min(window.devicePixelRatio || 1, dprCap), minR = Math.max(1, maxR * 0.8);
+    if (maxR <= minR) return;
+    const origRender = renderer.render.bind(renderer);
+    let ratio = maxR, last = 0, sum = 0, n = 0, slow = 0, calm = 0, warm = 0;
+    renderer.render = function (scene, cam) {
+      const t = performance.now();
+      if (++warm > 150 && last) { const dt = t - last; if (dt < 200) { sum += dt; n++; } }
+      last = t;
+      if (n >= 60) {
+        const avg = sum / n; sum = 0; n = 0;
+        if (avg > 34) { calm = 0; if (++slow >= 2 && ratio > minR) { ratio = Math.max(minR, ratio - 0.25); slow = 0; renderer.setPixelRatio(ratio); } }
+        else if (avg < 20) { slow = 0; if (++calm >= 2 && ratio < maxR) { ratio = Math.min(maxR, ratio + 0.25); calm = 0; renderer.setPixelRatio(ratio); } }
+        else { slow = 0; calm = 0; }
+      }
+      return origRender(scene, cam);
+    };
+    document.addEventListener('visibilitychange', () => { last = 0; sum = 0; n = 0; warm = 0; });
+  })();
   renderer.shadowMap.enabled = look.shadows;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -239,6 +280,7 @@ export function buildScene(opts = {}) {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = look.exposure;
   }
+  if (look.enhance) renderer.domElement.style.filter = 'saturate(1.14) contrast(1.05)';
   wrap.appendChild(renderer.domElement);
   renderer.domElement.setAttribute('role', 'img');
   renderer.domElement.setAttribute('aria-label', (document.title || 'Auto Lab').replace(/\s*—\s*Auto Lab$/, '') + ' — interactive 3D model');
@@ -266,10 +308,10 @@ export function buildScene(opts = {}) {
   controls.rotateSpeed = isCoarse ? 0.6 : 0.9;
   controls.zoomSpeed   = isCoarse ? 0.7 : 1.0;
 
-  const hemi = new THREE.HemisphereLight(0xb8d0ff, 0x1a1520, isLowEnd ? 0.7 : 0.55);
+  const hemi = new THREE.HemisphereLight(0xcfe0ff, 0x2a2030, isLowEnd ? 0.75 : 0.7);
   scene.add(hemi);
 
-  const key = new THREE.DirectionalLight(0xfff4e6, isLowEnd ? 1.0 : (isMidEnd ? 1.2 : 1.3));
+  const key = new THREE.DirectionalLight(0xfff4e6, isLowEnd ? 1.1 : (isMidEnd ? 1.4 : 1.55));
   key.position.set(4, 8, 5);
   if (look.shadows) {
     key.castShadow = true;
@@ -277,7 +319,7 @@ export function buildScene(opts = {}) {
     key.shadow.camera.near = 1; key.shadow.camera.far = 25;
     key.shadow.camera.left = -6; key.shadow.camera.right = 6;
     key.shadow.camera.top = 6;   key.shadow.camera.bottom = -6;
-    key.shadow.bias = -0.0005;
+    key.shadow.bias = -0.0003;
     key.shadow.normalBias = 0.02;
   }
   scene.add(key);
@@ -316,15 +358,29 @@ export function buildScene(opts = {}) {
   }
 
   if (!isLowEnd) {
+    const EW = 512, EH = 256;
     const envCanvas = document.createElement('canvas');
-    envCanvas.width = 64; envCanvas.height = 64;
+    envCanvas.width = EW; envCanvas.height = EH;
     const ctx = envCanvas.getContext('2d');
-    const grd = ctx.createLinearGradient(0, 0, 0, 64);
-    grd.addColorStop(0.0, '#3a4a68');
-    grd.addColorStop(0.5, '#1a2030');
-    grd.addColorStop(1.0, '#0a0d13');
-    ctx.fillStyle = grd;
-    ctx.fillRect(0, 0, 64, 64);
+    const grd = ctx.createLinearGradient(0, 0, 0, EH);
+    grd.addColorStop(0.00, '#dbe8ff');
+    grd.addColorStop(0.28, '#7f9cc9');
+    grd.addColorStop(0.47, '#3a4866');
+    grd.addColorStop(0.53, '#232b3d');
+    grd.addColorStop(0.75, '#10141d');
+    grd.addColorStop(1.00, '#07090e');
+    ctx.fillStyle = grd; ctx.fillRect(0, 0, EW, EH);
+    /* soft studio light boxes: cool key, warm fill, thin rim strips */
+    const box = (cx, cy, rx, ry, c0, a0) => {
+      ctx.save(); ctx.translate(cx, cy); ctx.scale(1, ry / rx);
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+      g.addColorStop(0, c0); g.addColorStop(0.55, c0.replace('1)', a0 + ')')); g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, rx, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    };
+    box(EW * 0.18, EH * 0.22, 70, 40, 'rgba(255,255,255,1)', 0.55);
+    box(EW * 0.62, EH * 0.18, 90, 40, 'rgba(255,236,210,1)', 0.5);
+    box(EW * 0.88, EH * 0.32, 50, 26, 'rgba(140,190,255,1)', 0.45);
+    box(EW * 0.40, EH * 0.46, 120, 10, 'rgba(255,255,255,1)', 0.35);
     const envTex = new THREE.CanvasTexture(envCanvas);
     envTex.mapping = THREE.EquirectangularReflectionMapping;
     envTex.colorSpace = THREE.SRGBColorSpace;
@@ -460,51 +516,10 @@ export function createParticleTexture() {
   return new THREE.CanvasTexture(cnv);
 }
 
-export function createLabelSystem() {
-  const root = document.getElementById('labels-root') || document.body;
-  const els = {};
-  const tiers = {};
-  /* density: 2 = all labels, 1 = key labels only, 0 = none.
-     A label's own tier defaults to 1 ("key") so any module that hasn't
-     curated tiers yet behaves exactly as before — nothing regresses.
-     Tag a label `tier: 2` (or pass it as the 3rd arg to .add) to mark it
-     as a "detail" label that disappears first when density drops. */
-  let density = 2;
-  const order = [];
-  /* Auto tier: a label without an explicit tier is "key" (1) if it is in the first half added, else "detail" (2) */
-  const tierOf = (id) => tiers[id] ?? (order.indexOf(id) < Math.min(8, Math.ceil(order.length / 2)) ? 1 : 2);
-  window.__autolabDensity = 2;
-  const api = {
-    add(id, text, tier) {
-      const el = document.createElement('div');
-      el.className = 'label3d';
-      el.textContent = text;
-      root.appendChild(el);
-      els[id] = el;
-      tiers[id] = tier;          /* undefined = auto tier */
-      order.push(id);
-    },
-    setDensity(level) {
-      density = level; window.__autolabDensity = level;
-      if (level === 0) this.hideAll();
-    },
-    getDensity() { return density; },
-    hideAll() { for (const k in els) els[k].classList.remove('visible'); },
-    hide(id) { if (els[id]) els[id].classList.remove('visible'); },
-    project(id, worldVec, camera, wrap) {
-      const el = els[id]; if (!el) return;
-      if (density === 0 || tierOf(id) > density) { el.classList.remove('visible'); return; }
-      const w = wrap.clientWidth, h = wrap.clientHeight;
-      const p = worldVec.clone().project(camera);
-      if (p.z > 1) { el.classList.remove('visible'); return; }
-      el.style.left = ((p.x * 0.5 + 0.5) * w) + 'px';
-      el.style.top  = ((-p.y * 0.5 + 0.5) * h) + 'px';
-      el.classList.add('visible');
-    }
-  };
-  window.__autolabLabels = api;   /* lets the toolbar density button find us */
-  return api;
-}
+/* Label system now lives in labels.js (priority tiers, colour-coding,
+   leader lines, anti-flicker, auto-declutter). Re-exported here so every
+   module's existing `Base.createLabelSystem()` call picks it up for free. */
+export const createLabelSystem = _createLabelSystem;
 
 export function createBridge(moduleId, onCommand) {
   const embedded = detectEmbed();
@@ -678,7 +693,69 @@ class UIKit {
 
     slot.appendChild(el);
     this._panelEls = { root: el, head, body, toggle: head.querySelector('#panel-toggle') };
+    this._wireAutoCollapse(body);
     return el;
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     AUTO-COLLAPSE — every module's panel body is capped to a short,
+     scrollable height by default (~a few lines past the badge/readout),
+     with a "Show more / Show less" toggle appended automatically. This
+     replaces long, uncappped tab content (Overview/Faults/Self-check —
+     often 300px+ of text) with a compact "basic info" view; tapping the
+     toggle reveals the full "advanced" content, still inside the panel's
+     own scroll area. No per-module changes needed — it watches the body
+     for content the module adds later (tabs render after UI.create()
+     returns) and re-measures automatically.
+     ═════════════════════════════════════════════════════════════════════ */
+  _wireAutoCollapse(body) {
+    const CAP = 220; // px of content visible before "Show more" appears
+    let btn = null, expanded = false, capped = false;
+
+    const ensureBtn = () => {
+      if (btn) return btn;
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'ui-panel-more';
+      btn.addEventListener('click', () => {
+        expanded = !expanded;
+        body.classList.toggle('is-expanded', expanded);
+        btn.textContent = expanded ? 'Show less ▲' : 'Show more ▼';
+      });
+      return btn;
+    };
+
+    const measure = () => {
+      /* Measure natural height without the cap so we know whether to cap at all. */
+      const wasCapped = body.classList.contains('has-more');
+      if (wasCapped) body.classList.remove('has-more');
+      const full = body.scrollHeight;
+      const needsCap = full > CAP + 40 && !expanded;
+      if (needsCap) {
+        if (!capped) {
+          capped = true;
+          body.classList.add('has-more');
+          const b = ensureBtn();
+          b.textContent = 'Show more ▼';
+          if (b.parentNode !== body) body.appendChild(b);
+        } else {
+          body.classList.add('has-more');
+        }
+        body.style.setProperty('--cap-h', CAP + 'px');
+      } else if (capped && !expanded) {
+        /* content shrank below the threshold */
+        capped = false;
+        body.classList.remove('has-more');
+        if (btn) btn.remove();
+      } else if (expanded) {
+        body.classList.add('has-more'); // keeps the button visible, but is-expanded lifts the cap
+      }
+    };
+
+    const mo = new MutationObserver(() => requestAnimationFrame(measure));
+    mo.observe(body, { childList: true, subtree: true, characterData: true });
+    window.addEventListener('resize', () => requestAnimationFrame(measure));
+    requestAnimationFrame(measure);
   }
 
   _selectTab(id) {
@@ -738,27 +815,35 @@ class UIKit {
     const iconPause = `<svg id="icon-pause" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>`;
     const iconReset = `<svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>`;
 
+    /* R7 — embedded modules build LESS, they do not hide: the shell owns the header,
+       the ⋯ menu (sim speed, label density, theme, wireframe, x-ray) and, from Phase 2,
+       the dock (play / reset). So when embedded we never create those nodes. */
+    const embedded = !!(window.parent && window.parent !== window);
     let html = '';
     /* Standalone (not in the shell): Back button so every module can return to the hub */
-    if (!(window.parent && window.parent !== window))
+    if (!embedded)
       html += `<a class="ui-tb-btn" id="btn-home" href="index.html" aria-label="Back to Auto Lab" title="Back (Esc)"><svg viewBox="0 0 24 24"><path d="M15.4 6 14 4.6 6.6 12 14 19.4 15.4 18 9.4 12z"/></svg></a>`;
-    if (t.play !== false)  html += `<button class="ui-tb-btn" id="btn-play" aria-label="Pause">${iconPause}${iconPlay}</button>`;
-    if (t.reset !== false) html += `<button class="ui-tb-btn" id="btn-reset" aria-label="Reset">${iconReset}</button>`;
-    if (t.speed) {
-      html += `<div class="ui-tb-divider"></div>
-        <div class="ui-tb-speed">
+    if (!embedded && t.play !== false)  html += `<button class="ui-tb-btn" id="btn-play" aria-label="Pause">${iconPause}${iconPlay}</button>`;
+    if (!embedded && t.reset !== false) html += `<button class="ui-tb-btn" id="btn-reset" aria-label="Reset">${iconReset}</button>`;
+    if (t.speed && (!embedded || t.speed.module)) {
+      /* `module: true` = this slider is a MODULE quantity (engine rpm / load), not sim speed.
+         TEMPORARY (Phase 1, data-phase1-temp): kept visible, NOT wired to state.speedMul,
+         and replaced by a real dock control in Phase 3. */
+      const own = !!t.speed.module;
+      html += `${embedded ? '' : '<div class="ui-tb-divider"></div>'}
+        <div class="ui-tb-speed${own ? ' keep-in-embed' : ''}"${own ? ' data-phase1-temp' : ''}>
           <span>${t.speed.label || 'Speed'}</span>
-          <input type="range" id="speed"
+          <input type="range" ${own ? 'id="speed-module" data-phase1-temp' : 'id="speed"'} data-speed-input
             min="${t.speed.min ?? 0.15}" max="${t.speed.max ?? 2.5}"
             step="${t.speed.step ?? 0.05}" value="${t.speed.value ?? 0.85}"
             aria-label="${t.speed.label || 'Speed'}">
           <span id="rpm-label"></span>
         </div>`;
     }
-    if (t.labels) html += `<button class="ui-tb-btn active keep-in-embed" id="btn-density" aria-label="Label density: all" title="Labels: All">
+    if (!embedded && t.labels) html += `<button class="ui-tb-btn active" id="btn-density" aria-label="Label density: all" title="Labels: All">
       <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
     </button>`;
-    if (t.gas)    html += `<label class="ui-tb-check"><input type="checkbox" id="chk-gas" checked> Flow</label>`;
+    if (!embedded && t.gas) html += `<label class="ui-tb-check"><input type="checkbox" id="chk-gas" checked> Flow</label>`;
     html += `<div class="ui-tb-extras" id="toolbar-extras"></div>`;
 
     el.innerHTML = html;
@@ -856,7 +941,7 @@ class UIKit {
     return {
       setRpmLabel(text) { if (self._toolbar?.rpmLabel) self._toolbar.rpmLabel.textContent = text; },
       get root() { return self._toolbar?.root; },
-      get speedInput() { return self._toolbar?.root?.querySelector('#speed'); },
+      get speedInput() { return self._toolbar?.root?.querySelector('[data-speed-input]'); },
     };
   }
 
@@ -885,7 +970,9 @@ class UIKit {
     const defaultHandlers = {
       setPlaying:   v => { if ('playing'    in state) state.playing    = !!v; },
       setSpeed:     v => { if ('speedMul' in state) { let x = +v; if (_speed) x = Math.max(+_speed.min, Math.min(+_speed.max, x)); state.speedMul = x; } },
-      setLabels:    v => { if ('showLabels' in state) state.showLabels = !!v; },
+      setLabels:    v => { if ('showLabels' in state) state.showLabels = !!v; },          /* legacy boolean */
+      setLabelDensity: () => {},                                                          /* wrapped below */
+      toggleInfo:   () => { self.panel.toggle(); },
       setGas:       v => { if ('showGas'    in state) state.showGas    = !!v; },
       setTheme:     v => { viewManager?.setTheme?.(v); },
       setWireframe: v => { viewManager?.setWireframe?.(!!v); },
@@ -954,18 +1041,45 @@ class UIKit {
       }
     }
     if (_dens) _dens.addEventListener('click', () => _applyDensity((_densIdx + 1) % DENS.length));
+    function _applyLevel(level) {
+      const i = DENS.findIndex(d => d.level === level);
+      _applyDensity(i < 0 ? 0 : i);
+    }
 
-    /* Shared shortcuts (same in every module): P play/pause · R reset · D label density · Esc back (standalone).
-       Space is NOT used here — braking, clutch and turbocharger use it as the pedal. */
-    window.addEventListener('keydown', (e) => {
-      if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
-      if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
-      const k = e.key.toLowerCase();
-      if      (k === 'p' && _play)  { _play.click(); }
-      else if (k === 'r' && _reset) { _reset.click(); }
-      else if (k === 'd' && _dens)  { _dens.click(); }
-      else if (e.key === 'Escape' && !embedded) { const h = document.getElementById('btn-home'); if (h) location.href = h.href; }
+    /* ─── Keys: the ONE keymap lives in keys.js (R5). ───────────────────────
+       Module-owned: Space play/pause · R reset · D label density.
+       Shell-owned (L theme · W wireframe · X x-ray · Esc): forwarded to the shell when
+       embedded; handled here when standalone (no shell above us). */
+    function send(msg) {
+      if (!embedded) return;
+      try { window.parent.postMessage(Object.assign({ source: 'auto-module', moduleId }, msg), '*'); }
+      catch (_) {}
+    }
+    const SHELL_KEYS = ['theme', 'wireframe', 'xray', 'close'];
+    function handleKey(action) {
+      if (action === 'togglePlay') {
+        dispatch({ action: 'setPlaying', value: !(state.playing !== false) });   /* same path as a shell command */
+        send({ type: 'state', playing: state.playing !== false });
+      } else if (action === 'reset') {
+        if (_reset) _reset.click(); else if (onCommand) onCommand({ action: 'reset' });
+      } else if (action === 'labelDensity') {
+        const next = nextDensity(typeof window.__autolabDensity === 'number' ? window.__autolabDensity : 2);
+        dispatch({ action: 'setLabelDensity', value: next });
+        send({ type: 'state', density: next });
+      } else if (!embedded) {                               /* standalone owns the shell keys too */
+        const vs = viewManager && viewManager.getState ? viewManager.getState() : null;
+        if (action === 'theme' && vs)          viewManager.setTheme(vs.theme === 'light' ? 'dark' : 'light');
+        else if (action === 'wireframe' && vs) viewManager.setWireframe(!vs.wireframe);
+        else if (action === 'xray' && vs)      viewManager.setXRay(!vs.xray);
+        else if (action === 'close') { const h = document.getElementById('btn-home'); if (h) location.href = h.href; }
+      }
+    }
+    const keyRouter = createKeyRouter({
+      owns: (a) => !embedded || !SHELL_KEYS.includes(a),
+      handle: handleKey,
+      forward: (a) => send({ type: 'key', action: a })
     });
+    installKeys(window, keyRouter);
     if (_gas)   _gas.addEventListener('change', () => { state.showGas    = _gas.checked; });
 
     /* Wrap defaultHandlers so incoming shell commands keep the visible
@@ -974,14 +1088,16 @@ class UIKit {
       ...defaultHandlers,
       setPlaying: v => { defaultHandlers.setPlaying(v); _syncPlayIcons(); },
       setSpeed:   v => { defaultHandlers.setSpeed(v);   if (_speed) _speed.value = state.speedMul; },
-      setLabels:  v => { _applyDensity(v ? 0 : 2);      if (_lab)   _lab.checked = state.showLabels; },  /* keeps density button in sync with shell */
+      setLabels:  v => { _applyDensity(v ? 0 : 2);      if (_lab)   _lab.checked = state.showLabels; },  /* legacy boolean; shell now sends setLabelDensity */
+      setLabelDensity: v => { _applyLevel(+v); if (_lab) _lab.checked = state.showLabels; },
       setGas:     v => { defaultHandlers.setGas(v);     if (_gas)   _gas.checked = state.showGas; },
     };
 
-    function send(msg) {
-      if (!embedded) return;
-      try { window.parent.postMessage(Object.assign({ source: 'auto-module', moduleId }, msg), '*'); }
-      catch (_) {}
+    /* One dispatch path for shell commands AND local key actions. */
+    function dispatch(d) {
+      const h = wrappedHandlers[d.action];
+      if (h) h(d.value);
+      if (onCommand) onCommand(d);
     }
 
     window.addEventListener('message', (e) => {
@@ -989,9 +1105,8 @@ class UIKit {
       if (!d || d.source !== 'auto-shell') return;
       if (d.moduleId && d.moduleId !== moduleId) return;
       if (d.type !== 'command' && d.type !== 'query') return;
-      const h = wrappedHandlers[d.action];
-      if (h) h(d.value);
-      if (onCommand) onCommand(d);
+      if (d.action === 'key') { keyRouter.incoming(d.value); return; }   /* key forwarded by the shell */
+      dispatch(d);
     });
 
     return {

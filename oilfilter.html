@@ -5,52 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Oil Filters — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="components.css">
 <style>
 :root { --al-accent: #eab308; }
 html.light-theme { --al-accent: color-mix(in oklch, #eab308 68%, black); }
-#panel-readout .al-read{display:grid;grid-template-columns:1fr auto;gap:3px 12px;font:500 11px/1.45 var(--font-mono);}
-.al-read .k{color:var(--text-dim);}
-.al-read .v{color:var(--text);text-align:right;font-weight:700;}
-.al-read .v.hi{color:var(--al-accent);}
-.al-read .v.ok{color:var(--ok);}
-.al-read .v.warn{color:var(--warn);}
-.al-read .v.crit{color:var(--crit);}
-.al-tabs{margin-top:10px;}
-.al-sec{margin-top:12px;}
-.al-sec:first-child{margin-top:2px;}
-.al-sec h4{margin:0 0 6px;font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--text-mute);font-weight:700;}
-.al-sec p{margin:0 0 8px;font-size:12px;line-height:1.5;color:var(--text-dim);}
-.al-sec ul{margin:0 0 8px;padding-left:16px;font-size:12px;line-height:1.55;color:var(--text-dim);}
-.al-sec li{margin-bottom:3px;}
-.al-sec b{color:var(--text);}
-.al-fault{border:1px solid var(--border);border-radius:var(--r-xs,6px);padding:8px 10px;margin-bottom:6px;background:var(--surface-2);}
-.al-fault .t{font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px;}
-.al-fault .s{font-size:11px;line-height:1.45;color:var(--text-dim);}
-.al-fault .c{font-size:11px;line-height:1.45;color:var(--text-mute);margin-top:4px;}
-.al-q{margin-bottom:12px;}
-.al-q .q{font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;line-height:1.4;}
-.al-opt{display:block;width:100%;text-align:left;min-height:40px;padding:8px 10px;margin-bottom:4px;border:1px solid var(--border);border-radius:var(--r-xs,6px);background:var(--surface-2);color:var(--text-dim);font:inherit;font-size:12px;cursor:pointer;}
-.al-opt:hover{border-color:var(--border-hi);}
-.al-opt:focus-visible{outline:2px solid var(--al-accent);outline-offset:2px;}
-.al-opt.ok{border-color:var(--ok);color:var(--ok);}
-.al-opt.no{border-color:var(--crit);color:var(--crit);}
-.al-exp{display:none;font-size:11px;line-height:1.45;color:var(--text-mute);margin-top:4px;}
-.al-q.done .al-exp{display:block;}
-.al-w{display:flex;flex-direction:column;gap:6px;min-width:170px;}
-.al-w label{display:flex;justify-content:space-between;gap:8px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute);}
-.al-w b{color:var(--text);font-family:var(--font-mono);}
-.al-range{width:100%;height:28px;background:transparent;accent-color:var(--al-accent);cursor:pointer;}
-.al-range:focus-visible{outline:2px solid var(--al-accent);outline-offset:2px;}
-.al-legend{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--text-dim);}
-.al-legend span{display:flex;align-items:center;gap:7px;}
-.al-legend i{width:9px;height:9px;border-radius:50%;display:inline-block;}
 </style>
 </head>
 <body>
 <div id="canvas-wrap"></div>
 <div id="labels-root"></div>
 
-<script type="importmap">
+<script src="guard.js"></script>
+  <script type="importmap">
 {
   "imports": {
     "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
@@ -60,68 +26,12 @@ html.light-theme { --al-accent: color-mix(in oklch, #eab308 68%, black); }
 </script>
 
 <script type="module">
-import * as THREE from 'three';
-import * as Base from './kit.js';
+import { runGuidedModule } from './components.js';
 
 /* ── CONFIG (module content) ─────────────────────────────────────── */
 const CFG = {"moduleId": "oilfilter", "title": "Oil Filters", "kicker": "Lubrication", "accent": "#eab308", "badge": "Full-flow spin-on", "camPos": [4.6, 2.6, 5.8], "target": [0, -0.2, 0], "floorY": -2.6, "ctl": {"label": "Element clogging", "val": 20, "caption": "Filter loading"}, "chipLabel": "Pressure drop", "rows": [["thru", "Via element"], ["state", "State"]], "ro": [["dp", "Pressure drop"], ["thru", "Flow via element"], ["byp", "Bypass valve"], ["fil", "Oil quality"], ["life", "Life used"]], "legend": [["#92653a", "Dirty oil"], ["#fbbf24", "Clean oil"], ["#f5e9c8", "Filter media"]], "overview": "<div class=\"al-sec\"><h4>How it filters<\/h4><p>Oil enters through holes around the base, flows up the outside of the element, passes <b>inward<\/b> through the pleated media and leaves down the centre tube to the engine.<\/p><\/div><div class=\"al-sec\"><h4>Valves<\/h4><ul><li><b>Anti-drain back valve<\/b> – keeps the filter full so oil pressure returns instantly at start-up.<\/li><li><b>Bypass valve<\/b> – opens when the element is blocked or the oil is cold, protecting bearings from oil starvation (unfiltered oil beats no oil).<\/li><\/ul><\/div><div class=\"al-sec\"><h4>Service<\/h4><p>Replace the filter with every oil change – a clogged element eventually forces the bypass open.<\/p><\/div>", "faults": [["Clogged element", "Bypass opens, unfiltered oil reaches bearings and wear rises.", "Change interval; check for sludge or metal in the old element."], ["Leaking gasket", "Oil drips, low oil level.", "Ensure the old gasket came off; hand-tighten a new one ¾ turn."], ["Failed anti-drain valve", "Rattle for a few seconds at cold start.", "Fit a quality filter with a silicone diaphragm valve."]], "quiz": [["Oil flows through the element…", ["Outside to inside", "Inside to outside", "Along the pleats"], 0, "It surrounds the element and flows inward, exiting via the centre tube."], ["The bypass valve opens when…", ["Oil is clean", "Element restriction is too high", "Engine is off"], 1, "It lets oil bypass a blocked or cold-thick element to avoid starvation."], ["Anti-drain valve purpose:", ["Reduce pressure", "Keep the filter full when parked", "Cool the oil"], 1, "A full filter gives immediate oil pressure at start."]]};
 
-const state = Base.createUIState();
-const built = Base.buildScene({ fov: 42, camPos: CFG.camPos, target: CFG.target, floorY: CFG.floorY, fogDensity: 0.03 });
-const { scene, camera, renderer, controls, wrap, viewManager, quality } = built;
-Base.attachResize(camera, renderer, wrap, built.baseFov);
-const lowEnd = quality.isLowEnd;
-const root = new THREE.Group();
-scene.add(root);
-const ptex = Base.createParticleTexture();
-
-/* ── Tiny geometry kit ───────────────────────────────────────────── */
-const mat   = (c, m = 0.6, r = 0.4, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: c, metalness: m, roughness: r }, o));
-const glass = (c, op = 0.22) => new THREE.MeshStandardMaterial({ color: c, metalness: 0.1, roughness: 0.2, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide });
-const glow  = (c, i = 1.2) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: i, metalness: 0, roughness: 0.5 });
-const V3 = (a) => new THREE.Vector3(a[0], a[1], a[2]);
-const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
-const lerp = (a, b, t) => a + (b - a) * t;
-const lc = (a, b, t) => new THREE.Color(a).lerp(new THREE.Color(b), clamp(t));
-function put(o, x, y, z, p) { o.position.set(x || 0, y || 0, z || 0); o.castShadow = !lowEnd; (p || root).add(o); return o; }
-const box  = (w, h, d, m, x, y, z, p) => put(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m), x, y, z, p);
-const cyl  = (rt, rb, h, m, x, y, z, p, seg = 32, open = false) => put(new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg, 1, open), m), x, y, z, p);
-const cylX = (rt, rb, h, m, x, y, z, p, seg, open) => { const o = cyl(rt, rb, h, m, x, y, z, p, seg, open); o.rotation.z = Math.PI / 2; return o; };
-const cylZ = (rt, rb, h, m, x, y, z, p, seg, open) => { const o = cyl(rt, rb, h, m, x, y, z, p, seg, open); o.rotation.x = Math.PI / 2; return o; };
-const sph  = (r, m, x, y, z, p) => put(new THREE.Mesh(new THREE.SphereGeometry(r, 24, 16), m), x, y, z, p);
-const tor  = (R, r, m, x, y, z, p) => put(new THREE.Mesh(new THREE.TorusGeometry(R, r, 12, 44), m), x, y, z, p);
-function pipe(pts, r, m, p) {
-  const c = new THREE.CatmullRomCurve3(pts.map(V3));
-  const me = new THREE.Mesh(new THREE.TubeGeometry(c, Math.max(8, pts.length * 10), r, 10, false), m);
-  (p || root).add(me); return me;
-}
-function stream(pts, n, color, size, closed) {
-  const curve = new THREE.CatmullRomCurve3(pts.map(V3), !!closed);
-  const pos = new Float32Array(n * 3);
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const m = new THREE.PointsMaterial({ color, size: size || 0.1, map: ptex, transparent: true, depthWrite: false, opacity: 0.9, blending: THREE.AdditiveBlending });
-  const P = new THREE.Points(g, m);
-  P.frustumCulled = false; root.add(P);
-  const v = new THREE.Vector3();
-  return {
-    points: P, mat: m,
-    update(time, speed, density) {
-      const cnt = Math.round(n * clamp(density == null ? 1 : density));
-      for (let i = 0; i < n; i++) {
-        if (i >= cnt) { pos[i * 3] = pos[i * 3 + 1] = pos[i * 3 + 2] = 1e4; continue; }
-        let u = ((i / n) + time * speed) % 1; if (u < 0) u += 1;
-        curve.getPointAt(u, v);
-        pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z;
-      }
-      g.attributes.position.needsUpdate = true;
-    }
-  };
-}
-const H = { THREE, root, lowEnd, mat, glass, glow, V3, clamp, lerp, lc, put, box, cyl, cylX, cylZ, sph, tor, pipe, stream, Base };
-
-/* ── MODULE SCENE (per-module code) ──────────────────────────────── */
-
+/* ── MODULE SCENE (per-module 3D parts) ──────────────────────────── */
 function build(H){
  const {box,cyl,mat,glass,stream,lc,clamp,root,THREE}=H;
  const dark=mat(0x374151,.6,.5), steel=mat(0x9aa3b2,.85,.3), cu=mat(0xd4a34a,.8,.3);
@@ -152,109 +62,8 @@ function build(H){
     status:[byp>.05?'Bypass open':'Filtering',true],ctl:Math.round(k*100)+' % loaded'};
   }};
 }
-const mod = build(H);
 
-/* ── Labels ──────────────────────────────────────────────────────── */
-const labels = Base.createLabelSystem();
-mod.labels.forEach((l, i) => labels.add('l' + i, l[0]));
-const lpos = mod.labels.map(l => V3(l[1]));
-
-/* ── UI ──────────────────────────────────────────────────────────── */
-const TABS = {
-  overview: () => CFG.overview,
-  faults: () => '<div class="al-sec"><h4>Common faults</h4></div>' + CFG.faults.map(f =>
-    `<div class="al-fault"><div class="t">${f[0]}</div><div class="s">${f[1]}</div><div class="c">Check: ${f[2]}</div></div>`).join(''),
-  quiz: () => CFG.quiz.map((q, n) => `<div class="al-q" data-a="${q[2]}"><div class="q">${n + 1}. ${q[0]}</div>` +
-    q[1].map(o => `<button class="al-opt">${o}</button>`).join('') + `<div class="al-exp">${q[3]}</div></div>`).join('')
-};
-const readoutHTML = () => '<div class="al-read">' + CFG.ro.map(r =>
-  `<span class="k">${r[1]}</span><span class="v${r[2] ? ' ' + r[2] : ''}" id="ro-${r[0]}"></span>`).join('') + '</div>';
-
-const ui = Base.UI.create({
-  moduleId: CFG.moduleId,
-  panel: {
-    kicker: CFG.kicker, title: CFG.title,
-    tabs: [{ id: 'overview', label: 'Overview' }, { id: 'faults', label: 'Faults' }, { id: 'quiz', label: 'Self-check' }],
-    onTab: renderTab,
-    badge: { text: CFG.badge, color: CFG.accent },
-    readout: readoutHTML()
-  },
-  chip: { label: CFG.chipLabel, value: '', unit: '', bar: true, rows: CFG.rows.map(r => ({ id: r[0], label: r[1], value: '' })), status: { text: 'Running' } },
-  toolbar: { play: true, reset: true, speed: { label: 'Sim speed', min: 0.15, max: 2.5, step: 0.05, value: 0.85 }, labels: true },
-  widgets: {
-    bl: {
-      html: `<div class="al-w"><label for="ctl">${CFG.ctl.label} <b id="ctl-out"></b></label>
-        <input id="ctl" class="al-range" type="range" min="0" max="100" step="1" value="${CFG.ctl.val}" aria-label="${CFG.ctl.label}"></div>`,
-      caption: CFG.ctl.caption || 'Control'
-    },
-    br: { html: '<div class="al-legend">' + CFG.legend.map(l => `<span><i style="background:${l[0]}"></i>${l[1]}</span>`).join('') + '</div>', caption: 'Legend' }
-  }
-});
-const tabHost = document.createElement('div');
-tabHost.className = 'al-tabs';
-ui.panel.body.appendChild(tabHost);
-tabHost.addEventListener('click', (e) => {
-  const btn = e.target.closest('.al-opt'); if (!btn) return;
-  const q = btn.closest('.al-q'); if (!q || q.classList.contains('done')) return;
-  const answer = Number(q.dataset.a);
-  q.classList.add('done');
-  q.querySelectorAll('.al-opt').forEach((o, i) => { o.disabled = true; if (i === answer) o.classList.add('ok'); else if (o === btn) o.classList.add('no'); });
-});
-function renderTab(id) { tabHost.innerHTML = (TABS[id] || TABS.overview)(); }
-renderTab('overview');
-
-const ctlEl = document.getElementById('ctl');
-const ctlOut = document.getElementById('ctl-out');
-const ROE = {}; CFG.ro.forEach(r => { ROE[r[0]] = document.getElementById('ro-' + r[0]); });
-let k = CFG.ctl.val / 100;
-ctlEl.addEventListener('input', () => { k = ctlEl.value / 100; refresh(0); });
-
-let simT = 0;
-function apply(o) {
-  if (!o) return;
-  if (o.big != null) ui.chip.setBig(o.big, o.unit || '');
-  if (o.bar != null) ui.chip.setBar(o.bar, 'var(--al-accent)');
-  if (o.rows) for (const id in o.rows) ui.chip.set(id, o.rows[id]);
-  if (o.ro) for (const id in o.ro) { const el = ROE[id]; if (el) { el.textContent = o.ro[id][0]; el.className = 'v ' + (o.ro[id][1] || ''); } }
-  if (o.status) ui.chip.setStatus(o.status[0], o.status[1]);
-  if (o.ctl != null) ctlOut.textContent = o.ctl;
-}
-function refresh(dt) { apply(mod.update({ t: simT, dt, k, sp: state.playing ? state.speedMul : 0 })); }
-
-const bridge = ui.wireBridge({
-  viewManager, state,
-  onCommand: (d) => {
-    if (d.action === 'reset') { k = CFG.ctl.val / 100; ctlEl.value = CFG.ctl.val; simT = 0; refresh(0); }
-  }
-});
-bridge.ready();
-bridge.setStatus(CFG.title + ' ready', CFG.accent);
-
-/* ── Animation ───────────────────────────────────────────────────── */
-let last = performance.now(), raf = 0, roClock = 1;
-const tmp = new THREE.Vector3();
-const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-function frame(now) {
-  raf = requestAnimationFrame(frame);
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  const sp = state.playing ? state.speedMul : 0;
-  simT += dt * sp;
-  const o = mod.update({ t: simT, dt: dt * sp, k, sp });
-  roClock += dt;
-  if (roClock > 0.12) { roClock = 0; apply(o); }
-  labels.hideAll();
-  if (state.showLabels) lpos.forEach((p, i) => labels.project('l' + i, p, camera, wrap));
-  controls.update();
-  renderer.render(scene, camera);
-}
-if (reduced) { setInterval(() => { refresh(0); renderer.render(scene, camera); }, 120); }
-else raf = requestAnimationFrame(frame);
-document.addEventListener('visibilitychange', () => {
-  if (reduced) return;
-  if (document.hidden) { if (raf) { cancelAnimationFrame(raf); raf = 0; } }
-  else if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); }
-});
-refresh(0);
+runGuidedModule(CFG, build);
 </script>
 </body>
 </html>

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a0d13">
 <title>Exhaust System — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
@@ -199,6 +199,7 @@
   <div id="canvas-wrap"></div>
   <div id="labels-root"></div>
 
+  <script src="guard.js"></script>
   <script type="importmap">
   { "imports": {
     "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
@@ -209,9 +210,10 @@
   <script type="module">
   import * as THREE from 'three';
   import * as Base from './kit.js';
+import { Parts } from './components.js';
   import { UI } from './kit.js';
 
-  const TAU = Math.PI * 2;
+  const TAU = Base.TAU;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
   const TUNING = {
@@ -343,14 +345,7 @@
     if (orient === 'x') m.rotation.z = Math.PI / 2;
     return m;
   }
-  function tubeBetween(a, b, r, mat) {
-    const dir = new THREE.Vector3().subVectors(b, a);
-    const len = dir.length();
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 8), mat);
-    m.position.copy(a).addScaledVector(dir, 0.5);
-    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
-    return m;
-  }
+  const tubeBetween = Parts.tubeBetween;
   const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
 
   /* ═══════════════════════════════════════════════════════════
