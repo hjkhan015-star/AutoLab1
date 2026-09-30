@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#0a0d13">
 <title>Carburetor — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="controls.css">
 <style>
   /* ═══════════════════════════════════════════════════════════════════
      Carburetor module — widget interiors + small panel extras.
@@ -1085,12 +1086,7 @@
   /* ═════════════════════════════════════════════════════════════════════
      ★ TOOLBAR WIRING — connects kit-generated controls to `state`
      ═════════════════════════════════════════════════════════════════════ */
-  (function wireToolbar() {
-    const playBtn  = document.getElementById('btn-play');
-    const resetBtn = document.getElementById('btn-reset');
-    const speedInp = document.getElementById('speed');
-    const chkLab   = document.getElementById('chk-labels');
-    const chkGas   = document.getElementById('chk-gas');
+  (function syncToolbarIcons() {   /* Phase 2: click wiring removed — the kit (dock.js/kit.js) owns btn-play / btn-reset; only icon sync stays */
 
     function syncPlayIcons() {
       const ip  = document.getElementById('icon-play');
@@ -1100,16 +1096,6 @@
     }
     syncPlayIcons();
 
-    if (playBtn) playBtn.addEventListener('click', () => {
-      state.playing = !state.playing;
-      syncPlayIcons();
-    });
-    if (resetBtn) resetBtn.addEventListener('click', resetSim);
-    if (speedInp) speedInp.addEventListener('input', () => {
-      state.speedMul = parseFloat(speedInp.value);
-    });
-    if (chkLab) chkLab.addEventListener('change', () => { state.showLabels = chkLab.checked; });
-    if (chkGas) chkGas.addEventListener('change', () => { state.showGas    = chkGas.checked; });
 
     /* Expose the sync so the shell's `setPlaying` command keeps icons fresh */
     window.__carbSyncPlayIcons = syncPlayIcons;

@@ -46,7 +46,7 @@
   .module-card.done { position: relative; }
   .module-card.done::after { content: "\2713"; position: absolute; top: 8px; right: 10px; width: 20px; height: 20px; display: grid; place-items: center;
     border-radius: 50%; font-size: 12px; font-weight: 700; background: var(--c, var(--accent)); color: #0a0d13; }
-  .update-toast { position: fixed; left: 50%; bottom: calc(var(--safe-b, 0px) + 84px); transform: translateX(-50%); z-index: 9999;
+  .update-toast { position: fixed; left: 50%; bottom: calc(var(--safe-b, 0px) + 84px); transform: translateX(-50%); z-index: var(--z-toast);
     display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 16px; border-radius: 99px; font-size: 14px;
     background: var(--bg-elev, var(--surface, #151a24)); color: var(--text, #e6edf6); border: 1px solid color-mix(in oklch, var(--accent) 40%, transparent);
     box-shadow: 0 12px 32px -8px rgba(0,0,0,.5); animation: toastin .35s var(--ease-in-out) both; }
@@ -66,7 +66,7 @@
     position: fixed; inset: 0;
     display: flex; flex-direction: column;
     background: var(--bg);
-    z-index: 1;
+    z-index: var(--z-stage);
     overflow: hidden;
     transition: transform var(--dur-slow) var(--ease-in-out),
                 opacity var(--dur-slow) var(--ease-in-out),
@@ -88,7 +88,7 @@
       color-mix(in oklch, var(--bg) 100%, transparent) 0%,
       color-mix(in oklch, var(--bg) 82%, transparent) 78%,
       transparent 100%);
-    z-index: 5;
+    z-index: var(--z-monitor);
   }
   @media (min-width: 768px) {
     .home-header { max-width: 1100px; margin: 0 auto; width: 100%; }
@@ -310,7 +310,7 @@
     width: 38px; height: 38px;
     color: var(--c, var(--accent));
     filter: drop-shadow(0 4px 14px color-mix(in oklch, var(--c, var(--accent)) 55%, transparent));
-    z-index: 1;
+    z-index: var(--z-labels);
   }
   .module-card .card-icon svg { width: 100%; height: 100%; display: block; }
   .module-card .card-label {
@@ -319,7 +319,7 @@
     text-align: center;
     line-height: 1.2;
     letter-spacing: -.01em;
-    z-index: 1;
+    z-index: var(--z-labels);
     text-wrap: balance;
   }
   .module-card .card-sub {
@@ -329,7 +329,7 @@
     text-align: center;
     line-height: 1.25;
     margin-top: -2px;
-    z-index: 1;
+    z-index: var(--z-labels);
   }
 
   /* ── Recent list ── */
@@ -469,9 +469,9 @@
     color: #0a0d13;
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
     box-shadow: 0 10px 28px -8px color-mix(in oklch, var(--accent) 65%, transparent);
-    z-index: 1;
+    z-index: var(--z-labels);
   }
-  .maker-copy { position: relative; flex: 1; min-width: 0; z-index: 1; }
+  .maker-copy { position: relative; flex: 1; min-width: 0; z-index: var(--z-labels); }
   .maker-role {
     font-size: 10.5px; font-weight: 800;
     letter-spacing: .15em; text-transform: uppercase;
@@ -507,7 +507,7 @@
     backdrop-filter: blur(var(--blur-lg)) saturate(180%);
     -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(180%);
     border-top: 1px solid var(--border);
-    z-index: 50;
+    z-index: var(--z-dock);
   }
   @media (min-width: 768px) {
     #bottom-nav {
@@ -544,7 +544,7 @@
     transform: translateX(100%);
     transition: transform var(--dur-slow) var(--ease-in-out);
     background: var(--bg);
-    z-index: 100;
+    z-index: var(--z-menu);
     overflow: hidden;
     will-change: transform;
   }
@@ -566,7 +566,7 @@
     position: fixed; inset: 0;
     display: grid; place-items: center;
     background: var(--bg);
-    z-index: 9999;
+    z-index: var(--z-toast);
     transition: opacity var(--dur-slow) var(--ease-out);
     pointer-events: none;
   }
@@ -766,7 +766,7 @@
     border: 1px solid var(--border);
     letter-spacing: .04em;
     box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    z-index: 2;
+    z-index: var(--z-monitor);   /* badge above the card content */
   }
 
   /* Coming soon tile */
@@ -1038,7 +1038,7 @@
 </script>
 
 <script type="module">
-import { createHeader, createMenu, SPEED, clampSpeed } from './chrome.js';
+import { createHeader, createMenu, SPEED, clampSpeed, isPhone } from './chrome.js';
 import { createKeyRouter, installKeys } from './keys.js';
 /* ═══════════════════════════════════════════════════════════════════════
    Shell — home screen, module frame control, header + ⋯ menu.
@@ -1078,7 +1078,7 @@ import { createKeyRouter, installKeys } from './keys.js';
     active: null,
     playing: true,
     speed: SPEED.def,
-    density: 2,          /* label density: 2 all · 1 key · 0 none (labels.js) */
+    density: isPhone(window.innerWidth, window.innerHeight) ? 1 : 2,   /* label density: 2 all · 1 key · 0 none (labels.js); Key on phones */
     gas: true,           /* no UI since Phase 1; still sent so modules keep their default */
     theme: savedPrefs.theme || detectSystemTheme(),
     wireframe: !!savedPrefs.wireframe,
