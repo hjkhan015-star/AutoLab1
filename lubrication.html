@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a0d13">
 <title>Lubrication System — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
@@ -192,6 +192,7 @@
   <div id="status-flash"></div>
   <div id="labels-root"></div>
 
+  <script src="guard.js"></script>
   <script type="importmap">
   { "imports": {
     "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
@@ -202,6 +203,7 @@
   <script type="module">
   import * as THREE from 'three';
   import * as Base from './kit.js';
+import { Parts } from './components.js';
   import { UI } from './kit.js';
   import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
@@ -739,15 +741,7 @@
      VALVES + SPRINGS
      ═══════════════════════════════════════════════════════════ */
   function makeSpring(r, len, coils) {
-    const segs = coils * 10;
-    const pts = [];
-    for (let i = 0; i <= segs; i++) {
-      const t = i / segs;
-      const a = t * coils * Math.PI * 2;
-      pts.push(new THREE.Vector3(Math.cos(a) * r, -len/2 + t * len, Math.sin(a) * r));
-    }
-    const curve = new THREE.CatmullRomCurve3(pts);
-    return new THREE.Mesh(new THREE.TubeGeometry(curve, segs, 0.010, 6, false), MAT.spring);
+    return Parts.coilSpring({ radius: r, length: len, turns: coils, wire: 0.010, mat: MAT.spring, axis: 'y', samplesPerTurn: 10 });
   }
 
   const valves = [];

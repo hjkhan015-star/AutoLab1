@@ -1,0 +1,224 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   controls.css — design tokens for the unified control system.
+   PHASE 0: TOKENS ONLY. Not linked from any page yet; widget styles are
+   added in later phases and must use these variables (no new hex/rgba).
+   ═══════════════════════════════════════════════════════════════════════ */
+:root {
+  /* ── layout budget (portrait phone: header 32px, dock 24vh) ── */
+  --hdr-h: 32px;              /* header, one row                          */
+  --hdr-h-land: 28px;         /* header on landscape phone                */
+  --dock-default: 24vh;       /* control dock, default                    */
+  --dock-max: 30vh;           /* control dock, hard ceiling               */
+  --dock-kbd: 34vh;           /* approx. soft-keyboard height; dock stays below */
+  --monitor-strip-h: 28px;    /* one-line monitor strip                   */
+  --monitor-max: 40vh;        /* expanded monitor card, phone             */
+
+  /* ── control sizing ── */
+  --ctl-tap: 44px;            /* minimum tap target                       */
+  --ctl-text: 11px;           /* minimum text size                        */
+  --ctl-value-text: 12px;     /* readout values                           */
+  --ctl-radius: var(--r-md, 10px);
+  --ctl-gap: 8px;
+
+  /* ── control colours: reference the theme tokens, never literals ── */
+  --ctl-track: var(--surface-3, var(--surface-2));
+  --ctl-fill: var(--al-accent, var(--accent));
+  --ctl-thumb: var(--text);
+  --ctl-focus: var(--border-focus, var(--ring, var(--al-accent, var(--accent))));
+  --ctl-border: var(--border);
+
+  /* ── layering scale (R10) ── */
+  --z-stage: 0;
+  --z-labels: 2;
+  --z-monitor: 10;
+  --z-dock: 20;
+  --z-menu: 30;
+  --z-toast: 40;
+  --z-guard: 99999;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PHASE 1 — chrome: header + ⋯ menu  (built by chrome.js)
+   Tokens only (R3): no hex / rgb() / hsl() in this file.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── header: back · title · info · ⋯  (32 px; 28 px on landscape phones) ── */
+.al-hdr {
+  --al-hdr-h: var(--hdr-h);
+  flex: 0 0 auto;
+  position: relative;
+  z-index: var(--z-dock);
+  box-sizing: content-box;
+  height: var(--al-hdr-h);
+  padding: var(--safe-t, 0px) calc(var(--safe-r, 0px) + 4px) 0 calc(var(--safe-l, 0px) + 4px);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-elev, var(--surface));
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+@media (max-height: 540px) { .al-hdr { --al-hdr-h: var(--hdr-h-land); } }
+
+.al-hdr-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -.005em;
+  line-height: 1;
+}
+.al-hdr-dot {
+  flex: 0 0 auto;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--al-accent, var(--accent));
+}
+.al-hdr-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.al-hdr-btn {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid; place-items: center;
+  width: var(--ctl-tap); height: var(--al-hdr-h);
+  padding: 0;
+  border: 0;
+  border-radius: var(--ctl-radius);
+  background: transparent;
+  color: var(--text-dim, var(--text));
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.al-hdr-btn[hidden] { display: none; }
+.al-hdr-btn svg { width: 20px; height: 20px; }
+/* 44 px touch target without growing the 32 px bar */
+.al-hdr-btn::after { content: ""; position: absolute; inset: -8px 0; }
+.al-hdr-btn:hover { background: var(--surface-hover, var(--surface-2)); color: var(--text); }
+.al-hdr-btn:active { background: var(--surface-3, var(--surface-2)); }
+.al-hdr-btn[aria-expanded="true"] { color: var(--al-accent, var(--accent)); }
+.al-hdr-btn:focus-visible,
+.al-menu :focus-visible { outline: 2px solid var(--ctl-focus); outline-offset: -2px; }
+
+/* ── ⋯ menu: one node, phone = bottom sheet ≤ 50 vh, desktop = popover ── */
+.al-menu-backdrop[hidden], .al-menu[hidden] { display: none; }
+.al-menu-backdrop {
+  position: fixed; inset: 0;
+  z-index: var(--z-menu);
+  background: transparent;
+  opacity: 0;
+  transition: opacity var(--dur-base, .2s) var(--ease-out, ease-out);
+}
+.al-menu-backdrop[data-mode="sheet"] { background: color-mix(in oklch, var(--bg) 62%, transparent); }
+.al-menu-backdrop.is-open { opacity: 1; }
+
+.al-menu {
+  position: fixed;
+  z-index: calc(var(--z-menu) + 1);
+  box-sizing: border-box;
+  display: flex; flex-direction: column;
+  padding: 0 0 4px;
+  background: var(--bg-elev, var(--surface));
+  border: 1px solid var(--border-hi, var(--border));
+  color: var(--text);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-shadow: var(--shadow-lg, none);
+  transition: transform var(--dur-slow, .3s) var(--ease-in-out, ease-in-out),
+              opacity var(--dur-base, .2s) var(--ease-out, ease-out);
+}
+.al-menu[data-mode="sheet"] {
+  left: 0; right: 0; bottom: 0;
+  width: 100%; max-width: 560px; margin: 0 auto;
+  max-height: 50vh; max-height: 50dvh;              /* R2: sheet ≤ 50 vh */
+  padding-bottom: calc(var(--safe-b, 0px) + 4px);
+  border-bottom: 0;
+  border-radius: var(--r-xl, 16px) var(--r-xl, 16px) 0 0;
+  transform: translateY(100%);
+}
+.al-menu[data-mode="sheet"].is-open { transform: translateY(0); }
+.al-menu[data-mode="popover"] {
+  width: 300px;
+  border-radius: var(--r-lg, 14px);
+  opacity: 0;
+  transform: translateY(-4px);
+}
+.al-menu[data-mode="popover"].is-open { opacity: 1; transform: translateY(0); }
+
+.al-menu-grab {
+  flex: 0 0 auto;
+  display: grid; place-items: center;
+  height: 20px;
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+.al-menu-grab span { width: 38px; height: 4px; border-radius: 3px; background: var(--border-hi, var(--border)); }
+.al-menu[data-mode="popover"] .al-menu-grab { display: none; }
+.al-menu[data-mode="popover"] { padding-top: 6px; }
+
+.al-menu-row {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 0 var(--ctl-gap);
+  width: 100%;
+  min-height: var(--ctl-tap);
+  padding: 2px 16px;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.al-menu-label { flex: 1 1 auto; font-size: 14px; font-weight: 600; }
+.al-menu-value {
+  margin-left: auto;
+  font-size: var(--ctl-value-text);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-mute);
+}
+.al-menu-row > .al-menu-range { flex: 1 0 100%; width: 100%; height: var(--ctl-tap); margin: 0; accent-color: var(--al-accent, var(--accent)); cursor: pointer; }
+.al-menu-row > .al-menu-label + .al-menu-value { flex: 0 0 auto; }
+
+/* 3-state segmented control */
+.al-seg { display: inline-flex; border: 1px solid var(--ctl-border); border-radius: var(--ctl-radius); overflow: hidden; }
+.al-seg-btn {
+  min-width: 56px; min-height: var(--ctl-tap);
+  padding: 0 12px;
+  border: 0; border-left: 1px solid var(--ctl-border);
+  background: var(--ctl-track); color: var(--text-mute);
+  font: inherit; font-size: 13px; font-weight: 700;
+  cursor: pointer; touch-action: manipulation;
+}
+.al-seg-btn:first-child { border-left: 0; }
+.al-seg-btn[aria-checked="true"] { background: var(--ctl-fill); color: var(--bg); }
+
+/* switch row */
+.al-switch { cursor: pointer; justify-content: space-between; flex-wrap: nowrap; touch-action: manipulation; }
+.al-switch:hover { background: var(--surface-hover, var(--surface-2)); }
+.al-switch-knob {
+  position: relative; flex: 0 0 auto;
+  width: 44px; height: 26px;
+  border-radius: var(--r-pill, 999px);
+  background: var(--ctl-track);
+  border: 1px solid var(--ctl-border);
+  transition: background var(--dur-base, .2s) var(--ease-out, ease-out);
+}
+.al-switch-knob::after {
+  content: "";
+  position: absolute; top: 2px; left: 2px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--ctl-thumb);
+  transition: transform var(--dur-base, .2s) var(--ease-spring, ease-out);
+}
+.al-switch[aria-checked="true"] .al-switch-knob { background: var(--ctl-fill); border-color: var(--ctl-fill); }
+.al-switch[aria-checked="true"] .al-switch-knob::after { transform: translateX(18px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .al-menu, .al-menu-backdrop, .al-switch-knob, .al-switch-knob::after { transition: none; }
+}

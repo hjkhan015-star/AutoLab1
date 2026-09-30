@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a0d13">
 <title>Hydraulic Braking System — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
@@ -169,6 +169,7 @@
   <div id="canvas-wrap"></div>
   <div id="labels-root"></div>
 
+  <script src="guard.js"></script>
   <script type="importmap">
   { "imports": {
     "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
@@ -179,6 +180,7 @@
   <script type="module">
   import * as THREE from 'three';
   import * as Base from './kit.js';
+import { Parts } from './components.js';
   import { UI } from './kit.js';
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -293,17 +295,7 @@
     return { curve, mesh };
   }
   function makeParticleStream(parent, count, size, color, opacity = 0.95) {
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
-    geo.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(count * 3), 3));
-    const mat = new THREE.PointsMaterial({
-      map: particleTex, size, sizeAttenuation: true,
-      vertexColors: true, transparent: true, opacity,
-      depthWrite: false, blending: THREE.AdditiveBlending
-    });
-    const pts = new THREE.Points(geo, mat);
-    pts.frustumCulled = false;
-    parent.add(pts);
+    const { geo, pts } = Parts.additivePoints(particleTex, count, size, opacity, { parent });
     return { geo, pts, baseColor: new THREE.Color(color) };
   }
 
@@ -1372,7 +1364,6 @@
   let effectivePedal = 0;
   let rotorTemp = 32;
   let drumTemp = 32;
-  let spaceHeld = false;
   let frame = 0;
   let lastDomUpdate = 0;
 
@@ -1675,17 +1666,8 @@
     root.__cancelReturn = cancelReturn;
   }
 
-  window.addEventListener('keydown', e => {
-    if (e.code === 'Space' && !e.repeat && !e.target.closest('button, input, [role="slider"]')) {
-      e.preventDefault();
-      spaceHeld = true;
-      const w = document.getElementById('ui-widget-br');
-      if (w && w.__cancelReturn) w.__cancelReturn();
-    }
-  });
-  window.addEventListener('keyup', e => {
-    if (e.code === 'Space') spaceHeld = false;
-  });
+  /* Space is play/pause everywhere now (keys.js). The pedal is pointer / arrow-key only until
+     Phase 4 adds Shift-hold quick-press. */
 
   /* ═══════════════════════════════════════════════════════════════════
      FORCE MODEL
@@ -1822,11 +1804,6 @@
 
     const dt = Math.min(clock.getDelta(), 0.05);
     const sim = state.playing ? dt * state.speedMul : 0;
-
-    if (spaceHeld) {
-      const w = document.getElementById('ui-widget-br');
-      if (w && w.__setPos) w.__setPos(Math.min(1, pedalPos + 0.15));
-    }
 
     const forces = computeForces();
 

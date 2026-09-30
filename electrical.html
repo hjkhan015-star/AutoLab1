@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a0d13">
 <title>Battery · Starter · Alternator — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
@@ -196,6 +196,7 @@
   <div id="canvas-wrap"></div>
   <div id="labels-root"></div>
 
+  <script src="guard.js"></script>
   <script type="importmap">
   { "imports": {
     "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
@@ -206,10 +207,11 @@
   <script type="module">
   import * as THREE from 'three';
   import * as Base from './kit.js';
+import { Parts } from './components.js';
   import { UI } from './kit.js';
 
-  const TAU = Math.PI * 2;
-  const DEG = Math.PI / 180;
+  const TAU = Base.TAU;
+  const DEG = Base.DEG;
 
   /* ============================================================
      BOOTSTRAP
@@ -927,16 +929,7 @@
   ammeterGroup.add(needleHub);
 
   function makeElectronStream(curve, count, color, size) {
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
-    const mat = new THREE.PointsMaterial({
-      map: particleTex, size, sizeAttenuation: true,
-      color, transparent: true, opacity: 0.95,
-      depthWrite: false, blending: THREE.AdditiveBlending
-    });
-    const points = new THREE.Points(geo, mat);
-    points.frustumCulled = false;
-    chargingView.add(points);
+    const { geo, mat } = Parts.additivePoints(particleTex, count, size, 0.95, { color, parent: chargingView });
     const data = [];
     for (let i = 0; i < count; i++) data.push({ t: i / count });
     return { geo, mat, data, count, curve };
@@ -1326,7 +1319,7 @@
     const diodeCycle = (electronicsTime * pulseSpeed * 0.5) % 6;
     for (let i = 0; i < 6; i++) {
       const near = Math.abs(((i - diodeCycle + 3) % 6) - 3) < 0.8;
-      diodeMeshes[i].material = near ? M.diodeOn : M.diodeOff;
+      viewManager.setMeshMaterial(diodeMeshes[i], near ? M.diodeOn : M.diodeOff);
     }
 
     regLed.material.color.setHex(alternatorOutput > 20 ? 0x22c55e : 0xf59e0b);

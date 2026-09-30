@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a0d13">
 <title>Automatic Transmission — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
@@ -162,6 +162,7 @@
   <div id="canvas-wrap"></div>
   <div id="labels-root"></div>
 
+  <script src="guard.js"></script>
   <script type="importmap">
   { "imports": {
     "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
@@ -174,8 +175,8 @@
   import * as Base from './kit.js';
   import { UI } from './kit.js';
 
-  const TAU = Math.PI * 2;
-  const DEG = Math.PI / 180;
+  const TAU = Base.TAU;
+  const DEG = Base.DEG;
 
   /* ============================================================
      BOOTSTRAP — adaptive quality + scene

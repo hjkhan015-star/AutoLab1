@@ -5,75 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>OBD-II · Auto Lab</title>
 <link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="components.css">
 <style>
 :root { --al-accent: #22d3ee; }
 html.light-theme { --al-accent: #0891b2; }
-
-#panel-readout .al-read{
-  display:grid;grid-template-columns:1fr auto;gap:3px 12px;
-  font:500 11px/1.45 var(--font-mono);
-}
-.al-read .k{color:var(--text-dim);}
-.al-read .v{color:var(--text);text-align:right;font-weight:700;}
-.al-read .v.hi{color:var(--al-accent);}
-.al-read .v.ok{color:var(--ok);}
-.al-read .v.warn{color:var(--warn);}
-.al-read .v.crit{color:var(--crit);}
-
-.al-tabs{margin-top:10px;}
-.al-sec{margin-top:12px;}
-.al-sec:first-child{margin-top:2px;}
-.al-sec h4{
-  margin:0 0 6px;font-size:10px;letter-spacing:.09em;text-transform:uppercase;
-  color:var(--text-mute);font-weight:700;
-}
-.al-sec p{margin:0 0 8px;font-size:12px;line-height:1.5;color:var(--text-dim);}
-.al-sec ul{margin:0 0 8px;padding-left:16px;font-size:12px;line-height:1.55;color:var(--text-dim);}
-.al-sec li{margin-bottom:3px;}
-.al-sec b{color:var(--text);}
-
 .al-pins{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font:500 11px/1.5 var(--font-mono);}
 .al-pins .p{color:var(--al-accent);font-weight:700;}
 .al-pins .d{color:var(--text-dim);}
-
-.al-fault{
-  border:1px solid var(--border);border-radius:var(--r-xs,6px);
-  padding:8px 10px;margin-bottom:6px;background:var(--surface-2);
-}
-.al-fault .t{font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px;}
-.al-fault .s{font-size:11px;line-height:1.45;color:var(--text-dim);}
-.al-fault .c{font-size:11px;line-height:1.45;color:var(--text-mute);margin-top:4px;}
-
-.al-q{margin-bottom:12px;}
-.al-q .q{font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;line-height:1.4;}
-.al-opt{
-  display:block;width:100%;text-align:left;min-height:40px;padding:8px 10px;margin-bottom:4px;
-  border:1px solid var(--border);border-radius:var(--r-xs,6px);background:var(--surface-2);
-  color:var(--text-dim);font:inherit;font-size:12px;cursor:pointer;
-}
-.al-opt:hover{border-color:var(--border-hi);}
-.al-opt:focus-visible{outline:2px solid var(--al-accent);outline-offset:2px;}
-.al-opt.ok{border-color:var(--ok);color:var(--ok);}
-.al-opt.no{border-color:var(--crit);color:var(--crit);}
-.al-exp{display:none;font-size:11px;line-height:1.45;color:var(--text-mute);margin-top:4px;}
-.al-q.done .al-exp{display:block;}
-
 .al-w{display:flex;flex-direction:column;gap:6px;min-width:160px;}
-.al-w label{
-  display:flex;justify-content:space-between;gap:8px;font-size:10px;letter-spacing:.06em;
-  text-transform:uppercase;color:var(--text-mute);
-}
-.al-sel{
-  width:100%;min-height:38px;padding:0 8px;font:inherit;font-size:12px;
-  background:var(--surface-2);color:var(--text);
-  border:1px solid var(--border);border-radius:var(--r-xs,6px);
-}
-.al-sel:focus-visible{outline:2px solid var(--al-accent);outline-offset:2px;}
-
-.al-legend{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--text-dim);}
-.al-legend span{display:flex;align-items:center;gap:7px;}
-.al-legend i{width:9px;height:9px;border-radius:50%;display:inline-block;}
-
 .ui-tb-btn.active{outline:2px solid var(--al-accent);color:var(--al-accent);}
 </style>
 </head>
@@ -81,7 +20,8 @@ html.light-theme { --al-accent: #0891b2; }
 <div id="canvas-wrap"></div>
 <div id="labels-root"></div>
 
-<script type="importmap">
+<script src="guard.js"></script>
+  <script type="importmap">
 {
   "imports": {
     "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
@@ -93,6 +33,7 @@ html.light-theme { --al-accent: #0891b2; }
 <script type="module">
 import * as THREE from 'three';
 import * as Base from './kit.js';
+import { Widgets } from './components.js';
 
 /* ═══════════════════════════════════════════════════════════════════════
    CONFIG
@@ -494,19 +435,7 @@ tabHost.id = 'al-tabs';
 tabHost.className = 'al-tabs';
 ui.panel.body.appendChild(tabHost);
 
-tabHost.addEventListener('click', (e) => {
-  const btn = e.target.closest('.al-opt');
-  if (!btn) return;
-  const q = btn.closest('.al-q');
-  if (!q || q.classList.contains('done')) return;
-  const answer = Number(q.dataset.a);
-  q.classList.add('done');
-  q.querySelectorAll('.al-opt').forEach((o, i) => {
-    o.disabled = true;
-    if (i === answer) o.classList.add('ok');
-    else if (o === btn) o.classList.add('no');
-  });
-});
+Widgets.wireQuiz(tabHost);
 
 function renderTab(id) {
   tabHost.innerHTML = (TABS[id] || TABS.overview)();

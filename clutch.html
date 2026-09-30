@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a0d13">
 <title>Clutch — Auto Lab</title>
 <link rel="stylesheet" href="app.css">
@@ -84,6 +84,7 @@
   <div id="canvas-wrap"></div>
   <div id="labels-root"></div>
 
+  <script src="guard.js"></script>
   <script type="importmap">
   { "imports": {
     "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
@@ -94,6 +95,7 @@
   <script type="module">
   import * as THREE from 'three';
   import * as Base from './kit.js';
+import { Parts } from './components.js';
   import { UI } from './kit.js';
   import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
@@ -623,19 +625,7 @@
   clDiscGrp.add(splines);
 
   function coilSpring(radius, length, turns, tube, mat) {
-    const pts = [], N = turns * 18;
-    for (let i = 0; i <= N; i++) {
-      const t = i / N, a = t * turns * Math.PI * 2;
-      pts.push(new THREE.Vector3(
-        Math.cos(a) * radius,
-        Math.sin(a) * radius,
-        -length / 2 + t * length
-      ));
-    }
-    const curve = new THREE.CatmullRomCurve3(pts);
-    return new THREE.Mesh(
-      new THREE.TubeGeometry(curve, N, tube, 6, false), mat
-    );
+    return Parts.coilSpring({ radius, length, turns, wire: tube, mat, axis: 'z', samplesPerTurn: 18, radial: 6 });
   }
 
   if (!isLowEnd) {
@@ -911,12 +901,8 @@
     setPedalVisual(false);
   }
 
-  window.addEventListener('keydown', e => {
-    if (e.code === 'Space' && !e.repeat) pedalDown(e);
-  });
-  window.addEventListener('keyup', e => {
-    if (e.code === 'Space') pedalUp();
-  });
+  /* Space is play/pause everywhere now (keys.js); the pedal is pointer / Enter on the pedal only
+     until Phase 4 (Shift-hold). Releasing on blur stays. */
   window.addEventListener('blur', pedalUp);
 
   /* ═══════════════════════════════════════════════════════════
