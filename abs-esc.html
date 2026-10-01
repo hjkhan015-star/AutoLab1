@@ -49,8 +49,6 @@ const SURFACES = {
 };
 
 const state = Base.createUIState();
-state.speedMul = 60;      // km/h — the toolbar slider drives vehicle speed
-state.brake    = 40;      // % pedal
 state.surface  = 'dry';
 state.wssFault = false;   // front-left wheel-speed sensor fault
 
@@ -317,22 +315,16 @@ const ui = Base.UI.create({
   toolbar: {
     play: true,
     reset: true,
-    speed: { label: 'Speed', min: 0, max: 140, step: 1, value: 60 },
     labels: true,
     extras: [
       { id: 'btn-wss', label: 'WSS FAULT', title: 'Toggle front-left wheel-speed sensor fault', onClick: toggleWss }
     ]
   },
+  axes: [
+    { id: 'speed', preset: 'vehicle-speed', max: 140, def: 60, label: 'Vehicle speed', side: 'left',   onChange: () => updateReadouts() },
+    { id: 'brake', preset: 'percent', def: 40, label: 'Brake pedal', side: 'right', onChange: () => updateReadouts() }   /* Phase 4: becomes a pedal */
+  ],
   widgets: {
-    bl: {
-      html: `<div class="al-w">
-        <label for="brake-range">Brake pedal <b id="brake-out">40%</b></label>
-        <input id="brake-range" class="al-range" type="range" min="0" max="100" step="1"
-               value="40" aria-label="Brake pedal percentage">
-      </div>`,
-      caption: 'Driver input',
-      onMount: mountBrakeWidget
-    },
     br: {
       html: `<div class="al-w">
         <label for="surf-sel">Surface</label>
@@ -361,19 +353,6 @@ function renderTab(id) {
   tabHost.innerHTML = (TABS[id] || TABS.overview)();
 }
 renderTab('overview');
-
-function mountBrakeWidget(el) {
-  const inp = el.querySelector('#brake-range');
-  const out = el.querySelector('#brake-out');
-  if (!inp || !out) return;
-  inp.value = state.brake;
-  out.textContent = state.brake + '%';
-  inp.addEventListener('input', () => {
-    state.brake = Number(inp.value);
-    out.textContent = state.brake + '%';
-    updateReadouts();
-  });
-}
 
 function mountSurfaceWidget(el) {
   const sel = el.querySelector('#surf-sel');
@@ -414,9 +393,9 @@ applyBadge();
    SIMULATION
    ═══════════════════════════════════════════════════════════════════════ */
 function simulate() {
-  const v      = state.speedMul;                     // km/h
+  const v      = ui.controls.value('speed');         // km/h (its own axis; state.speedMul is sim speed only)
   const mu     = SURFACES[state.surface].mu;
-  const demand = (state.brake / 100) * 9.0;          // m/s² requested
+  const demand = (ui.controls.value('brake') / 100) * 9.0;          // m/s² requested
   const grip   = mu * 9.81;                          // m/s² available
 
   const wantsLock = demand > grip;
@@ -465,7 +444,7 @@ function updateReadouts() {
     ro.slip.textContent = Math.round(s.slip * 100) + ' %';
     ro.slip.className = 'v ' + (s.slip > 0.5 ? 'crit' : s.slip > 0.15 ? 'warn' : 'ok');
   }
-  if (ro.press) ro.press.textContent = Math.round(state.brake * 1.8) + ' bar';
+  if (ro.press) ro.press.textContent = Math.round(ui.controls.value('brake') * 1.8) + ' bar';
 
   if (ro.abs) {
     if (state.wssFault)   { ro.abs.textContent = 'Disabled'; ro.abs.className = 'v crit'; }
@@ -487,7 +466,7 @@ function updateReadouts() {
   ui.chip.setBig(Math.round(s.v), ' km/h');
   ui.chip.set('slip', Math.round(s.slip * 100) + ' %');
   ui.chip.set('abs', state.wssFault ? 'OFF' : s.absActive ? 'ACTIVE' : 'IDLE');
-  ui.chip.setBar((state.brake / 100) * 100, s.absActive ? 'var(--warn)' : 'var(--al-accent)');
+  ui.chip.setBar((ui.controls.value('brake') / 100) * 100, s.absActive ? 'var(--warn)' : 'var(--al-accent)');
   ui.chip.setStatus(
     state.wssFault ? 'Sensor fault' : s.absActive ? 'ABS active' : 'Monitoring',
     !state.wssFault
@@ -502,17 +481,10 @@ const bridge = ui.wireBridge({
   state,
   onCommand: (d) => {
     if (d.action === 'reset') {
-      state.speedMul = 60;
-      state.brake    = 40;
+      ui.controls.resetAll();
       state.surface  = 'dry';
       state.wssFault = false;
 
-      const sp = document.getElementById('speed');
-      if (sp) sp.value = 60;
-      const br = document.getElementById('brake-range');
-      const bo = document.getElementById('brake-out');
-      if (br) br.value = 40;
-      if (bo) bo.textContent = '40%';
       const ss = document.getElementById('surf-sel');
       if (ss) ss.value = 'dry';
       const b = document.getElementById('btn-wss');
@@ -573,14 +545,14 @@ function frame(now) {
   for (let i = 0; i < lines.length; i++) {
     const L = lines[i];
     const n = L.parts.length;
-    const flow = s.absActive ? 0.9 : (state.brake / 100) * 0.35;
+    const flow = s.absActive ? 0.9 : (ui.controls.value('brake') / 100) * 0.35;
     for (let k = 0; k < n; k++) {
       const p = L.parts[k];
       let u = (t * flow + k / n) % 1;
       if (u < 0) u += 1;
       p.position.lerpVectors(L.a, L.b, u);
       p.scale.setScalar(0.45 + 0.7 * Math.sin(Math.PI * u));
-      p.visible = s.absActive || state.brake > 4;
+      p.visible = s.absActive || ui.controls.value('brake') > 4;
     }
   }
 

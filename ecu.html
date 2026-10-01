@@ -55,7 +55,6 @@ const CFG = {
 };
 
 const state = Base.createUIState();
-state.load    = 35;              // % engine load
 state.fault   = 'none';          // none | o2 | maf | ckp | knock
 state.ignKey  = true;            // key on
 state.cranking= false;
@@ -598,17 +597,7 @@ const ui = Base.UI.create({
       { id: 'btn-fault', label: 'O₂ FAULT', title: 'Toggle upstream oxygen sensor fault', onClick: () => setFault(state.fault === 'o2' ? 'none' : 'o2') }
     ]
   },
-  widgets: {
-    bl: {
-      html: `<div class="al-w">
-        <label for="load-range">Engine load <b id="load-out">35%</b></label>
-        <input id="load-range" class="al-range" type="range" min="0" max="100" step="1"
-               value="35" aria-label="Engine load percentage">
-      </div>`,
-      caption: 'Operating point',
-      onMount: mountLoadWidget
-    }
-  }
+  axes: [{ id: 'load', preset: 'load', def: 35, label: 'Engine load', side: 'left', onChange: () => updateReadouts() }]
 });
 
 /* ── fault widget ─────────────────────────────────────────────────── */
@@ -644,19 +633,6 @@ function renderTab(id) {
   queueMicrotask(updateReadouts);
 }
 renderTab('overview');
-
-function mountLoadWidget(el) {
-  const inp = el.querySelector('#load-range');
-  const out = el.querySelector('#load-out');
-  if (!inp || !out) return;
-  inp.value = state.load;
-  out.textContent = state.load + '%';
-  inp.addEventListener('input', () => {
-    state.load = Number(inp.value);
-    out.textContent = state.load + '%';
-    updateReadouts();
-  });
-}
 
 /* ── fault switching ──────────────────────────────────────────────── */
 function setFault(f) {
@@ -765,7 +741,7 @@ const ro = {
 let ltft = 0;   // long-term trim accumulated over time
 
 function updateReadouts() {
-  const load = state.load / 100;
+  const load = ui.controls.value('load') / 100;
   const f = state.fault;
   const dead = f === 'o2' || f === 'maf';
   const noStart = f === 'ckp';
@@ -805,7 +781,7 @@ function updateReadouts() {
   }
 
   if (ro.rpm)  ro.rpm.textContent  = noStart ? '— rpm' : rpm + ' rpm';
-  if (ro.load) ro.load.textContent = state.load + ' %';
+  if (ro.load) ro.load.textContent = ui.controls.value('load') + ' %';
   if (ro.pw)   ro.pw.textContent   = noStart ? '—' : pw.toFixed(2) + ' ms';
   if (ro.adv)  ro.adv.textContent  = noStart ? '—' : adv.toFixed(1) + '° BTDC';
   if (ro.kr) {
@@ -834,9 +810,9 @@ function updateReadouts() {
   }
 
   ui.chip.setBig(noStart ? '—' : rpm, ' rpm');
-  ui.chip.set('load', state.load + ' %');
+  ui.chip.set('load', ui.controls.value('load') + ' %');
   ui.chip.set('adv', noStart ? '—' : adv.toFixed(1) + '°');
-  ui.chip.setBar(state.load, (dead || noStart) ? 'var(--crit)' : 'var(--al-accent)');
+  ui.chip.setBar(ui.controls.value('load'), (dead || noStart) ? 'var(--crit)' : 'var(--al-accent)');
   ui.chip.setStatus(
     noStart ? 'No start' :
     f === 'o2' ? 'Limp home' :
@@ -855,13 +831,9 @@ const bridge = ui.wireBridge({
   state,
   onCommand: (d) => {
     if (d.action === 'reset') {
-      state.load = 35;
+      ui.controls.resetAll();
       state.fault = 'none';
       ltft = 0;
-      const inp = document.getElementById('load-range');
-      const out = document.getElementById('load-out');
-      if (inp) inp.value = 35;
-      if (out) out.textContent = '35%';
       setFault('none');
     }
   }
@@ -897,7 +869,7 @@ function frame(now) {
   t += dt * sp;
 
   /* ── ECU chip activity glow ── */
-  const activity = 0.35 + 0.55 * Math.abs(Math.sin(t * 6.5)) * (0.5 + state.load / 200);
+  const activity = 0.35 + 0.55 * Math.abs(Math.sin(t * 6.5)) * (0.5 + ui.controls.value('load') / 200);
   chipTop.material.emissiveIntensity = activity * (state.fault === 'none' ? 1.0 : 0.35);
 
   /* ── PCB LEDs ── */
@@ -923,7 +895,7 @@ function frame(now) {
   });
 
   /* ── flowing signal particles ── */
-  const baseHz = CFG.flowHz * (0.6 + state.load / 90);
+  const baseHz = CFG.flowHz * (0.6 + ui.controls.value('load') / 90);
   for (const L of lines) {
     const n = L.parts.length;
     for (let i = 0; i < n; i++) {

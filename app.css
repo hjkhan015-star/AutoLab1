@@ -745,26 +745,6 @@
     flex: 0 0 auto;
   }
 
-  .ui-tb-speed {
-    display: flex;
-    align-items: center;
-    gap: var(--s-2);
-    font-size: 11.5px;
-    color: var(--text-dim);
-    flex: 0 1 auto;
-    min-width: 0;
-  }
-  .ui-tb-speed input[type="range"] {
-    width: clamp(62px, 22vw, 120px);
-    accent-color: var(--accent);
-    cursor: pointer;
-    height: 30px;
-    background: transparent;
-  }
-  .ui-tb-speed #rpm-label {
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
-  }
 
   .ui-tb-check {
     display: flex;

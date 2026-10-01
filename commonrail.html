@@ -35,7 +35,6 @@ html.light-theme { --al-accent: color-mix(in oklch, #f97316 68%, black); }
 .cr-w label{ display:flex; justify-content:space-between; gap:8px; font-size:10px; letter-spacing:.06em;
   text-transform:uppercase; color:var(--text-mute,#6b7280); }
 .cr-w b{ color:var(--text,#e5e7eb); font-weight:700; }
-#cr-panel .al-range{ height:22px; }
 #cr-panel .al-sel{ min-height:32px; font-size:11px; }
 .cr-btns{ display:flex; gap:6px; margin-bottom:8px; }
 .cr-btns button{ flex:1 1 0; min-height:30px; padding:0 4px; border:1px solid var(--border,#333); border-radius:6px;
@@ -70,7 +69,7 @@ html.light-theme { --al-accent: color-mix(in oklch, #f97316 68%, black); }
 </script>
 
 <script type="module">
-import { runGuidedModule } from './components.js';
+import { runGuidedModule, controls } from './components.js';
 
 /* ── CONFIG (module content) ─────────────────────────────────────── */
 const CFG = {
@@ -82,7 +81,11 @@ const CFG = {
   "camPos": [5.6, 3.0, 7.4],
   "target": [0.2, 0.2, 0],
   "floorY": -1.4,
-  "ctl": { "label": "Engine load", "val": 45, "caption": "Engine load" },
+  ctls: [   /* Phase 3: sliders live in the dock as axis controls; ctls[0] (id 'ctl') = the main 0-100 % control */
+    { id:'ctl', label:"Engine load", caption:"Engine load", preset:'percent', def:45 },
+    { id:'rpm', preset:'rpm', def:1800, label:'Engine speed', onChange:(v)=>{ S.rpm = v; } },
+    { id:'fuelT', min:-10, max:60, step:1, def:20, unit:'\u00B0C', label:'Fuel temperature', onChange:(v)=>{ S.fuelTemp = v; } },
+  ],
   "chipLabel": "Rail pressure",
   "rows": [["t_rail", "Rail temp"], ["qty", "Injection"]],
   "ro": [
@@ -228,10 +231,6 @@ for (const id in FAULT_INFO) {
 panel.innerHTML =
   '<div class="cr-h"><span>Common rail simulation</span><button type="button" id="cr-fold" aria-label="Collapse controls">&#8211;</button></div>' +
   '<div class="cr-body">' +
-    '<div class="cr-w"><label for="cr-rpm">Engine speed <b id="cr-rpm-v">1800 rpm</b></label>' +
-      '<input id="cr-rpm" class="al-range" type="range" min="800" max="5000" step="50" value="1800" aria-label="Engine speed"></div>' +
-    '<div class="cr-w"><label for="cr-fuelt">Fuel temperature <b id="cr-fuelt-v">20 &deg;C</b></label>' +
-      '<input id="cr-fuelt" class="al-range" type="range" min="-10" max="60" step="1" value="20" aria-label="Fuel temperature"></div>' +
     '<div class="cr-w"><label for="cr-strat">Injection strategy</label>' +
       '<select id="cr-strat" class="al-sel" aria-label="Injection strategy">' +
         '<option value="normal">Main only</option>' +
@@ -257,10 +256,6 @@ panel.innerHTML =
 document.body.appendChild(panel);
 
 const elFold   = document.getElementById('cr-fold');
-const elRpm    = document.getElementById('cr-rpm');
-const elRpmV   = document.getElementById('cr-rpm-v');
-const elFuelT  = document.getElementById('cr-fuelt');
-const elFuelTV = document.getElementById('cr-fuelt-v');
 const elStrat  = document.getElementById('cr-strat');
 const elFault  = document.getElementById('cr-fault');
 const elSpeed  = document.getElementById('cr-speed');
@@ -273,14 +268,6 @@ const gctx     = gcv.getContext('2d');
 elFold.addEventListener('click', () => {
   panel.classList.toggle('folded');
   elFold.innerHTML = panel.classList.contains('folded') ? '&#43;' : '&#8211;';
-});
-elRpm.addEventListener('input', () => {
-  S.rpm = Number(elRpm.value) || 800;
-  elRpmV.textContent = S.rpm + ' rpm';
-});
-elFuelT.addEventListener('input', () => {
-  S.fuelTemp = Number(elFuelT.value) || 0;
-  elFuelTV.textContent = S.fuelTemp + ' \u00B0C';
 });
 elStrat.addEventListener('change', () => { S.strategy = elStrat.value; });
 elFault.addEventListener('change', () => { S.fault = elFault.value; });
@@ -313,15 +300,14 @@ function resetModel() {
   sim.samples.length = 0;
 }
 function resetAll() {
-  S.rpm = 1800;       elRpm.value = 1800;   elRpmV.textContent = '1800 rpm';
-  S.fuelTemp = 20;    elFuelT.value = 20;   elFuelTV.textContent = '20 \u00B0C';
+  S.rpm = 1800;
+  S.fuelTemp = 20;
   S.strategy = 'pilot'; elStrat.value = 'pilot';
   S.fault = 'none';   elFault.value = 'none';
   S.speed = 1;
   elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o.dataset.sp === '1'));
   resetModel();
-  const ctlEl = document.getElementById('ctl');
-  if (ctlEl) { ctlEl.value = String(CFG.ctl.val); ctlEl.dispatchEvent(new Event('input', { bubbles: true })); }
+  controls.resetAll();                 /* every axis back to its default (store -> onChange -> S) */
 }
 elReset.addEventListener('click', resetAll);
 

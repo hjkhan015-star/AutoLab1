@@ -39,8 +39,7 @@ holds exactly: **sim speed, label density (All / Key / None), theme, wireframe, 
 The old floating pill and the old settings sheet are gone. Title and accent colour come from `modules.js`.
 
 - **Sim speed only ever means sim speed** (shown as `0.85×`). A module quantity such as engine rpm or
-  load is the module's own control — never read it from `state.speedMul`. (`ignition`, `mpfi` now do this;
-  `abs-esc`, `cooling` still to do.)
+  load is the module's own control — never read it from `state.speedMul`. (`ignition`, `mpfi`, `abs-esc`, `cooling` all do this now.)
 - **Embedded modules build less, they don't hide.** When the kit detects it is inside the shell it does not
   create play / reset / sim-speed / Flow / label-density nodes. Standalone pages still build them until Phase 2.
 - **One keymap** in `keys.js`: Space play/pause · R reset · D label density · L theme · W wireframe ·
@@ -56,6 +55,9 @@ The old floating pill and the old settings sheet are gone. Title and accent colo
 - **Height inside the shell:** `vh` in an iframe is the iframe height (screen minus the 32 px shell header), so the dock is a few px shorter than 24 % of the screen when embedded.
 - **Standalone header:** opened directly, a module draws the same `chrome.js` header (back, title, i, ...) and menu as the shell; title and colour come from `modules.js`. Embedded, the shell draws it and the module reserves no top space (`--stage-top: 0`).
 - **Info:** header i opens the info sheet (phones, closed by default) or the side panel (desktop).
+
+## Sliders (Phase 3)
+Every slider is an `axis` (`controls.js`): 44 px target, value bubble while dragging, `aria-valuetext` with unit, ↑/↓ keys, focus ring. Values live in one store; modules read `ui.controls.get/value/raw(id)`. Guided modules list them in `CFG.ctls[]`, other modules pass `axes:[…]` to `UI.create`. Engine rpm / load / vehicle speed are their own axes in `ignition`, `mpfi`, `cooling`, `abs-esc` — the ⋯ menu's Sim speed can no longer change them. See COMPONENTS.md for specs and presets.
 
 ## What's NOT done yet: simulation depth for the other 43 modules
 

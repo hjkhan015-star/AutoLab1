@@ -1,5 +1,14 @@
 # Changelog
 
+## 8.3.0 - Control-system refactor, Phase 3 (`axis` slider + single-quantity fixes)
+- New `controls.js` (`axis`, slider look) + `.ctl-axis` styles in `controls.css`: 44 px target, value bubble while dragging, unit + `aria-valuetext`, focus ring, reduced-motion safe, ↑/↓ keys. One shared store (`ui.controls.get/value/raw/set/on/resetAll`); duplicate ids throw. `controls-core.js` gained step-snapped real-value helpers (`realValue`, `rawValue`, `fromReal`, `snapNormalized`).
+- `runGuidedModule` takes `CFG.ctls[]` (`CFG.ctl` kept as a shim). The 10 multi-slider guided modules (awd, catalytic, commonrail, dpf, driveshaft, egr, fuelpump, intercooler, oilpump, radiator) moved their hand-written sliders into the dock; the single-slider guided modules use the shim. `UI.create` takes `axes:[…]`.
+- `ecu` (load), `valvetrain` (cam advance), `crankshaft-piston` (rod ratio), `abs-esc` (brake %, as a slider for now) use axes. fuelpump uses real volts (preset `voltage`, `scale` 100).
+- D8/D16: `ignition` (engine rpm), `mpfi` (engine load), `abs-esc` (vehicle speed), `cooling` (engine rpm) have their own axes and no longer read `state.speedMul` as a physical quantity. The Phase 1 temporary slider (`data-phase1-temp`, `#speed-module`) is gone.
+- Removed `.al-range`, `.ui-tb-speed*`, `Widgets.slider`. `awd` "Steering input" is an axis for now (becomes a dial in Phase 5). A module's Reset now also resets its axes.
+- New `tests/axis.test.mjs`; axis mapping tests in `tests/controls.test.mjs`. Cache `autolab-v8.3`.
+
+
 ## 8.2.0 - Control-system refactor, Phase 2 (stage layout & dock)
 - New `dock.js`: one control dock per module document (embedded AND standalone) - handle (swipe up = options row, down = 56 px slim bar), transport (play/pause, reset - one node each), primary zone (1 = centred, 2 = left/right thumb zones, 3+ = pages with dots), options row (Flow + module extras). Default 24 vh, max 30 vh; landscape phones get two 140 px side rails; desktop is one auto-height bar. State persists per module in `sessionStorage` (`autolab.dock.<moduleId>`); the dock hides while a `<select>` soft keyboard is open. Pure logic is unit-tested (`tests/dock.test.mjs`).
 - Stage: `#canvas-wrap` (and `#labels-root`, so labels never draw over the dock) is inset by `--stage-top` (0 embedded, header height standalone) and `--dock-h`. `kit.js` adds a `ResizeObserver` on the stage; the camera view is nudged up on portrait phones.

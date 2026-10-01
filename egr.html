@@ -34,7 +34,6 @@ html.light-theme { --al-accent: color-mix(in oklch, #a78bfa 68%, black); }
 .egr-w label{ display:flex; justify-content:space-between; gap:8px; font-size:10px; letter-spacing:.06em;
   text-transform:uppercase; color:var(--text-mute,#6b7280); }
 .egr-w b{ color:var(--text,#e5e7eb); font-weight:700; }
-#egr-panel .al-range{ height:22px; }
 #egr-panel .al-sel{ min-height:32px; font-size:11px; }
 .egr-btns{ display:flex; gap:6px; margin-bottom:8px; }
 .egr-btns button{ flex:1 1 0; min-height:30px; padding:0 4px; border:1px solid var(--border,#333); border-radius:6px;
@@ -69,7 +68,7 @@ html.light-theme { --al-accent: color-mix(in oklch, #a78bfa 68%, black); }
 </script>
 
 <script type="module">
-import { runGuidedModule } from './components.js';
+import { runGuidedModule, controls } from './components.js';
 
 /* ── CONFIG (module content) ─────────────────────────────────────── */
 const CFG = {
@@ -81,7 +80,11 @@ const CFG = {
   "camPos": [5.6, 3.0, 7.6],
   "target": [0, 0, 0],
   "floorY": -2.4,
-  "ctl": { "label": "EGR command", "val": 40, "caption": "Recirculation" },
+  ctls: [   /* Phase 3: sliders live in the dock as axis controls; ctls[0] (id 'ctl') = the main 0-100 % control */
+    { id:'ctl', label:"EGR command", caption:"Recirculation", preset:'percent', def:40 },
+    { id:'load', preset:'load', def:45, label:'Engine load', onChange:(v)=>{ S.load = v / 100; } },
+    { id:'rpm', preset:'rpm', max:4500, def:2200, label:'Engine speed', onChange:(v)=>{ S.rpm = v; } },
+  ],
   "chipLabel": "NOx (ppm)",
   "rows": [["lift", "Valve lift"], ["temp", "Peak flame temp"]],
   "ro": [
@@ -235,10 +238,6 @@ for (const id in FAULT_INFO) {
 panel.innerHTML =
   '<div class="egr-h"><span>EGR simulation</span><button type="button" id="egr-fold" aria-label="Collapse controls">&#8211;</button></div>' +
   '<div class="egr-body">' +
-    '<div class="egr-w"><label for="egr-load">Engine load <b id="egr-load-v">45 %</b></label>' +
-      '<input id="egr-load" class="al-range" type="range" min="0" max="100" step="1" value="45" aria-label="Engine load"></div>' +
-    '<div class="egr-w"><label for="egr-rpm">Engine speed <b id="egr-rpm-v">2200 rpm</b></label>' +
-      '<input id="egr-rpm" class="al-range" type="range" min="800" max="4500" step="50" value="2200" aria-label="Engine speed"></div>' +
     '<div class="egr-w"><label for="egr-fault">Fault injection</label>' +
       '<select id="egr-fault" class="al-sel" aria-label="Fault injection">' + faultOptions + '</select></div>' +
     '<div class="egr-w"><label>Simulation speed</label>' +
@@ -258,10 +257,6 @@ panel.innerHTML =
 document.body.appendChild(panel);
 
 const elFold   = document.getElementById('egr-fold');
-const elLoad   = document.getElementById('egr-load');
-const elLoadV  = document.getElementById('egr-load-v');
-const elRpm    = document.getElementById('egr-rpm');
-const elRpmV   = document.getElementById('egr-rpm-v');
 const elFault  = document.getElementById('egr-fault');
 const elSpeed  = document.getElementById('egr-speed');
 const elClean  = document.getElementById('egr-clean');
@@ -273,14 +268,6 @@ const gctx     = gcv.getContext('2d');
 elFold.addEventListener('click', () => {
   panel.classList.toggle('folded');
   elFold.innerHTML = panel.classList.contains('folded') ? '&#43;' : '&#8211;';
-});
-elLoad.addEventListener('input', () => {
-  S.load = (Number(elLoad.value) || 0) / 100;
-  elLoadV.textContent = Math.round(S.load * 100) + ' %';
-});
-elRpm.addEventListener('input', () => {
-  S.rpm = Number(elRpm.value) || 800;
-  elRpmV.textContent = S.rpm + ' rpm';
 });
 elFault.addEventListener('change', () => { S.fault = elFault.value; });
 elSpeed.addEventListener('click', (e) => {
@@ -309,14 +296,13 @@ function resetModel() {
   sim.samples.length = 0;
 }
 function resetAll() {
-  S.load = 0.45; elLoad.value = 45; elLoadV.textContent = '45 %';
-  S.rpm = 2200;  elRpm.value = 2200; elRpmV.textContent = '2200 rpm';
+  S.load = 0.45;
+  S.rpm = 2200;
   S.fault = 'none'; elFault.value = 'none';
   S.speed = 1;
   elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o.dataset.sp === '1'));
   resetModel();
-  const ctlEl = document.getElementById('ctl');
-  if (ctlEl) { ctlEl.value = String(CFG.ctl.val); ctlEl.dispatchEvent(new Event('input', { bubbles: true })); }
+  controls.resetAll();                 /* every axis back to its default (store -> onChange -> S) */
 }
 elReset.addEventListener('click', resetAll);
 

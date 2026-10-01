@@ -16,6 +16,8 @@ import { createLabelSystem as _createLabelSystem, KINDS as LABEL_KINDS, DENSITY_
 import { createKeyRouter, installKeys } from './keys.js';
 import { nextDensity, isPhone, createHeader, createMenu, clampSpeed } from './chrome.js';
 import { createDock, modelShiftPx } from './dock.js';
+import { controls, createAxis } from './controls.js';
+export { controls };
 
 /* controls.css holds the header, ⋯ menu, dock and phone-sheet styles. Module pages link it; this is the
    safety net (resolved next to kit.js) so a page that forgot the <link> still gets a styled dock. */
@@ -579,6 +581,7 @@ class UIKit {
     this._slots = {};
     this._chipEls = {};
     this._chipRows = {};
+    this._axes = {};
     this._panelEls = {};
     this._embedded = !!(window.parent && window.parent !== window);
     if (this._embedded) document.body.classList.add('embedded', 'uses-ui-kit');   /* early: --stage-top is 0 when embedded */
@@ -594,6 +597,7 @@ class UIKit {
     if (cfg.panel)   this._buildPanel(cfg.panel);
     if (cfg.chip)    this._buildChip(cfg.chip);
     if (cfg.toolbar) this._buildToolbar(cfg.toolbar);
+    if (cfg.axes)    this._buildAxes(cfg.axes);      /* Phase 3: axis controls first, so legend widgets come last */
     if (cfg.widgets) this._buildWidgets(cfg.widgets);
 
     this._wirePanelToggle();
@@ -858,7 +862,7 @@ class UIKit {
   }
 
   /* ── Toolbar → dock. play / reset go to the transport zone (built ONCE, embedded and standalone,
-        R1/R6); the module-local slider goes to the primary zone (TEMPORARY, Phase 3 replaces it);
+        R1/R6); module quantities are `axes` (see _buildAxes);
         Flow and `extras` go to the options row. Sim speed / label density / Back are NOT built here:
         the ⋯ menu (shell, or standalone chrome.js) owns them. ── */
   _buildToolbar(t) {
@@ -876,23 +880,6 @@ class UIKit {
     if (t.reset !== false) {
       refs.reset = make(`<button type="button" class="ui-tb-btn" id="btn-reset" aria-label="Reset">${iconReset}</button>`);
       dock.addTransport(refs.reset);
-    }
-    if (t.speed && t.speed.module) {
-      /* `module: true` = a MODULE quantity (engine rpm / load), not sim speed.
-         TEMPORARY (Phase 1, data-phase1-temp): hosted in the primary zone, NOT wired to state.speedMul.
-         Phase 3 replaces it with real axis controls. */
-      const box = make(`<div class="ui-tb-speed keep-in-embed" data-phase1-temp>
-          <span>${t.speed.label || 'Speed'}</span>
-          <input type="range" id="speed-module" data-phase1-temp data-speed-input
-            min="${t.speed.min ?? 0.15}" max="${t.speed.max ?? 2.5}"
-            step="${t.speed.step ?? 0.05}" value="${t.speed.value ?? 0.85}"
-            aria-label="${t.speed.label || 'Speed'}">
-          <span id="rpm-label"></span>
-        </div>`);
-      refs.speedBox = box;
-      refs.rpmLabel = box.querySelector('#rpm-label');
-      refs.speedInput = box.querySelector('[data-speed-input]');
-      dock.addPrimary({ id: 'module-slider', side: 'left', node: box });
     }
     if (t.gas) {
       /* Decision 2: the Flow toggle lives in the dock options row (it is not one of the five ⋯ items). */
@@ -913,6 +900,29 @@ class UIKit {
     this._toolbar = refs;
     return dock.root;
   }
+
+  /* Phase 3 — `axes: [spec]`: one `axis` (slider look, controls.js) per module quantity, hosted in the dock's
+     primary zone. spec = controls.js axis spec + optional { side:'left'|'right', onChange(real, raw, norm) }.
+     Values live in the shared store: read them with ui.controls.get / .value / .raw (R4), never from the DOM. */
+  _buildAxes(list) {
+    list.forEach((spec, i) => {
+      const ax = createAxis(spec);
+      this._axes[spec.id] = ax;
+      if (typeof spec.onChange === 'function') {
+        ax.on((n) => spec.onChange(ax.value(), ax.raw(), n));
+      }
+      const wrap = document.createElement('div');
+      wrap.className = 'ui-widget ui-widget-axis';
+      wrap.id = 'ui-widget-ax-' + spec.id;
+      const frame = document.createElement('div');
+      frame.className = 'ui-widget-frame';
+      frame.appendChild(ax.el);
+      wrap.appendChild(frame);
+      this._dock.addPrimary({ id: 'ax-' + spec.id, side: spec.side || (i % 2 ? 'right' : 'left'), node: wrap });
+    });
+  }
+  get controls() { return controls; }
+  axis(id) { return this._axes[id] || null; }
 
   /* bl → primary-left · br → primary-right (compat: UI.create keeps accepting widgets:{bl,br}) */
   _buildWidgets(w) {
@@ -1007,7 +1017,6 @@ class UIKit {
       setRpmLabel(text) { if (self._toolbar?.rpmLabel) self._toolbar.rpmLabel.textContent = text; },
       get root() { return self._dock.root; },                 /* the dock is the toolbar now */
       get dock() { return self._dock; },
-      get speedInput() { return self._toolbar?.speedInput || null; },
     };
   }
 

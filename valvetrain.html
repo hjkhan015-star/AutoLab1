@@ -10,7 +10,6 @@
 <style>
 :root { --al-accent: #d946ef; }
 html.light-theme { --al-accent: #a21caf; }
-.al-w{display:flex;flex-direction:column;gap:6px;min-width:160px;}
 .ui-tb-btn.active{outline:2px solid var(--al-accent);color:var(--al-accent);}
 </style>
 </head>
@@ -44,7 +43,6 @@ const CFG = {
 };
 
 const state = Base.createUIState();
-state.camAdvance = 0;      // crank degrees, −20…+20
 
 /* ═══════════════════════════════════════════════════════════════════════
    SCENE
@@ -346,16 +344,9 @@ const ui = Base.UI.create({
       { id: 'btn-adv', label: 'ADV +10°', title: 'Advance intake cam by 10°', onClick: advanceCam }
     ]
   },
+  axes: [{ id: 'adv', min: -20, max: 20, step: 1, def: 0, unit: '°', label: 'Cam advance', side: 'left',
+           format: (v) => (v > 0 ? '+' : '') + v + '°', onChange: () => updateReadouts() }],
   widgets: {
-    bl: {
-      html: `<div class="al-w">
-        <label for="adv-range">Cam advance <b id="adv-out">0°</b></label>
-        <input id="adv-range" class="al-range" type="range" min="-20" max="20" step="1"
-               value="0" aria-label="Cam advance in crank degrees">
-      </div>`,
-      caption: 'VVT phaser',
-      onMount: mountAdvWidget
-    },
     br: {
       html: `<div class="al-legend">
         <span><i style="background:#38bdf8"></i>Intake valve</span>
@@ -378,26 +369,9 @@ Widgets.wireQuiz(tabHost);
 function renderTab(id) { tabHost.innerHTML = (TABS[id] || TABS.overview)(); }
 renderTab('overview');
 
-function mountAdvWidget(el) {
-  const inp = el.querySelector('#adv-range');
-  const out = el.querySelector('#adv-out');
-  if (!inp || !out) return;
-  inp.value = state.camAdvance;
-  out.textContent = (state.camAdvance > 0 ? '+' : '') + state.camAdvance + '°';
-  inp.addEventListener('input', () => {
-    state.camAdvance = Number(inp.value);
-    out.textContent = (state.camAdvance > 0 ? '+' : '') + state.camAdvance + '°';
-    updateReadouts();
-  });
-}
-
 function advanceCam() {
-  state.camAdvance = state.camAdvance >= 20 ? -20 : state.camAdvance + 10;
-  const inp = document.getElementById('adv-range');
-  const out = document.getElementById('adv-out');
-  if (inp) inp.value = state.camAdvance;
-  if (out) out.textContent = (state.camAdvance > 0 ? '+' : '') + state.camAdvance + '°';
-  updateReadouts();
+  const cur = ui.controls.value('adv');
+  ui.controls.setValue('adv', cur >= 20 ? -20 : cur + 10);   /* the axis fires onChange -> updateReadouts */
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -456,7 +430,7 @@ function updateReadouts() {
   const rpm = Math.round(700 + state.speedMul * 5500);
   const camFrac = (t * CFG.cycleHz) % 1;
   const camDeg = camFrac * 360;
-  const ev = camEvents(camFrac, state.camAdvance);
+  const ev = camEvents(camFrac, ui.controls.value('adv'));
   const liMm = ev.li * 10.5;
   const leMm = ev.le * 10.5;
 
@@ -465,8 +439,8 @@ function updateReadouts() {
   if (ro.li)  ro.li.textContent  = liMm.toFixed(2) + ' mm';
   if (ro.le)  ro.le.textContent  = leMm.toFixed(2) + ' mm';
   if (ro.adv) {
-    ro.adv.textContent = (state.camAdvance > 0 ? '+' : '') + state.camAdvance + '°';
-    ro.adv.className = 'v ' + (state.camAdvance !== 0 ? 'warn' : '');
+    ro.adv.textContent = (ui.controls.value('adv') > 0 ? '+' : '') + ui.controls.value('adv') + '°';
+    ro.adv.className = 'v ' + (ui.controls.value('adv') !== 0 ? 'warn' : '');
   }
 
   if (ro.ev) {
@@ -484,15 +458,15 @@ function updateReadouts() {
     ro.ov.className = 'v ' + (bothOpen ? 'warn' : '');
   }
 
-  const ve = volumetricEfficiency(rpm, state.camAdvance);
+  const ve = volumetricEfficiency(rpm, ui.controls.value('adv'));
   if (ro.ve) {
     ro.ve.textContent = Math.round(ve * 100) + ' %';
     ro.ve.className = 'v ' + (ve > 0.85 ? 'ok' : ve < 0.65 ? 'warn' : '');
   }
   if (ro.eff) {
     let effect, cls;
-    if (state.camAdvance >= 5)      { effect = 'Low-end torque ↑'; cls = 'ok'; }
-    else if (state.camAdvance <= -5) { effect = 'Top-end power ↑'; cls = 'ok'; }
+    if (ui.controls.value('adv') >= 5)      { effect = 'Low-end torque ↑'; cls = 'ok'; }
+    else if (ui.controls.value('adv') <= -5) { effect = 'Top-end power ↑'; cls = 'ok'; }
     else                              { effect = 'Balanced';        cls = ''; }
     ro.eff.textContent = effect;
     ro.eff.className = 'v ' + cls;
@@ -513,11 +487,7 @@ const bridge = ui.wireBridge({
   state,
   onCommand: (d) => {
     if (d.action === 'reset') {
-      state.camAdvance = 0;
-      const inp = document.getElementById('adv-range');
-      const out = document.getElementById('adv-out');
-      if (inp) inp.value = 0;
-      if (out) out.textContent = '0°';
+      ui.controls.resetAll();
       updateReadouts();
     }
   }
@@ -546,7 +516,7 @@ function frame(now) {
 
   const camFrac = (t * CFG.cycleHz) % 1;
   const camDeg = camFrac * 360;
-  const ev = camEvents(camFrac, state.camAdvance);
+  const ev = camEvents(camFrac, ui.controls.value('adv'));
 
   /* --- rotate cams and translate valves --- */
   VALVES.forEach(v => {
