@@ -186,4 +186,87 @@ t('axis: format text carries the unit (aria-valuetext source)', () => {
   assert.equal(core.axisValueText(0.5, { preset: 'ambient', min: -10, max: 45 }), '18 °C'.replace('18', String(Math.round(-10 + 55 * 0.5))));
   assert.equal(core.axisValueText(core.fromReal(13.5, { preset: 'voltage' }), { preset: 'voltage' }), '13.5 V');
 });
+
+/* ── Phase 4: pedal logic (pure) ─────────────────────────────────────────── */
+t('pedal: decayFactorToK turns the old per-frame factor into a time constant (0.86 -> 9.05, 0.88 -> 7.67)', () => {
+  near(core.decayFactorToK(0.86), 9.05, 0.01, 'k(0.86)');
+  near(core.decayFactorToK(0.88), 7.67, 0.01, 'k(0.88)');
+  near(core.decayFactorToK(0.5, 30), -Math.log(0.5) * 30, 1e-12, 'custom hz');
+  assert.throws(() => core.decayFactorToK(1), /decay factor/);
+  assert.throws(() => core.decayFactorToK(0), /decay factor/);
+});
+t('pedal: springStepAxis over 1/60 s equals the old v*0.86 / v*0.88 frame step (within 1e-6 with the exact k)', () => {
+  for (const f of [0.86, 0.88]) {
+    const k = core.decayFactorToK(f);
+    for (const v of [1, 0.62, 0.3]) near(core.springStepAxis(v, 1 / 60, k), v * f, 1e-6, `f=${f} v=${v}`);
+  }
+  /* the rounded constants used in the modules (9.05 / 7.67) are within 1e-5 of the exact frame step */
+  near(core.springStepAxis(1, 1 / 60, 9.05), 0.86, 1e-5, 'k=9.05');
+  near(core.springStepAxis(1, 1 / 60, 7.67), 0.88, 1e-5, 'k=7.67');
+});
+t('pedal: release is frame-rate independent (1 s at 30 Hz, 60 Hz and 144 Hz agree within 1e-3)', () => {
+  const run = (hz) => { let v = 1; for (let i = 0; i < hz; i++) v = core.springStepAxis(v, 1 / hz, 9.05, 0); return v; };
+  const a = run(30), b = run(60), c = run(144);
+  near(a, b, 1e-3, '30 vs 60'); near(b, c, 1e-3, '60 vs 144');
+  near(b, Math.exp(-9.05), 1e-3, 'closed form');
+});
+t('pedal: springStepAxis snaps to 0 below SPRING_EPS and never goes negative; no-op for bad dt/k', () => {
+  assert.equal(core.springStepAxis(0.0009, 1 / 60, 9.05), 0);
+  assert.equal(core.springStepAxis(0.5, 0, 9.05), 0.5);
+  assert.equal(core.springStepAxis(0.5, 1 / 60, 0), 0.5);
+  let v = 1; for (let i = 0; i < 600; i++) v = core.springStepAxis(v, 1 / 60, 7.67);
+  assert.equal(v, 0);
+});
+t('pedal: Shift intents (press -> pressed, release -> not pressed, other keys ignored)', () => {
+  assert.deepEqual(core.pedalIntent({ key: 'Shift' }), { pressed: true });
+  assert.equal(core.pedalIntent({ key: ' ' }), null);
+  assert.equal(core.pedalIntent({ key: 'ArrowUp' }), null);
+  assert.deepEqual(core.pedalUpIntent({ key: 'Shift' }), { pressed: false });
+  assert.equal(core.pedalUpIntent({ key: 'Enter' }), null);
+});
+t('pedal model: Shift-hold ramps to 1, release springs back, repeat events are ignored', () => {
+  const m = core.createPedalModel({ k: 9.05, ramp: 4 });
+  assert.equal(m.press(), true);
+  assert.equal(m.press(), false, 'auto-repeat must not re-enter');
+  assert.equal(m.press(), false);
+  for (let i = 0; i < 6; i++) m.step(1 / 60);
+  near(m.value, 6 * 4 / 60, 1e-9, 'ramp rate');
+  for (let i = 0; i < 60; i++) m.step(1 / 60);
+  assert.equal(m.value, 1, 'ramp clamps at 1');
+  assert.equal(m.active(), false, 'at the top, nothing moves');
+  assert.equal(m.release(), true);
+  assert.equal(m.release(), false);
+  const before = m.value;
+  m.step(1 / 60);
+  assert.ok(m.value < before, 'decays after release');
+  for (let i = 0; i < 400; i++) m.step(1 / 60);
+  assert.equal(m.value, 0);
+  assert.equal(m.active(), false);
+});
+t('pedal model: pointer hold cancels the spring; letGo springs; reset clears Shift state', () => {
+  const m = core.createPedalModel({ k: 7.67 });
+  m.hold(0.6);
+  m.step(1); assert.equal(m.value, 0.6, 'held pedal does not decay');
+  m.letGo();
+  m.step(1 / 60); near(m.value, 0.6 * Math.exp(-7.67 / 60), 1e-9);
+  m.press(); m.hold(0.2);
+  assert.equal(m.pressed, false, 'a pointer takes over from Shift');
+  m.press(); m.reset();
+  assert.equal(m.pressed, false); assert.equal(m.held, false); assert.equal(m.value, 0);
+  assert.equal(m.hold(7), 1); assert.equal(m.hold(NaN), 0);
+});
+t('pedal model: springs to a non-zero rest value (default) and stops there', () => {
+  const m = core.createPedalModel({ k: 9.05, value: 1, rest: 0.4 });
+  for (let i = 0; i < 400; i++) m.step(1 / 60);
+  near(m.value, 0.4, 0.001); /* within eps of the rest value */
+});
+t('momentary registry: stores 0/1, change-only events on both edges', () => {
+  const r = core.createRegistry();
+  r.register('clutch', { type: 'momentary', min: 0, max: 1, step: 1 });
+  const edges = []; r.on('clutch', (v) => edges.push(v));
+  assert.equal(r.get('clutch'), 0);
+  r.set('clutch', 1); r.set('clutch', 1); r.set('clutch', 0);
+  assert.deepEqual(edges, [1, 0]);
+  assert.equal(r.set('clutch', 5), 1);
+});
 console.log(`\n${n} test groups passed`);

@@ -340,7 +340,7 @@ t('legacy.css: exists, marked, loaded by sensors.html ONLY, precached', () => {
   const users = readdirSync(new URL('../', import.meta.url)).filter((f) => f.endsWith('.html') && /legacy\.css/.test(rd(f)));
   assert.deepEqual(users, ['sensors.html']);
   assert.ok(rd('sw.js').includes("'./legacy.css'") && rd('sw.js').includes("'./dock.js'"));
-  assert.match(rd('sw.js'), /const VERSION = 'autolab-v8\.3'/);
+  assert.match(rd('sw.js'), /const VERSION = 'autolab-v8\.5'/);
 });
 t('100vh replaced by 100dvh in wiring.html and 404.html', () => {
   for (const f of ['wiring.html', '404.html']) { assert.ok(!/100vh/.test(rd(f)), f); assert.match(rd(f), /100dvh/); }
