@@ -9,79 +9,6 @@
 <link rel="stylesheet" href="controls.css">
 <style>
   /* ═══════════════════════════════════════════════════════════
-     WIDGET INTERIOR — Accelerator pedal (bottom-right)
-     ═══════════════════════════════════════════════════════════ */
-  #accel-overlay {
-    display: flex; flex-direction: column; align-items: center;
-    pointer-events: none;
-  }
-  #accel-readout {
-    margin-bottom: 8px;
-    font-family: var(--font-mono);
-    font-size: 12px; font-weight: 800;
-    color: var(--text, #e5e7eb);
-    background: rgba(10,14,20,.76);
-    padding: 3px 11px; border-radius: 20px;
-    border: 1px solid var(--border, rgba(255,255,255,.08));
-    backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px);
-  }
-  #accel-track {
-    position: relative; width: 54px; height: 158px;
-    pointer-events: auto; cursor: pointer;
-    touch-action: none; user-select: none; -webkit-user-select: none;
-  }
-  #accel-fill-mask {
-    position: absolute; inset: 0; border-radius: 16px; overflow: hidden;
-    background: rgba(10,14,20,.65);
-    border: 1px solid var(--border, rgba(255,255,255,.10));
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,.03), 0 10px 24px rgba(0,0,0,.55);
-    transition: border-color .2s;
-  }
-  html.light-theme #accel-fill-mask {
-    background: rgba(255,255,255,.88);
-    border-color: rgba(15,23,42,.14);
-  }
-  #accel-track.active #accel-fill-mask { border-color: rgba(56,189,248,.5); }
-  #accel-fill {
-    position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
-    background: linear-gradient(180deg, #f59e0b, #fbbf24);
-    transition: height .05s linear;
-  }
-  #accel-pedal {
-    position: absolute; left: -4px; right: -4px; bottom: 0%;
-    height: 34px; transform: translateY(50%);
-    filter: drop-shadow(0 6px 10px rgba(0,0,0,.6));
-    transition: bottom .05s linear;
-  }
-  #accel-pedal svg { width: 100%; height: 100%; display: block; }
-  .pedal-plate { fill: #242b35; stroke: #a9b4c3; stroke-width: 1.4; }
-  .pedal-grip  { fill: #5e6b7d; }
-  html.light-theme .pedal-plate { fill: #e2e8f0; stroke: #334155; }
-  html.light-theme .pedal-grip  { fill: #cbd5e1; }
-  #accel-track.active .pedal-plate { stroke: #f59e0b; }
-  #accel-control-label {
-    margin-top: 7px;
-    color: var(--text-dim, #aab4c3);
-    font-size: 10.5px; font-weight: 700;
-    letter-spacing: .55px; text-transform: uppercase;
-    background: rgba(10,14,20,.76);
-    padding: 5px 11px; border-radius: 20px;
-    border: 1px solid var(--border, rgba(255,255,255,.08));
-    backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px);
-    pointer-events: none;
-  }
-  html.light-theme #accel-control-label {
-    background: rgba(255,255,255,.94);
-    color: #475569;
-    border-color: rgba(15,23,42,.14);
-  }
-  #accel-control-pct { color: var(--text, #e5e7eb); font-family: var(--font-mono); }
-  @media (max-width: 600px) {
-    #accel-track { width: 44px; height: 128px; }
-    #accel-control-label { font-size: 10px; padding: 4px 8px; }
-  }
-
-  /* ═══════════════════════════════════════════════════════════
      PANEL READOUT — live rows + flow legend
      ═══════════════════════════════════════════════════════════ */
   #flow-legend {
@@ -1257,9 +1184,8 @@ import { Parts } from './components.js';
   }
 
   /* ═══════════════════════════════════════════════════════════
-     STATE — declared BEFORE UI.create so widget onMount is safe
+     STATE
      ═══════════════════════════════════════════════════════════ */
-  let throttle      = 0;
   let turbineRpm    = 0;
   let scRpm         = 0;
   let boost         = 0;
@@ -1288,44 +1214,8 @@ import { Parts } from './components.js';
   const SC_RATIO  = 1.8;
   const SC_MAX_RPM = 18000;
 
-  /* Pedal widget refs + functions (declared before UI.create) */
-  let accelTrackEl   = null;
-  let accelFillEl    = null;
-  let accelPedalEl   = null;
-  let accelPctEl     = null;
-  let accelCtrlPctEl = null;
-  let accelDragging  = false;
-  let accelPointerId = null;
-  let accelReturnRAF = null;
-
-  function accelPercentFromEvent(e) {
-    const r = accelTrackEl.getBoundingClientRect();
-    return Math.max(0, Math.min(1, 1 - (e.clientY - r.top) / r.height));
-  }
-  function setThrottle(v) {
-    throttle = Math.max(0, Math.min(1, v));
-    const pct = Math.round(throttle * 100);
-    if (accelFillEl)    accelFillEl.style.height = pct + '%';
-    if (accelPedalEl)   accelPedalEl.style.bottom = pct + '%';
-    if (accelPctEl)     accelPctEl.textContent = pct + '%';
-    if (accelCtrlPctEl) accelCtrlPctEl.textContent = pct + '%';
-    if (accelTrackEl)   accelTrackEl.setAttribute('aria-valuenow', String(pct));
-  }
-  function cancelAccelReturn() {
-    if (accelReturnRAF) { cancelAnimationFrame(accelReturnRAF); accelReturnRAF = null; }
-  }
-  function springReleaseAccel() {
-    cancelAccelReturn();
-    const step = () => {
-      const next = throttle * 0.88;
-      setThrottle(next < 0.005 ? 0 : next);
-      accelReturnRAF = throttle > 0 ? requestAnimationFrame(step) : null;
-    };
-    accelReturnRAF = requestAnimationFrame(step);
-  }
-
   /* ═══════════════════════════════════════════════════════════
-     UI — kit chrome + pedal widget (no tabs — switcher lives in toolbar extras)
+     UI — kit chrome + pedal axis (no tabs — switcher lives in toolbar extras)
      ═══════════════════════════════════════════════════════════ */
   const ui = UI.create({
     moduleId: 'turbo',
@@ -1376,68 +1266,11 @@ import { Parts } from './components.js';
       ]
     },
 
-    widgets: {
-      br: {
-        caption: 'Hold to build boost',
-        html: `
-          <div id="accel-overlay">
-            <div id="accel-readout"><span id="accel-pct">0%</span></div>
-            <div id="accel-track" role="slider" tabindex="0"
-                 aria-label="Accelerator — hold to build boost"
-                 aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-              <div id="accel-fill-mask"><div id="accel-fill"></div></div>
-              <div id="accel-pedal">
-                <svg viewBox="0 0 60 34" aria-hidden="true">
-                  <rect class="pedal-plate" x="4" y="4" width="52" height="26" rx="8"/>
-                  <rect class="pedal-grip" x="10" y="9" width="40" height="4" rx="2"/>
-                  <rect class="pedal-grip" x="10" y="16" width="40" height="4" rx="2"/>
-                  <rect class="pedal-grip" x="10" y="23" width="40" height="4" rx="2"/>
-                </svg>
-              </div>
-            </div>
-            <div id="accel-control-label">Hold · <span id="accel-control-pct">0%</span></div>
-          </div>
-        `,
-        onMount: (el) => {
-          accelTrackEl   = el.querySelector('#accel-track');
-          accelFillEl    = el.querySelector('#accel-fill');
-          accelPedalEl   = el.querySelector('#accel-pedal');
-          accelPctEl     = el.querySelector('#accel-pct');
-          accelCtrlPctEl = el.querySelector('#accel-control-pct');
-          if (!accelTrackEl) return;
-
-          accelTrackEl.addEventListener('pointerdown', e => {
-            e.preventDefault(); cancelAccelReturn();
-            accelDragging = true; accelPointerId = e.pointerId;
-            try { accelTrackEl.setPointerCapture(e.pointerId); } catch (_) {}
-            accelTrackEl.classList.add('active');
-            setThrottle(accelPercentFromEvent(e));
-          });
-          accelTrackEl.addEventListener('pointermove', e => {
-            if (!accelDragging || e.pointerId !== accelPointerId) return;
-            e.preventDefault();
-            setThrottle(accelPercentFromEvent(e));
-          });
-          const endAccelDrag = () => {
-            if (!accelDragging) return;
-            accelDragging = false; accelPointerId = null;
-            accelTrackEl.classList.remove('active');
-            springReleaseAccel();
-          };
-          accelTrackEl.addEventListener('pointerup', endAccelDrag);
-          accelTrackEl.addEventListener('pointercancel', endAccelDrag);
-          accelTrackEl.addEventListener('lostpointercapture', endAccelDrag);
-          accelTrackEl.addEventListener('keydown', e => {
-            if (e.key === 'ArrowUp')   { e.preventDefault(); cancelAccelReturn(); setThrottle(throttle + 0.08); }
-            if (e.key === 'ArrowDown') { e.preventDefault(); cancelAccelReturn(); setThrottle(throttle - 0.08); }
-          });
-        }
-      }
-    }
+    /* Phase 4: the accelerator is a controls.js pedal (id 'throttle'). k = -ln(0.88)·60. */
+    axes: [
+      { id: 'throttle', look: 'pedal', label: 'Throttle', preset: 'percent', spring: 'return', k: 7.67, keys: 'arrows', side: 'right' }
+    ]
   });
-
-  /* Space is play/pause everywhere now (keys.js). The accelerator is pointer / arrow-key only
-     until Phase 4 adds Shift-hold quick-press. */
 
   /* ═══════════════════════════════════════════════════════════
      PANEL READOUT REFS
@@ -1594,6 +1427,7 @@ import { Parts } from './components.js';
      PHYSICS
      ═══════════════════════════════════════════════════════════ */
   function stepPhysics(dt) {
+    const throttle = ui.controls.get('throttle');
     const engineRpm = 350 + state.speedMul * 850;
     const load = Math.min(1, engineRpm / 1800);
     const exhaustEnergy = throttle * load;
@@ -1663,6 +1497,7 @@ import { Parts } from './components.js';
   }
 
   function updateEngineKinematics(dt) {
+    const throttle = ui.controls.get('throttle');
     const th = crankAngle * DEG;
     const py = CRANK_R * Math.cos(th) +
                Math.sqrt(Math.max(0.0001, ROD_LEN * ROD_LEN - (CRANK_R * Math.sin(th)) ** 2));
@@ -1873,7 +1708,7 @@ import { Parts } from './components.js';
      RESET
      ═══════════════════════════════════════════════════════════ */
   function resetSim() {
-    setThrottle(0);
+    ui.controls.resetAll();                       /* releases the throttle pedal */
     turbineRpm = 0; scRpm = 0; boost = 0; egt = 20; iatPostIc = 20;
     wastegateOpen = 0; bovOpen = 0; bypassOpen = 0; prevThrottle = 0;
     rotorPhase = 0; scRotorPhaseL = 0; scRotorPhaseR = 0;
@@ -2025,7 +1860,6 @@ import { Parts } from './components.js';
   /* ═══════════════════════════════════════════════════════════
      INIT
      ═══════════════════════════════════════════════════════════ */
-  setThrottle(0);
   updateReadouts();
   animate();
   </script>

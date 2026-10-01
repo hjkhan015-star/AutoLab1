@@ -11,86 +11,9 @@
   /* ═══════════════════════════════════════════════════════════════════
      Module-specific widget styles.
      All chrome (panel, chip, toolbar, widget container, caption) is
-     handled by app.css. Only the *interiors* of the two custom widgets
-     (accelerator pedal and gear selector) are styled here.
+     handled by app.css. Only the *interior* of the custom widget
+     (the gear selector) are styled here.
      ═══════════════════════════════════════════════════════════════════ */
-
-  /* ── Accelerator pedal widget (bl slot) ── */
-  .at-pedal {
-    display: flex; flex-direction: column;
-    align-items: center; gap: 6px;
-    pointer-events: none;
-  }
-  .at-pedal-readout {
-    font-family: var(--font-mono);
-    font-size: 12px; font-weight: 800;
-    color: var(--text);
-    background: var(--surface-2);
-    padding: 3px 11px;
-    border-radius: var(--r-pill);
-    border: 1px solid var(--border);
-    backdrop-filter: blur(9px);
-    -webkit-backdrop-filter: blur(9px);
-  }
-  .at-pedal-track {
-    position: relative;
-    width: 54px; height: 158px;
-    pointer-events: auto;
-    cursor: pointer;
-    touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
-    border-radius: var(--r-md);
-    overflow: hidden;
-    background: var(--surface-3);
-    border: 1px solid var(--border);
-    box-shadow: inset 0 0 0 1px oklch(1 0 0 / .03), 0 10px 24px oklch(0 0 0 / .35);
-    transition: border-color var(--dur-fast) var(--ease-out);
-  }
-  .at-pedal-track.active {
-    border-color: color-mix(in oklch, var(--accent) 55%, transparent);
-  }
-  .at-pedal-fill {
-    position: absolute; left: 0; right: 0; bottom: 0;
-    height: 0%;
-    background: linear-gradient(180deg, #f59e0b, #fbbf24);
-    transition: height var(--dur-fast) linear;
-  }
-  .at-pedal-pad {
-    position: absolute; left: -4px; right: -4px;
-    bottom: 0%; height: 34px;
-    transform: translateY(50%);
-    filter: drop-shadow(0 6px 10px oklch(0 0 0 / .6));
-    transition: bottom var(--dur-fast) linear;
-  }
-  .at-pedal-pad svg { width: 100%; height: 100%; display: block; }
-  .at-pedal-pad .plate {
-    fill: var(--surface-3);
-    stroke: color-mix(in oklch, var(--text) 40%, transparent);
-    stroke-width: 1.4;
-  }
-  .at-pedal-pad .grip {
-    fill: color-mix(in oklch, var(--text) 28%, transparent);
-  }
-  .at-pedal-track.active .at-pedal-pad .plate {
-    stroke: var(--warn);
-  }
-  .at-pedal-label {
-    font-size: 10.5px; font-weight: 700;
-    letter-spacing: .55px; text-transform: uppercase;
-    color: var(--text-dim);
-    background: var(--surface-2);
-    padding: 5px 11px;
-    border-radius: var(--r-pill);
-    border: 1px solid var(--border);
-    backdrop-filter: blur(9px);
-    -webkit-backdrop-filter: blur(9px);
-    pointer-events: none;
-  }
-  .at-pedal-label span {
-    color: var(--text);
-    font-family: var(--font-mono);
-  }
 
   /* ── Gear selector widget (br slot) ── */
   .at-gearsel {
@@ -153,8 +76,6 @@
   }
 
   @media (max-width: 600px) {
-    .at-pedal-track { width: 44px; height: 128px; }
-    .at-pedal-label { font-size: 10px; padding: 4px 8px; }
     .at-gearsel-btn { width: 44px; height: 44px; font-size: 13px; }
   }
 </style>
@@ -621,7 +542,6 @@
      STATE
      ============================================================ */
   let selectedGear = 'D';
-  let throttle = 0;
   let engineRpm = 800;
   let turbineRpm = 0;
   let outputRpm = 0;
@@ -690,31 +610,12 @@
       labels: true, gas: true
     },
 
-    widgets: {
-      /* Bottom-left: accelerator pedal */
-      bl: {
-        caption: 'Hold · <span data-pct>0%</span>',
-        html: `
-          <div class="at-pedal">
-            <div class="at-pedal-readout"><span data-pct>0%</span></div>
-            <div class="at-pedal-track" data-role="track" role="slider" tabindex="0"
-                 aria-label="Accelerator — hold to build torque"
-                 aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-              <div class="at-pedal-fill" data-role="fill"></div>
-              <div class="at-pedal-pad" data-role="pad">
-                <svg viewBox="0 0 60 34" aria-hidden="true">
-                  <rect class="plate" x="4" y="4" width="52" height="26" rx="8"/>
-                  <rect class="grip" x="10" y="9" width="40" height="4" rx="2"/>
-                  <rect class="grip" x="10" y="16" width="40" height="4" rx="2"/>
-                  <rect class="grip" x="10" y="23" width="40" height="4" rx="2"/>
-                </svg>
-              </div>
-            </div>
-          </div>
-        `,
-        onMount: (el) => wirePedalWidget(el)
-      },
+    /* Phase 4: the accelerator is a controls.js pedal (id 'throttle'). k = -ln(0.86)·60. */
+    axes: [
+      { id: 'throttle', look: 'pedal', label: 'Throttle', preset: 'percent', spring: 'return', k: 9.05, keys: 'arrows', side: 'left' }
+    ],
 
+    widgets: {
       /* Bottom-right: P R N D gear selector */
       br: {
         html: `
@@ -730,70 +631,6 @@
       }
     }
   });
-
-  /* ─── Throttle pedal widget ────────────────────────────────── */
-  function wirePedalWidget(root) {
-    const track   = root.querySelector('[data-role="track"]');
-    const fill    = root.querySelector('[data-role="fill"]');
-    const pad     = root.querySelector('[data-role="pad"]');
-    const caption = document.getElementById('ui-widget-bl-cap');
-
-    let dragging = false;
-    let pointerId = null;
-    let returnRAF = null;
-
-    function setThrottle(v) {
-      throttle = Math.max(0, Math.min(1, v));
-      const pct = Math.round(throttle * 100);
-      fill.style.height = pct + '%';
-      pad.style.bottom  = pct + '%';
-      root.querySelectorAll('[data-pct]').forEach(n => { n.textContent = pct + '%'; });
-      if (caption) caption.querySelector('[data-pct]').textContent = pct + '%';
-      track.setAttribute('aria-valuenow', String(pct));
-    }
-    function percentFromEvent(e) {
-      const r = track.getBoundingClientRect();
-      return Math.max(0, Math.min(1, 1 - (e.clientY - r.top) / r.height));
-    }
-    function cancelReturn() {
-      if (returnRAF) { cancelAnimationFrame(returnRAF); returnRAF = null; }
-    }
-    function springRelease() {
-      cancelReturn();
-      const step = () => {
-        const next = throttle * 0.86;
-        setThrottle(next < 0.005 ? 0 : next);
-        returnRAF = throttle > 0 ? requestAnimationFrame(step) : null;
-      };
-      returnRAF = requestAnimationFrame(step);
-    }
-
-    track.addEventListener('pointerdown', e => {
-      e.preventDefault(); cancelReturn();
-      dragging = true; pointerId = e.pointerId;
-      try { track.setPointerCapture(e.pointerId); } catch (_) {}
-      track.classList.add('active');
-      setThrottle(percentFromEvent(e));
-    });
-    track.addEventListener('pointermove', e => {
-      if (!dragging || e.pointerId !== pointerId) return;
-      e.preventDefault();
-      setThrottle(percentFromEvent(e));
-    });
-    function endDrag() {
-      if (!dragging) return;
-      dragging = false; pointerId = null;
-      track.classList.remove('active');
-      springRelease();
-    }
-    track.addEventListener('pointerup', endDrag);
-    track.addEventListener('pointercancel', endDrag);
-    track.addEventListener('lostpointercapture', endDrag);
-    track.addEventListener('keydown', e => {
-      if (e.key === 'ArrowUp')   { e.preventDefault(); cancelReturn(); setThrottle(throttle + 0.08); }
-      if (e.key === 'ArrowDown') { e.preventDefault(); cancelReturn(); setThrottle(throttle - 0.08); }
-    });
-  }
 
   /* ─── Gear selector widget ─────────────────────────────────── */
   function wireGearSelector(root) {
@@ -831,6 +668,7 @@
      PHYSICS
      ============================================================ */
   function stepPhysics(dt) {
+    const throttle = ui.controls.get('throttle');
     const vehicleSpeed = getVehicleSpeed();
     const isDriving = (selectedGear === 'D' || selectedGear === 'R');
     const isLockupEligible = (selectedGear === 'D' && vehicleSpeed > 0.45);
@@ -1015,20 +853,7 @@
      RESET
      ============================================================ */
   function resetSim() {
-    /* Reset throttle via pedal widget DOM */
-    throttle = 0;
-    const blRoot = document.getElementById('ui-widget-bl');
-    if (blRoot) {
-      const fill = blRoot.querySelector('[data-role="fill"]');
-      const pad  = blRoot.querySelector('[data-role="pad"]');
-      const track= blRoot.querySelector('[data-role="track"]');
-      if (fill) fill.style.height = '0%';
-      if (pad)  pad.style.bottom  = '0%';
-      if (track) track.setAttribute('aria-valuenow', '0');
-      blRoot.querySelectorAll('[data-pct]').forEach(n => { n.textContent = '0%'; });
-    }
-    const blCap = document.getElementById('ui-widget-bl-cap');
-    if (blCap) { const s = blCap.querySelector('[data-pct]'); if (s) s.textContent = '0%'; }
+    ui.controls.resetAll();                 /* releases the throttle pedal */
 
     selectedGear = 'D';
     document.querySelectorAll('.at-gearsel-btn').forEach(b => {

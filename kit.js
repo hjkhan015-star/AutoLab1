@@ -16,7 +16,7 @@ import { createLabelSystem as _createLabelSystem, KINDS as LABEL_KINDS, DENSITY_
 import { createKeyRouter, installKeys } from './keys.js';
 import { nextDensity, isPhone, createHeader, createMenu, clampSpeed } from './chrome.js';
 import { createDock, modelShiftPx } from './dock.js';
-import { controls, createAxis } from './controls.js';
+import { controls, createAxis, createMomentary, createDial } from './controls.js';
 export { controls };
 
 /* controls.css holds the header, ⋯ menu, dock and phone-sheet styles. Module pages link it; this is the
@@ -906,7 +906,9 @@ class UIKit {
      Values live in the shared store: read them with ui.controls.get / .value / .raw (R4), never from the DOM. */
   _buildAxes(list) {
     list.forEach((spec, i) => {
-      const ax = createAxis(spec);
+      const ax = spec.type === 'momentary' ? createMomentary(spec)       /* Phase 4: momentary = hold button (clutch) */
+        : spec.type === 'dial' ? createDial(spec)                     /* Phase 5: dial = wheel / crank / knob */
+        : createAxis(spec);
       this._axes[spec.id] = ax;
       if (typeof spec.onChange === 'function') {
         ax.on((n) => spec.onChange(ax.value(), ax.raw(), n));

@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="controls.css">
 <style>
   /* ═══════════════════════════════════════════════════════════
-     PANEL READOUT INTERIOR — live steering values + reset button
+     PANEL READOUT INTERIOR — live steering values
      ═══════════════════════════════════════════════════════════ */
   #steer-readout { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
   #steer-readout .steer-row {
@@ -20,67 +20,7 @@
     color: var(--text, #e5e7eb); font-weight: 700;
     font-variant-numeric: tabular-nums;
   }
-  .steer-reset-btn {
-    width: 100%; margin-top: 10px;
-    border: 1px solid var(--border, rgba(255,255,255,.08));
-    background: rgba(255,255,255,.03);
-    color: var(--text-dim, #94a3b8);
-    font-size: 11.5px; font-weight: 700;
-    padding: 9px 8px; border-radius: 8px; cursor: pointer;
-    transition: all var(--dur-fast, .15s) var(--ease-out, ease);
-    font-family: inherit; min-height: 36px;
-  }
-  .steer-reset-btn:hover {
-    color: var(--text, #e5e7eb);
-    border-color: rgba(255,255,255,.25);
-  }
-  .steer-reset-btn:active { transform: scale(0.98); }
   html.light-theme #steer-readout .steer-row b { color: #0a0d13; }
-  html.light-theme .steer-reset-btn { color: #475569; border-color: rgba(15,23,42,.14); }
-
-  /* ═══════════════════════════════════════════════════════════
-     WIDGET INTERIOR — steering wheel SVG (bottom-right)
-     ═══════════════════════════════════════════════════════════ */
-  #steer-overlay {
-    display: flex; flex-direction: column; align-items: center;
-    pointer-events: none;
-  }
-  #steer-wheel {
-    pointer-events: auto; cursor: grab;
-    filter: drop-shadow(0 8px 16px rgba(0,0,0,0.6));
-    width: clamp(120px, 30vw, 210px);
-    height: clamp(120px, 30vw, 210px);
-  }
-  #steer-wheel.grabbing { cursor: grabbing; }
-  #steer-wheel.grabbing #steer-rotor {
-    filter: drop-shadow(0 0 16px rgba(168,85,247,.7));
-  }
-  #steer-rotor {
-    transform-origin: 50% 50%;
-    transition: transform var(--dur-fast, 0.03s) linear;
-    will-change: transform;
-  }
-  .sw-rim    { fill: none; stroke: #2e3745; stroke-width: 8; }
-  .sw-rim-hi { fill: none; stroke: #a0b0c8; stroke-width: 3; opacity: 0.5; }
-  .sw-spoke  { fill: #4a5568; }
-  .sw-hub    { fill: #2d3748; stroke: #a0b0c8; stroke-width: 2; }
-  .sw-marker { fill: var(--accent, #a855f7); }
-  #steer-label {
-    margin-top: 8px;
-    color: var(--text-dim, #9ca3af);
-    font-size: 12px; font-weight: 500;
-    letter-spacing: 0.5px; text-transform: uppercase;
-    background: rgba(10,14,20,0.7);
-    padding: 4px 12px; border-radius: 20px;
-    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-    border: 1px solid var(--border, rgba(255,255,255,0.08));
-    pointer-events: none;
-    white-space: nowrap;
-  }
-  @media (max-width: 600px) {
-    #steer-wheel { width: 100px; height: 100px; }
-    #steer-label { font-size: 10px; padding: 3px 9px; }
-  }
 
   /* ═══════════════════════════════════════════════════════════
      TOOLBAR EXTRAS — steering-system switcher (prev / label / next)
@@ -247,14 +187,9 @@
   const WHEEL_MAX_ANGLE = Math.PI;
 
   /* ═══════════════════════════════════════════════════════════
-     4. STATE — declared BEFORE UI.create so widget onMount can
-        safely reference them (fixes TDZ crash that halted init).
+     4. STATE
      ═══════════════════════════════════════════════════════════ */
-  let steerWheelEl = null;
-  let steerRotorEl = null;
-  let steerAngle = 0;
-  const STEER_RETURN_RATE = 4.5;
-  const clampSteer = a => Math.max(-WHEEL_MAX_ANGLE, Math.min(WHEEL_MAX_ANGLE, a));
+  let steerAngle = 0;                 /* radians, > 0 = left; derived each frame from the 'wheel' dial */
 
   /* ═══════════════════════════════════════════════════════════
      5. GROUND GLOW
@@ -1282,7 +1217,6 @@
           <div class="steer-row"><span data-steer-lbl="wheel">Wheel angle</span><b data-steer="wheel">0°</b></div>
           <div class="steer-row"><span data-steer-lbl="rack">Rack travel</span><b data-steer="rack">0.000</b></div>
           <div class="steer-row"><span data-steer-lbl="road">Road wheel</span><b data-steer="road">0.0°</b></div>
-          <button class="steer-reset-btn" id="steer-center">Centre wheels</button>
         </div>
       `,
       desc: `<strong>Rack-and-pinion steering.</strong> Turning the <strong>steering wheel</strong>
@@ -1313,92 +1247,15 @@
       labels: true, gas: true
     },
 
-    widgets: {
-      br: {
-        caption: 'Turn the wheel',
-        html: `
-          <div id="steer-overlay">
-            <div id="steer-wheel" role="slider" tabindex="0"
-                 aria-label="Steering wheel — drag to steer"
-                 aria-valuemin="-180" aria-valuemax="180" aria-valuenow="0">
-              <div id="steer-rotor">
-                <svg viewBox="-60 -60 120 120" aria-hidden="true">
-                  <circle class="sw-rim" cx="0" cy="0" r="48"/>
-                  <circle class="sw-rim-hi" cx="0" cy="0" r="48"/>
-                  <rect class="sw-spoke" x="-48" y="-6" width="34" height="12" rx="6"/>
-                  <rect class="sw-spoke" x="14" y="-6" width="34" height="12" rx="6"/>
-                  <rect class="sw-spoke" x="-6" y="14" width="12" height="34" rx="6"/>
-                  <circle class="sw-hub" cx="0" cy="0" r="14"/>
-                  <path class="sw-marker" d="M0,-57 L-8,-45 L8,-45 Z"/>
-                </svg>
-              </div>
-            </div>
-            <div id="steer-label">Turn the wheel</div>
-          </div>
-        `,
-        onMount: (el) => {
-          try {
-            const wheelEl = el.querySelector('#steer-wheel');
-            const rotorEl = el.querySelector('#steer-rotor');
-            if (!wheelEl) return;
-
-            let dragging = false, pointerId = null, lastPointerAngle = 0;
-
-            function pointerAngle(e) {
-              const r = wheelEl.getBoundingClientRect();
-              return Math.atan2(
-                e.clientY - (r.top + r.height / 2),
-                e.clientX - (r.left + r.width / 2)
-              );
-            }
-
-            wheelEl.addEventListener('pointerdown', (e) => {
-              e.preventDefault();
-              dragging = true;
-              pointerId = e.pointerId;
-              try { wheelEl.setPointerCapture(e.pointerId); } catch (_) {}
-              lastPointerAngle = pointerAngle(e);
-              wheelEl.classList.add('grabbing');
-            });
-
-            wheelEl.addEventListener('pointermove', (e) => {
-              if (!dragging || e.pointerId !== pointerId) return;
-              e.preventDefault();
-              const a = pointerAngle(e);
-              let d = a - lastPointerAngle;
-              if (d >  Math.PI) d -= Math.PI * 2;
-              if (d < -Math.PI) d += Math.PI * 2;
-              lastPointerAngle = a;
-              steerAngle = clampSteer(steerAngle - d);
-            });
-
-            const endDrag = () => {
-              if (!dragging) return;
-              dragging = false;
-              pointerId = null;
-              wheelEl.classList.remove('grabbing');
-            };
-            wheelEl.addEventListener('pointerup', endDrag);
-            wheelEl.addEventListener('pointercancel', endDrag);
-            wheelEl.addEventListener('lostpointercapture', endDrag);
-
-            wheelEl.addEventListener('keydown', (e) => {
-              if (e.key === 'ArrowLeft')  { e.preventDefault(); steerAngle = clampSteer(steerAngle + 0.14); }
-              if (e.key === 'ArrowRight') { e.preventDefault(); steerAngle = clampSteer(steerAngle - 0.14); }
-              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); steerAngle = 0; }
-            });
-
-            steerWheelEl = wheelEl;
-            steerRotorEl = rotorEl;
-
-            const centreBtn = document.getElementById('steer-center');
-            if (centreBtn) centreBtn.addEventListener('click', () => { steerAngle = 0; });
-          } catch (err) {
-            console.warn('[Steering] widget onMount failed:', err);
-          }
-        }
-      }
-    }
+    /* Phase 5: the steering wheel is a controls.js dial (id 'wheel', ±180°, springs back to centre).
+       Registry −1..1, positive = clockwise = a RIGHT turn (→ key, clockwise drag). The simulation keeps its own
+       sign convention (steerAngle > 0 = left), so it reads steerAngle = −dial · WHEEL_MAX_ANGLE.
+       Enter / Home = centre: the one reset path (replaces the old centre button).
+       k = 4.68 s⁻¹ is the old per-frame return (return rate 4.5 → 0.925 / frame at 60 Hz) as a time constant. */
+    axes: [
+      { id: 'wheel', type: 'dial', look: 'wheel', label: 'Steering', ariaLabel: 'Steering wheel',
+        range: 360, def: 0, step: 1, spring: 'return', k: 4.68, side: 'right' }
+    ]
   });
 
   /* Panel readout refs */
@@ -1495,7 +1352,7 @@
     if (elRackLabel) elRackLabel.textContent = rowLabels.rack;
     if (elRoadLabel) elRoadLabel.textContent = rowLabels.road;
 
-    steerAngle = 0;
+    ui.controls.set('wheel', 0);
     labels.hideAll();
   }
 
@@ -1518,7 +1375,7 @@
     state,
     onCommand: (d) => {
       switch (d.action) {
-        case 'reset': steerAngle = 0; break;
+        case 'reset': ui.controls.resetAll(); break;
         case 'setConfig': if (CONFIG_ORDER.indexOf(d.value) >= 0) applyConfig(d.value); break;
       }
     }
@@ -1542,16 +1399,8 @@
   }
 
   function updateSteering(dt) {
-    if (!steerWheelEl || !steerWheelEl.classList.contains('grabbing')) {
-      if (steerAngle !== 0) {
-        steerAngle += (0 - steerAngle) * Math.min(1, dt * STEER_RETURN_RATE);
-        if (Math.abs(steerAngle) < 0.0015) steerAngle = 0;
-      }
-    }
-    steerAngle = clampSteer(steerAngle);
-
-    if (steerRotorEl) steerRotorEl.style.transform = 'rotate(' + (-steerAngle / DEG).toFixed(2) + 'deg)';
-    if (steerWheelEl) steerWheelEl.setAttribute('aria-valuenow', Math.round(-steerAngle / DEG));
+    /* the dial owns the angle (drag, ←/→, spring-back); clockwise = right = steerAngle < 0 */
+    steerAngle = -ui.controls.get('wheel') * WHEEL_MAX_ANGLE;
 
     const rackOffset = PINION_R * steerAngle;
     const roadAngle  = Math.asin(

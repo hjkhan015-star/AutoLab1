@@ -89,10 +89,7 @@
     }
   }
   body.embedded:not(.uses-ui-kit) #steer-overlay,
-  body.embedded:not(.uses-ui-kit) #crank-overlay,
-  body.embedded:not(.uses-ui-kit) #accel-overlay,
-  body.embedded:not(.uses-ui-kit) #clutch-overlay,
-  body.embedded:not(.uses-ui-kit) #pedal-overlay {
+  body.embedded:not(.uses-ui-kit) #crank-overlay {
     bottom: calc(80px + var(--safe-b)) !important;
   }
 

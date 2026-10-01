@@ -585,3 +585,187 @@ body.al-sheet-open .al-sheet-scrim { display: block; }
 @media (prefers-reduced-motion: reduce) {
   .ctl-axis .ctl-bubble { transition: none; }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PHASE 4 — pedal (axis look:'pedal') and momentary · built by controls.js
+   One pedal look for braking, automatic, carburetor, turbocharger, abs-esc
+   (pedal) and clutch (momentary). Tokens only (R3): no hex/rgba, so the
+   light theme needs no per-module overrides.
+   Desktop: vertical 54 × 158.  Phone (≤ 720 px wide or ≤ 540 px high):
+   horizontal bar 52 px high, full width of its dock slot.
+   ═══════════════════════════════════════════════════════════════════════ */
+.ctl-pedal, .ctl-momentary {
+  --p: 0;
+  --ctl-pad-w: 54px;
+  --ctl-pad-h: 158px;
+  --ctl-foot: 34px;
+  --ctl-foot-w: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: var(--text);
+}
+.ctl-pedal .ctl-label, .ctl-momentary .ctl-label {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: var(--ctl-gap);
+  font-size: var(--ctl-text);
+  line-height: 1.2;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-mute, var(--text-dim));
+}
+.ctl-pedal .ctl-value {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--ctl-value-text);
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ctl-pedal-pad {
+  position: relative;
+  box-sizing: border-box;
+  width: var(--ctl-pad-w);
+  height: var(--ctl-pad-h);
+  border-radius: var(--ctl-radius);
+  background: var(--ctl-track);
+  border: 1px solid var(--ctl-border);
+  overflow: hidden;
+  cursor: pointer;
+  touch-action: none;                                             /* drag surface only (R8) */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.ctl-pedal-pad:focus { outline: none; }
+.ctl-pedal-pad:focus-visible { outline: 2px solid var(--ctl-focus); outline-offset: 2px; }
+.ctl-pedal-fill {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: calc(var(--p) * 100%);
+  background: color-mix(in srgb, var(--ctl-accent) 45%, transparent);
+  pointer-events: none;
+}
+.ctl-pedal-ticks {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; justify-content: space-evenly;
+  pointer-events: none;
+}
+.ctl-pedal-ticks i { display: block; width: 9px; height: 1px; background: var(--ctl-border); }
+.ctl-pedal-foot {
+  position: absolute;
+  left: 3px; right: 3px;
+  bottom: calc(3px + var(--p) * (100% - var(--ctl-foot) - 6px));
+  height: var(--ctl-foot);
+  pointer-events: none;
+}
+.ctl-pedal-foot svg { display: block; width: 100%; height: 100%; }
+.ctl-pedal-foot .ctl-plate { fill: var(--surface-2, var(--ctl-track)); stroke: var(--ctl-border); stroke-width: 1.4; }
+.ctl-pedal-foot .ctl-grip { fill: var(--text-mute, var(--text-dim)); }
+.ctl-pedal-pad.is-active .ctl-plate { stroke: var(--ctl-accent); }
+.ctl-momentary-pad .ctl-pedal-foot { transition: bottom .12s ease, left .12s ease; }
+.ctl-pedal.is-disabled, .ctl-momentary.is-disabled { opacity: .5; }
+.ctl-pedal.is-disabled .ctl-pedal-pad, .ctl-momentary.is-disabled .ctl-pedal-pad { cursor: not-allowed; }
+
+@media (max-width: 720px), (max-height: 540px) {
+  .ctl-pedal, .ctl-momentary { width: 100%; align-items: stretch; }
+  .ctl-pedal .ctl-label, .ctl-momentary .ctl-label { justify-content: space-between; }
+  .ctl-pedal-pad { width: 100%; height: 52px; }                   /* 48–56 px bar */
+  .ctl-pedal-fill { top: 0; bottom: 0; left: 0; right: auto; width: calc(var(--p) * 100%); height: auto; }
+  .ctl-pedal-ticks { flex-direction: row; align-items: flex-end; }
+  .ctl-pedal-ticks i { width: 1px; height: 9px; }
+  .ctl-pedal-foot {
+    top: 3px; bottom: 3px; right: auto; height: auto;
+    width: var(--ctl-foot-w);
+    left: calc(3px + var(--p) * (100% - var(--ctl-foot-w) - 6px));
+  }
+}
+/* dock slots shrink-wrap their content: give the phone bar a real width (a lone pedal gets the wider bar;
+   in landscape the slot is a 124 px rail column and the bar simply fills it) */
+.al-dock[data-mode="portrait"] .ctl-pedal, .al-dock[data-mode="portrait"] .ctl-momentary { min-width: 140px; }
+.al-dock[data-mode="portrait"] .al-dock-slot[data-side="center"] .ctl-pedal,
+.al-dock[data-mode="portrait"] .al-dock-slot[data-side="center"] .ctl-momentary { min-width: 240px; }
+@media (prefers-reduced-motion: reduce) {
+  .ctl-momentary-pad .ctl-pedal-foot { transition: none; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PHASE 5 — dial (wheel / crank / knob) · built by controls.js
+   ONE rotary look for engine (crank), steering, differential and awd (wheel).
+   Tokens only (R3): no hex/rgba, so the light theme needs no overrides.
+   Desktop 132 px · phone (≤ 720 px wide or ≤ 540 px high) 96 px · never below 44 px.
+   The angle is small text next to the name (one place, R1) — no caption.
+   ═══════════════════════════════════════════════════════════════════════ */
+.ctl-dial {
+  --ctl-dial-size: 132px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: var(--text);
+}
+.ctl-dial .ctl-label {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: var(--ctl-gap);
+  font-size: var(--ctl-text);
+  line-height: 1.2;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-mute, var(--text-dim));
+}
+.ctl-dial .ctl-value {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--ctl-value-text);
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ctl-dial-pad {
+  box-sizing: border-box;
+  width: var(--ctl-dial-size);
+  height: var(--ctl-dial-size);
+  min-width: var(--ctl-tap);
+  min-height: var(--ctl-tap);
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;                                             /* drag surface only (R8) */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.ctl-dial-pad > svg { display: block; width: 100%; height: 100%; }
+.ctl-dial-pad:focus { outline: none; }
+.ctl-dial-pad:focus-visible { outline: 2px solid var(--ctl-focus); outline-offset: 2px; }
+.ctl-dial-pad.is-active { cursor: grabbing; }
+.ctl-dial-bg { fill: color-mix(in oklch, var(--bg) 88%, transparent); stroke: var(--ctl-border); stroke-width: 1.5; }
+.ctl-dial-rim { fill: none; stroke: color-mix(in oklch, var(--text) 25%, transparent); stroke-width: 8; }
+.ctl-dial-rim-hi { fill: none; stroke: color-mix(in oklch, var(--text) 65%, transparent); stroke-width: 2; opacity: .45; }
+.ctl-dial-spoke { fill: color-mix(in oklch, var(--text) 30%, transparent); }
+.ctl-dial-hub { fill: color-mix(in oklch, var(--bg) 78%, transparent); stroke: color-mix(in oklch, var(--text) 65%, transparent); stroke-width: 2; }
+.ctl-dial-marker { fill: var(--ctl-accent); }
+.ctl-dial-handle { fill: color-mix(in oklch, var(--bg) 90%, transparent); stroke: color-mix(in oklch, var(--text) 45%, transparent); stroke-width: 1.6; }
+.ctl-dial-handle-end { fill: color-mix(in oklch, var(--text) 35%, transparent); stroke: color-mix(in oklch, var(--text) 55%, transparent); stroke-width: 1.4; }
+.ctl-dial-pointer { fill: var(--ctl-accent); }
+.ctl-dial-pad.is-active .ctl-dial-rim-hi { stroke: var(--ctl-accent); opacity: .9; }
+.ctl-dial.is-disabled { opacity: .5; }
+.ctl-dial.is-disabled .ctl-dial-pad { cursor: not-allowed; }
+
+@media (max-width: 720px), (max-height: 540px) {
+  .ctl-dial { --ctl-dial-size: 96px; }                            /* ≤ 96 px on phones */
+}
+/* dock slots shrink-wrap their content: keep a lone dial from collapsing next to a slider */
+.al-dock[data-mode="portrait"] .ctl-dial { min-width: 96px; }

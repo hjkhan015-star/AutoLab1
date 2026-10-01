@@ -4,8 +4,9 @@
 
    Conventions
    - axis     : normalised 0..1
-   - dial     : normalised -1..1 (positive = clockwise = right turn)
-              : crank turns may use 0..1 (use normalize/denormalize)
+   - dial     : normalised -1..1 (positive = clockwise = right turn) for a clamped
+                wheel / knob (spec.range = total sweep in degrees, ±range/2);
+                0..1 for a wrapping crank (spec.wrap = true, 0..range degrees)
    - Modules map normalised values to real units with a preset or
      min/max + format(). Values live in the registry, never in the DOM.
    ═══════════════════════════════════════════════════════════════════════ */
@@ -58,6 +59,7 @@ export function resolveSpec(spec) {
 /** Default normalised value of a spec (axis). */
 export function defaultNormalized(spec) {
   const s = resolveSpec(spec);
+  if (isDial(s)) return dialDefault(s);
   if (typeof s.min === 'number' && typeof s.max === 'number') {
     return normalize(typeof s.def === 'number' ? s.def : s.min, s.min, s.max);
   }
@@ -81,12 +83,14 @@ export function stepCount(spec) {
 }
 /** Snap a normalised value to the nearest step. */
 export function snapNormalized(n, spec) {
+  if (isDial(spec)) return snapDial(n, spec);
   const c = stepCount(spec);
   return clamp(Math.round(clamp(Number.isFinite(n) ? n : 0, 0, 1) * c), 0, c) / c;
 }
 /** normalised -> real value in display units (step-snapped, decimals-rounded). */
 export function realValue(n, spec) {
   const s = resolveSpec(spec);
+  if (isDial(s)) return dialRealValue(n, s);
   const c = stepCount(s);
   const idx = clamp(Math.round(clamp(Number.isFinite(n) ? n : 0, 0, 1) * c), 0, c);
   const step = (s.max - s.min) / c;
@@ -100,6 +104,7 @@ export function rawValue(n, spec) {
 /** real value (display units) -> normalised, step-snapped. */
 export function fromReal(value, spec) {
   const s = resolveSpec(spec);
+  if (isDial(s)) return snapDial(degToDial(value, s), s);
   return snapNormalized(normalize(value, s.min, s.max), s);
 }
 
@@ -119,13 +124,98 @@ export function axisValueText(n, spec) {
   const v = denormalize(n, s.min ?? 0, s.max ?? 1);
   return format(v, s);
 }
-/** Text for aria-valuetext of a dial: "12° right", "8° left", "centre". */
+/** Text for aria-valuetext of a dial: "12° right", "8° left", "centre"; a wrapping crank reads "123°". */
 export function dialValueText(n, spec) {
   const s = resolveSpec(spec);
+  if (s.wrap) return `${Math.round(dialToDeg(n, s))}°`;
   const half = (s.range ?? 360) / 2;
   const deg = Math.round(denormalizeSigned(n, half));
   if (deg === 0) return 'centre';
   return `${Math.abs(deg)}° ${deg > 0 ? 'right' : 'left'}`;
+}
+
+/* ── dial maths (Phase 5) — pure, degrees, 0° = up, clockwise positive ────
+   Two flavours share one spec { type:'dial', range, wrap, def, step, spring, k }:
+   - clamped (wheel / knob): registry −1..1, degrees = n · range/2, clamped at ±range/2
+   - wrapping (crank)      : registry  0..1, degrees = n · range,   wraps at range      */
+export const isDial = (spec) => !!spec && (spec.type === 'dial' || spec.kind === 'dial');
+export const dialRange = (spec) => (spec && spec.range > 0 ? spec.range : DEFAULT_DIAL_RANGE);
+export const dialWraps = (spec) => !!(spec && spec.wrap);
+/** lowest registry value of a dial (−1 for a clamped wheel, 0 for a wrapping crank) */
+export const dialMin = (spec) => (dialWraps(spec) ? 0 : -1);
+
+/** wrap degrees into [0, range) — no -0, tolerant of huge values */
+export function wrapDeg(deg, range = DEFAULT_DIAL_RANGE) {
+  if (!Number.isFinite(deg) || !(range > 0)) return 0;
+  const r = ((deg % range) + range) % range;
+  return r === 0 ? 0 : r;
+}
+/** Shortest signed difference next − prev on a circle of `period` degrees, in (−period/2, +period/2].
+    Drag across ±180° (pointer angles, period 360) and across the 720° crank seam (period 720). */
+export function unwrapDelta(prev, next, period = 360) {
+  if (!Number.isFinite(prev) || !Number.isFinite(next) || !(period > 0)) return 0;
+  let d = (next - prev) % period;
+  const half = period / 2;
+  if (d > half) d -= period;
+  else if (d <= -half) d += period;
+  return d === 0 ? 0 : d;
+}
+/** Pointer angle around a centre: 0° = up, clockwise positive, result in (−180, 180]. */
+export function angleFromPointer(cx, cy, x, y) {
+  const dx = x - cx, dy = y - cy;
+  if (dx === 0 && dy === 0) return 0;
+  const a = Math.atan2(dx, -dy) * 180 / Math.PI;      /* screen y grows downwards */
+  return a === -180 ? 180 : (a === 0 ? 0 : a);
+}
+/** registry value -> degrees (clockwise positive; crank 0..range) */
+export function dialToDeg(n, spec) {
+  const s = resolveSpec(spec);
+  const r = dialRange(s);
+  const v = clamp(Number.isFinite(n) ? n : 0, dialMin(s), 1);
+  return v * (dialWraps(s) ? r : r / 2);
+}
+/** degrees -> registry value (clamped wheel: clamped at ±range/2; crank: wrapped into 0..range) */
+export function degToDial(deg, spec) {
+  const s = resolveSpec(spec);
+  const r = dialRange(s);
+  if (!Number.isFinite(deg)) return dialDefault(s);
+  if (dialWraps(s)) return wrapDeg(deg, r) / r;
+  return clamp(deg / (r / 2), -1, 1);
+}
+/** the spec's default (spec.def, in degrees) as a registry value */
+export function dialDefault(spec) {
+  const s = spec || {};
+  return degToDial(typeof s.def === 'number' ? s.def : 0, s);
+}
+/** snap a registry value to the spec's degree step (default 1°) */
+export function snapDial(n, spec) {
+  const s = resolveSpec(spec);
+  const step = s.step > 0 ? s.step : 1;
+  const deg = Math.round(dialToDeg(n, s) / step) * step;
+  const v = degToDial(deg, s);
+  return dialWraps(s) ? v : clamp(v, -1, 1);
+}
+/** registry value -> real value for controls.value(): degrees, step-snapped (clockwise positive) */
+export function dialRealValue(n, spec) {
+  const s = resolveSpec(spec);
+  const step = s.step > 0 ? s.step : 1;
+  const deg = Math.round(dialToDeg(n, s) / step) * step;
+  return roundTo(dialWraps(s) && deg >= dialRange(s) ? 0 : deg, 6);
+}
+/** Apply a drag / key delta (degrees, clockwise +) to a registry value: clamp (wheel) or wrap (crank). */
+export function dialAddDelta(n, deltaDeg, spec) {
+  const s = resolveSpec(spec);
+  return degToDial(dialToDeg(n, s) + (Number.isFinite(deltaDeg) ? deltaDeg : 0), s);
+}
+/** One spring step toward the dial's default (frame-rate independent). A crank takes the shortest way round. */
+export function dialSpringStep(n, dt, k, spec, eps = 0.05) {
+  const s = resolveSpec(spec);
+  const r = dialRange(s);
+  const cur = dialToDeg(n, s);
+  const target = dialToDeg(dialDefault(s), s);
+  const diff = dialWraps(s) ? unwrapDelta(target, cur, r) : cur - target;
+  const out = spring.step(diff, dt, k, eps);                       /* eps is in degrees here */
+  return degToDial(target + out, s);
 }
 
 /* ── spring (frame-rate independent) ──────────────────────────────────── */
@@ -143,6 +233,69 @@ export const spring = {
   }
 };
 
+/* ── pedal (Phase 4) ──────────────────────────────────────────────────────
+   Old pedals decayed a fixed factor per animation frame (v *= 0.86 at 60 Hz).
+   decayFactorToK turns that into a time constant so the release feels the same
+   at any frame rate: k = -ln(factor) * hz  (0.86 -> 9.05 s^-1, 0.88 -> 7.67 s^-1). */
+export const PEDAL_HZ = 60;
+export function decayFactorToK(factor, hz = PEDAL_HZ) {
+  if (!(factor > 0 && factor < 1)) throw new Error('controls-core: decay factor must be in (0,1)');
+  return -Math.log(factor) * hz;
+}
+/** Exponential release of a normalised pedal value toward 0 (frame-rate independent). */
+export function springStepAxis(v, dt, k, eps = SPRING_EPS) {
+  return spring.step(v, dt, k, eps);
+}
+/** Shift-hold quick-press: press -> ramp to 1, release -> spring back. */
+export const PEDAL_RAMP = 4;            /* normalised units / s while Shift is held (0 -> 1 in 0.25 s) */
+export const DEFAULT_PEDAL_K = 9.05;
+export function pedalIntent(ev) {
+  if (!ev) return null;
+  if (ev.key === 'Shift') return { pressed: true };
+  return null;
+}
+export function pedalUpIntent(ev) {
+  if (ev && ev.key === 'Shift') return { pressed: false };
+  return null;
+}
+/**
+ * Tiny pedal state machine, no DOM.
+ *   press()/release()  Shift-hold (repeat events must be filtered by the caller via press(true))
+ *   hold(v)            pointer/keyboard puts the pedal at v and cancels any ramp/release
+ *   let go             release() with `held=false` lets the spring act
+ *   step(dt)           advances; returns true while still moving
+ *   value              current normalised value
+ */
+export function createPedalModel({ k = DEFAULT_PEDAL_K, ramp = PEDAL_RAMP, value = 0, rest = 0 } = {}) {
+  const m = {
+    k, ramp, rest,
+    value,
+    pressed: false,          /* Shift is held */
+    held: false,             /* pointer / key holds the value */
+    get target() { return m.pressed ? 1 : m.held ? m.value : m.rest; },
+    /** Shift down. Auto-repeat (already pressed) is ignored. Returns true on a real edge. */
+    press() { if (m.pressed) return false; m.pressed = true; return true; },
+    /** Shift up -> spring back (unless something else holds the pedal). Returns true on a real edge. */
+    release() { if (!m.pressed) return false; m.pressed = false; return true; },
+    /** pointer/keyboard sets the value directly */
+    hold(v) { m.value = clamp(Number.isFinite(v) ? v : 0, 0, 1); m.held = true; m.pressed = false; return m.value; },
+    /** pointer/keyboard let go -> the spring takes over */
+    letGo() { m.held = false; },
+    /** is the model still moving (ramping or springing)? */
+    active() { return m.pressed ? m.value < 1 : (!m.held && m.value !== m.rest); },
+    step(dt) {
+      if (m.pressed) {
+        m.value = Math.min(1, m.value + m.ramp * dt);
+      } else if (!m.held) {
+        m.value = m.rest + springStepAxis(m.value - m.rest, dt, m.k);
+      }
+      return m.active();
+    },
+    reset() { m.pressed = false; m.held = false; m.value = m.rest; }
+  };
+  return m;
+}
+
 /* ── keyboard mapping ─────────────────────────────────────────────────── */
 export const KEY_STEP_AXIS = 0.08;       /* per press, normalised 0..1      */
 export const KEY_STEP_DIAL_DEG = 10;     /* per press, degrees              */
@@ -152,7 +305,7 @@ export const DEFAULT_DIAL_RANGE = 360;   /* total sweep in degrees          */
  * Map a KeyboardEvent-like {key, shiftKey} to an intent for a control kind.
  * Returns null when the key is not handled by that kind.
  *   axis      -> { delta }            (normalised 0..1 units)
- *   dial      -> { delta }            (normalised -1..1 units; + = clockwise)
+ *   dial      -> { delta } | { reset } (registry units; + = clockwise; Enter / Home = default)
  *   choice    -> { step }             (+1 / -1 index)
  *   momentary -> { pressed }          (Shift held)
  * `spec.range` (dial) is the total sweep in degrees (default 360), so one
@@ -166,10 +319,12 @@ export function keyToIntent(kind, ev, spec = {}) {
       if (key === 'ArrowDown') return { delta: -KEY_STEP_AXIS };
       return null;
     case 'dial': {
-      const half = (spec.range ?? DEFAULT_DIAL_RANGE) / 2;
-      const d = KEY_STEP_DIAL_DEG / half;
-      if (key === 'ArrowRight') return { delta: +d };
+      /* clamped wheel: registry −1..1 spans ±range/2; wrapping crank: 0..1 spans range */
+      const span = (spec.range ?? DEFAULT_DIAL_RANGE) / (spec.wrap ? 1 : 2);
+      const d = KEY_STEP_DIAL_DEG / span;
+      if (key === 'ArrowRight') return { delta: +d };          /* → = clockwise = right, in every module */
       if (key === 'ArrowLeft')  return { delta: -d };
+      if (key === 'Enter' || key === 'Home') return { reset: true };   /* the single reset path */
       return null;
     }
     case 'choice':
@@ -227,7 +382,7 @@ export function createRegistry() {
       const it = items.get(id);
       if (!it) throw new Error(`controls-core: unknown control id "${id}"`);
       const s = it.spec || {};
-      const lo = s.kind === 'dial' || s.type === 'dial' ? -1 : 0;
+      const lo = isDial(s) ? dialMin(s) : 0;
       const v = clamp(Number.isFinite(value) ? value : 0, lo, 1);
       if (v === it.value) return v;
       it.value = v;
