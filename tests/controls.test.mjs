@@ -139,4 +139,51 @@ t('resolveSpec / defaultNormalized', () => {
   near(r.get('rpm'), 1000 / 4200, 1e-12);
 });
 
+/* ── Phase 3: axis value mapping (slider look) ───────────────────────── */
+t('axis: realValue / fromReal round-trip on every preset (step-snapped, no float creep)', () => {
+  for (const name of Object.keys(core.PRESETS)) {
+    const s = core.resolveSpec({ preset: name });
+    for (const f of [0, 0.25, 0.5, 1]) {
+      const v = core.realValue(f, s);
+      assert.ok(v >= s.min && v <= s.max, `${name} ${v}`);
+      near(core.realValue(core.fromReal(v, s), s), v, 1e-9, name);
+    }
+    assert.equal(core.realValue(0, s), s.min);
+    assert.equal(core.realValue(1, s), s.max);
+  }
+});
+t('axis: preset defaults land exactly (rpm 1800, ambient 20, voltage 13.5)', () => {
+  assert.equal(core.realValue(core.defaultNormalized({ preset: 'rpm' }), core.resolveSpec({ preset: 'rpm' })), 1800);
+  assert.equal(core.realValue(core.defaultNormalized({ preset: 'ambient' }), core.resolveSpec({ preset: 'ambient' })), 20);
+  assert.equal(core.realValue(core.defaultNormalized({ preset: 'voltage' }), core.resolveSpec({ preset: 'voltage' })), 13.5);
+});
+t('axis: voltage uses real volts; scale gives the legacy centivolt value fuelpump used (13.5 V -> 1350)', () => {
+  const v = { preset: 'voltage' };
+  assert.equal(core.rawValue(core.fromReal(13.5, v), v), 1350);
+  assert.equal(core.rawValue(0, v), 800);
+  assert.equal(core.rawValue(1, v), 1500);
+  assert.equal(core.realValue(core.fromReal(12.3, v), v), 12.3);
+});
+t('axis: overrides win over the preset (rpm max 5500, lambda 0.88..1.12 / 0.01, rod ratio 0.05 steps)', () => {
+  const rpm = { preset: 'rpm', max: 5500, def: 2400 };
+  assert.equal(core.realValue(1, rpm), 5500);
+  assert.equal(core.realValue(core.defaultNormalized(rpm), rpm), 2400);
+  const lam = { min: 0.88, max: 1.12, step: 0.01, def: 1, decimals: 2 };
+  assert.equal(core.stepCount(lam), 24);
+  assert.equal(core.realValue(core.fromReal(1, lam), lam), 1);
+  assert.equal(core.realValue(core.fromReal(0.934, lam), lam), 0.93);
+  const rr = { min: 1.4, max: 2.2, step: 0.05, def: 1.7, decimals: 2 };
+  assert.equal(core.realValue(core.fromReal(1.7, rr), rr), 1.7);
+});
+t('axis: snapNormalized clamps and snaps; NaN -> 0; no -0', () => {
+  const s = { min: 0, max: 10, step: 1 };
+  assert.equal(core.snapNormalized(0.46, s), 0.5);
+  assert.equal(core.snapNormalized(2, s), 1);
+  assert.equal(core.snapNormalized(NaN, s), 0);
+  assert.ok(Object.is(core.roundTo(-0.0001, 2), 0));
+});
+t('axis: format text carries the unit (aria-valuetext source)', () => {
+  assert.equal(core.axisValueText(0.5, { preset: 'ambient', min: -10, max: 45 }), '18 °C'.replace('18', String(Math.round(-10 + 55 * 0.5))));
+  assert.equal(core.axisValueText(core.fromReal(13.5, { preset: 'voltage' }), { preset: 'voltage' }), '13.5 V');
+});
 console.log(`\n${n} test groups passed`);

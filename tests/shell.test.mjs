@@ -61,24 +61,22 @@ t('theme: one path only — the shell no longer writes light-theme into the ifra
   assert.match(fix, /classList\.add\('embedded'\)/, 'injectEmbedFix itself is kept until Phase 8');
 });
 
-t('R7: embedded kit toolbar builds no play / reset / density / Flow (source guards)', () => {
-  for (const id of ['btn-play', 'btn-reset', 'btn-density', 'chk-gas']) {
-    const stmt = kit.split('\n').filter((l, i, a) => l.includes(`id="${id}"`) || (a[i + 1] || '').includes(`id="${id}"`)).join(' ');
-    assert.ok(/!embedded/.test(stmt), `${id} is not guarded by !embedded: ${stmt.slice(0, 120)}`);
-  }
-  assert.match(kit, /t\.speed && \(!embedded \|\| t\.speed\.module\)/);
-  assert.ok(!/body\.embedded\.uses-ui-kit \.ui-toolbar #btn-play/.test(appcss), 'CSS still hides nodes the kit no longer builds');
+t('R6/R7 (Phase 2 supersedes Phase 1): play / reset live in the dock in BOTH modes; density + sim speed only in the ⋯ menu', () => {
+  for (const id of ['btn-play', 'btn-reset']) assert.equal(kit.split('\n').filter((l) => l.includes(`id="${id}"`)).length, 1, id);
+  assert.ok(!/id="btn-density"/.test(kit) && !/id="speed"/.test(kit));
+  assert.ok(!/t\.speed && t\.speed\.module/.test(kit), 'Phase 3: the temporary module-local slider is gone (axes replace it)');
+  assert.ok(!/body\.embedded\.uses-ui-kit \.ui-toolbar #btn-play/.test(appcss), 'CSS does not hide dock nodes');
 });
 
-t('D8: ignition + mpfi keep their own visible slider and never read state.speedMul', () => {
-  for (const f of ['ignition.html', 'mpfi.html']) {
+t('D8 (Phase 3): ignition + mpfi own a real axis and never read state.speedMul', () => {
+  for (const [f, id] of [['ignition.html', 'rpm'], ['mpfi.html', 'load']]) {
     const s = rd(f);
-    assert.match(s, /module: true/, `${f}: toolbar speed not marked module-local`);
+    assert.match(s, new RegExp(`axes:\\s*\\[\\{ id: '${id}'`), `${f}: no '${id}' axis`);
+    assert.ok(!/module: true|data-phase1-temp|speedInput/.test(strip(s)), `${f} still has the Phase 1 temporary slider`);
     const code = strip(s).split('\n').filter((l) => /state\.speedMul/.test(l));
     assert.deepEqual(code, [], `${f} still uses state.speedMul: ${code.join(' | ')}`);
   }
-  assert.match(kit, /data-phase1-temp/);
-  assert.match(kit, /id="speed-module"/, 'module-local slider must not use id="speed" (would be wired to state.speedMul)');
+  assert.ok(!/data-phase1-temp|id="speed-module"/.test(kit), 'kit no longer builds the temporary slider');
 });
 
 t('Space is no longer a pedal in braking / clutch / turbocharger', () => {
@@ -90,7 +88,7 @@ t('Space is no longer a pedal in braking / clutch / turbocharger', () => {
 
 t('new files are precached and the SW version is bumped', () => {
   for (const a of ['chrome.js', 'keys.js', 'controls.css', 'controls-core.js']) assert.ok(sw.includes(`'./${a}'`), a);
-  assert.match(sw, /const VERSION = 'autolab-v8\.1'/);
+  assert.match(sw, /const VERSION = 'autolab-v8\.3'/);
   assert.match(index, /<link rel="stylesheet" href="controls\.css">/);
 });
 
