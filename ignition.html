@@ -1221,10 +1221,6 @@
     const rel   = (target - prev + 720) % 720;
     return delta > 0 && rel < delta;
   }
-  function rpmFromSlider(s) {
-    const t = Math.max(0, Math.min(1, (s - 0.15) / (2.5 - 0.15)));
-    return 800 + t * 5200;
-  }
 
   /* ═══════════════════════════════════════════════════════════
      UI — kit chrome + readout with timing curve + cycle bar
@@ -1288,18 +1284,10 @@
 
     toolbar: {
       play: true, reset: true,
-      speed: { label: 'Engine RPM', min: 0.15, max: 2.5, step: 0.05, value: 0.15, module: true },   /* data-phase1-temp → dock axis in Phase 3 */
       labels: true, gas: true
-    }
+    },
+    axes: [{ id: 'rpm', preset: 'rpm', max: 6000, def: 800, label: 'Engine speed', side: 'left' }]   /* Phase 3: its own axis, never state.speedMul */
   });
-
-  /* PHASE 1 (D8): the toolbar slider is ENGINE RPM, a module quantity. It no longer lives in
-     state.speedMul, so the ⋯ menu's Sim speed can never change it. Temporary; Phase 3 moves it to
-     a dock axis control. */
-  const RPM_SLIDER_DEFAULT = 0.15;
-  let rpmSlider = RPM_SLIDER_DEFAULT;
-  const rpmSliderEl = ui.toolbar.speedInput;
-  if (rpmSliderEl) rpmSliderEl.addEventListener('input', () => { rpmSlider = parseFloat(rpmSliderEl.value); });
 
   /* Panel readout refs */
   const panelBody = ui.panel.body;
@@ -1601,7 +1589,7 @@
       ui.chip.setStatus(`Next: Cyl ${nextFireCyl + 1}`, false);
     }
 
-    ui.toolbar.setRpmLabel('~' + Math.round(rpmFromSlider(rpmSlider)) + ' rpm');
+    ui.toolbar.setRpmLabel('~' + Math.round(ui.controls.value('rpm')) + ' rpm');
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -1612,7 +1600,7 @@
     state,
     onCommand: (d) => {
       switch (d.action) {
-        case 'reset':      resetSim(); break;
+        case 'reset':      ui.controls.resetAll(); resetSim(); break;
         case 'setIgnition': setIgnition(!!d.value); break;
       }
     }
@@ -1635,7 +1623,7 @@
     const simDt = state.playing !== false ? dt : 0;
 
     if (simDt > 0) {
-      const targetRPM = rpmFromSlider(rpmSlider);
+      const targetRPM = ui.controls.value('rpm');
       currentRPM += (targetRPM - currentRPM) * (1 - Math.exp(-simDt * (targetRPM > currentRPM ? 3.0 : 1.8)));
       if (currentRPM < 25 && targetRPM < 25) currentRPM = targetRPM;
 

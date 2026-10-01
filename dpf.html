@@ -35,7 +35,6 @@ html.light-theme { --al-accent: color-mix(in oklch, #94a3b8 68%, black); }
 .dpf-w label{ display:flex; justify-content:space-between; gap:8px; font-size:10px; letter-spacing:.06em;
   text-transform:uppercase; color:var(--text-mute,#6b7280); }
 .dpf-w b{ color:var(--text,#e5e7eb); font-weight:700; }
-#dpf-panel .al-range{ height:22px; }
 #dpf-panel .al-sel{ min-height:32px; font-size:11px; }
 .dpf-btns{ display:flex; gap:6px; margin-bottom:8px; }
 .dpf-btns button{ flex:1 1 0; min-height:30px; padding:0 4px; border:1px solid var(--border,#333); border-radius:6px;
@@ -69,7 +68,7 @@ html.light-theme { --al-accent: color-mix(in oklch, #94a3b8 68%, black); }
 </script>
 
 <script type="module">
-import { runGuidedModule } from './components.js';
+import { runGuidedModule, controls } from './components.js';
 
 /* ── CONFIG (module content) ─────────────────────────────────────── */
 const CFG = {
@@ -81,7 +80,11 @@ const CFG = {
   "camPos": [4.8, 2.6, 6.4],
   "target": [0, 0, 0],
   "floorY": -1.6,
-  "ctl": { "label": "Engine load", "val": 40, "caption": "Engine load" },
+  ctls: [   /* Phase 3: sliders live in the dock as axis controls; ctls[0] (id 'ctl') = the main 0-100 % control */
+    { id:'ctl', label:"Engine load", caption:"Engine load", preset:'percent', def:40 },
+    { id:'rpm', preset:'rpm', def:1800, label:'Engine speed', onChange:(v)=>{ S.rpm = v; } },
+    { id:'ambient', preset:'ambient', label:'Ambient', onChange:(v)=>{ S.ambient = v; } },
+  ],
   "chipLabel": "Back pressure",
   "rows": [["soot", "Soot"], ["regen", "Regen"]],
   "ro": [
@@ -237,10 +240,6 @@ for (const id in FAULT_INFO) {
 panel.innerHTML =
   '<div class="dpf-h"><span>DPF simulation</span><button type="button" id="dpf-fold" aria-label="Collapse controls">&#8211;</button></div>' +
   '<div class="dpf-body">' +
-    '<div class="dpf-w"><label for="dpf-rpm">Engine speed <b id="dpf-rpm-v">1800 rpm</b></label>' +
-      '<input id="dpf-rpm" class="al-range" type="range" min="800" max="5000" step="50" value="1800" aria-label="Engine speed"></div>' +
-    '<div class="dpf-w"><label for="dpf-amb">Ambient air <b id="dpf-amb-v">20 &deg;C</b></label>' +
-      '<input id="dpf-amb" class="al-range" type="range" min="-10" max="45" step="1" value="20" aria-label="Ambient air temperature"></div>' +
     '<div class="dpf-w"><label for="dpf-cyc">Drive cycle</label>' +
       '<select id="dpf-cyc" class="al-sel" aria-label="Drive cycle">' +
         '<option value="urban">Urban / short trips</option>' +
@@ -266,10 +265,6 @@ panel.innerHTML =
 document.body.appendChild(panel);
 
 const elFold   = document.getElementById('dpf-fold');
-const elRpm    = document.getElementById('dpf-rpm');
-const elRpmV   = document.getElementById('dpf-rpm-v');
-const elAmb    = document.getElementById('dpf-amb');
-const elAmbV   = document.getElementById('dpf-amb-v');
 const elCyc    = document.getElementById('dpf-cyc');
 const elFault  = document.getElementById('dpf-fault');
 const elSpeed  = document.getElementById('dpf-speed');
@@ -282,14 +277,6 @@ const gctx     = gcv.getContext('2d');
 elFold.addEventListener('click', () => {
   panel.classList.toggle('folded');
   elFold.innerHTML = panel.classList.contains('folded') ? '&#43;' : '&#8211;';
-});
-elRpm.addEventListener('input', () => {
-  S.rpm = Number(elRpm.value) || 800;
-  elRpmV.textContent = S.rpm + ' rpm';
-});
-elAmb.addEventListener('input', () => {
-  S.ambient = Number(elAmb.value) || 0;
-  elAmbV.textContent = S.ambient + ' \u00B0C';
 });
 elCyc.addEventListener('change', () => { S.cycle = elCyc.value; });
 elFault.addEventListener('change', () => { S.fault = elFault.value; });
@@ -328,15 +315,14 @@ function resetModel() {
   if (elForce) elForce.classList.remove('on');
 }
 function resetAll() {
-  S.rpm = 1800; elRpm.value = 1800; elRpmV.textContent = '1800 rpm';
-  S.ambient = 20; elAmb.value = 20; elAmbV.textContent = '20 \u00B0C';
+  S.rpm = 1800;
+  S.ambient = 20;
   S.cycle = 'mixed'; elCyc.value = 'mixed';
   S.fault = 'none'; elFault.value = 'none';
   S.speed = 1;
   elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o.dataset.sp === '1'));
   resetModel();
-  const ctlEl = document.getElementById('ctl');
-  if (ctlEl) { ctlEl.value = String(CFG.ctl.val); ctlEl.dispatchEvent(new Event('input', { bubbles: true })); }
+  controls.resetAll();                 /* every axis back to its default (store -> onChange -> S) */
 }
 elReset.addEventListener('click', resetAll);
 

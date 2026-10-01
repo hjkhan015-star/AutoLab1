@@ -218,7 +218,7 @@
   /* PHASE 1 (D8): engine load (0–1) is a MODULE quantity. It used to be stored in state.speedMul,
      which the shell's speed control also wrote. Now it is local; the ⋯ menu's Sim speed can never
      change it. Temporary — Phase 3 moves it to a dock axis control. */
-  let loadVal = 0.20;
+  const loadFrac = () => ui.controls.value('load') / 100;   /* the 'load' axis (0..100 %) is the only store */
 
   /* ══════════════════════════════════════════════════════════════
      MATERIALS — each one documented with its intended use
@@ -1754,10 +1754,10 @@
     toolbar: {
       play: true,
       reset: true,
-      speed: { label: 'Engine load', min: 0, max: 1, step: 0.02, value: 0.20, module: true },   /* data-phase1-temp */
       labels: true,
       gas: true
-    }
+    },
+    axes: [{ id: 'load', preset: 'load', def: 20, label: 'Engine load', side: 'left', onChange: () => updateRpmLabelFromLoad() }]
   });
 
   /* ─── Resolve panel DOM refs ─────────────────────────────────── */
@@ -1958,7 +1958,7 @@
 
   /** Update the toolbar's live RPM hint. */
   function updateRpmLabelFromLoad() {
-    const rpm = rpmFromLoad(loadVal);
+    const rpm = rpmFromLoad(loadFrac());
     ui.toolbar.setRpmLabel('~' + Math.round(rpm) + ' rpm');
   }
 
@@ -2165,8 +2165,7 @@
       if (d.action === 'reset') {
         resetTrims();
         cyclePhase = 0;
-        loadVal = 0.20;
-        if (ui.toolbar.speedInput) ui.toolbar.speedInput.value = 0.20;
+        ui.controls.resetAll();
         updateRpmLabelFromLoad();
       }
     }
@@ -2177,12 +2176,6 @@
   /* Initial state. */
   applyModeSwitch('mpfi');
   updateRpmLabelFromLoad();
-  if (ui.toolbar.speedInput) {
-    ui.toolbar.speedInput.addEventListener('input', () => {
-      loadVal = parseFloat(ui.toolbar.speedInput.value);
-      updateRpmLabelFromLoad();
-    });
-  }
 
   /* ══════════════════════════════════════════════════════════════
      ANIMATION
@@ -2199,7 +2192,7 @@
     const sim = state.playing ? dt : 0;
     const isCRDI = sysMode === 'crdi';
 
-    const throttle = Math.max(0, Math.min(1, loadVal));
+    const throttle = Math.max(0, Math.min(1, loadFrac()));
     const rpm      = rpmFromLoad(throttle);
 
     /* ═══ Physics per mode ═══ */

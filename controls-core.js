@@ -64,6 +64,45 @@ export function defaultNormalized(spec) {
   return 0;
 }
 
+/* ── axis value mapping (display units <-> normalised, with step snapping) ──
+   The registry stores normalised 0..1. The real value is min + idx*step, so
+   1.00 stays 1.00 (no float creep) and `scale` gives the legacy raw unit. */
+export function roundTo(v, decimals = 0) {
+  if (!Number.isFinite(v)) return v;
+  const f = Math.pow(10, decimals);
+  const r = Math.round(v * f) / f;
+  return r === 0 ? 0 : r;                                   /* no -0 */
+}
+/** Number of steps between min and max (>= 1). */
+export function stepCount(spec) {
+  const s = resolveSpec(spec);
+  const step = s.step > 0 ? s.step : (s.max - s.min) / 100;
+  return Math.max(1, Math.round((s.max - s.min) / step));
+}
+/** Snap a normalised value to the nearest step. */
+export function snapNormalized(n, spec) {
+  const c = stepCount(spec);
+  return clamp(Math.round(clamp(Number.isFinite(n) ? n : 0, 0, 1) * c), 0, c) / c;
+}
+/** normalised -> real value in display units (step-snapped, decimals-rounded). */
+export function realValue(n, spec) {
+  const s = resolveSpec(spec);
+  const c = stepCount(s);
+  const idx = clamp(Math.round(clamp(Number.isFinite(n) ? n : 0, 0, 1) * c), 0, c);
+  const step = (s.max - s.min) / c;
+  return roundTo(s.min + idx * step, s.decimals ?? 0);
+}
+/** normalised -> legacy raw units (display value * scale), e.g. volts -> centivolts. */
+export function rawValue(n, spec) {
+  const s = resolveSpec(spec);
+  return roundTo(realValue(n, s) * (s.scale ?? 1), 6);
+}
+/** real value (display units) -> normalised, step-snapped. */
+export function fromReal(value, spec) {
+  const s = resolveSpec(spec);
+  return snapNormalized(normalize(value, s.min, s.max), s);
+}
+
 /* ── formatting ───────────────────────────────────────────────────────── */
 /** Format a real value: format(13.5,{unit:'V',decimals:1}) -> "13.5 V" */
 export function format(value, opts = {}) {

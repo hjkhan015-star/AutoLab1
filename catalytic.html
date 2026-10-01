@@ -35,7 +35,6 @@ html.light-theme { --al-accent: color-mix(in oklch, #fb923c 68%, black); }
 .cat-w label{ display:flex; justify-content:space-between; gap:8px; font-size:10px; letter-spacing:.06em;
   text-transform:uppercase; color:var(--text-mute,#6b7280); }
 .cat-w b{ color:var(--text,#e5e7eb); font-weight:700; }
-#cat-panel .al-range{ height:22px; }
 #cat-panel .al-sel{ min-height:32px; font-size:11px; }
 .cat-btns{ display:flex; gap:6px; margin-bottom:8px; }
 .cat-btns button{ flex:1 1 0; min-height:30px; padding:0 4px; border:1px solid var(--border,#333); border-radius:6px;
@@ -70,7 +69,7 @@ html.light-theme { --al-accent: color-mix(in oklch, #fb923c 68%, black); }
 </script>
 
 <script type="module">
-import { runGuidedModule } from './components.js';
+import { runGuidedModule, controls } from './components.js';
 
 /* ── CONFIG (module content) ─────────────────────────────────────── */
 const CFG = {
@@ -82,7 +81,12 @@ const CFG = {
   "camPos": [4.8, 2.6, 6.4],
   "target": [0, 0, 0],
   "floorY": -1.6,
-  "ctl": { "label": "Engine load", "val": 30, "caption": "Engine load" },
+  ctls: [   /* Phase 3: sliders live in the dock as axis controls; ctls[0] (id 'ctl') = the main 0-100 % control */
+    { id:'ctl', label:"Engine load", caption:"Engine load", preset:'percent', def:30 },
+    { id:'rpm', preset:'rpm', def:1800, label:'Engine speed', onChange:(v)=>{ S.rpm = v; } },
+    { id:'lambda', min:0.88, max:1.12, step:0.01, def:1, decimals:2, label:'Air-fuel \u03BB', onChange:(v)=>{ S.lambda = v; } },
+    { id:'misfire', preset:'percent', def:0, label:'Misfire', onChange:(v)=>{ S.misfire = v / 100; } },
+  ],
   "chipLabel": "CO conversion",
   "rows": [["hc", "HC"], ["nox", "NOx"]],
   "ro": [
@@ -240,12 +244,6 @@ for (const id in FAULT_INFO) {
 panel.innerHTML =
   '<div class="cat-h"><span>Catalyst simulation</span><button type="button" id="cat-fold" aria-label="Collapse controls">&#8211;</button></div>' +
   '<div class="cat-body">' +
-    '<div class="cat-w"><label for="cat-rpm">Engine speed <b id="cat-rpm-v">1800 rpm</b></label>' +
-      '<input id="cat-rpm" class="al-range" type="range" min="800" max="5000" step="50" value="1800" aria-label="Engine speed"></div>' +
-    '<div class="cat-w"><label for="cat-lam">Air-fuel &lambda; <b id="cat-lam-v">1.00</b></label>' +
-      '<input id="cat-lam" class="al-range" type="range" min="88" max="112" step="1" value="100" aria-label="Lambda"></div>' +
-    '<div class="cat-w"><label for="cat-mis">Misfire <b id="cat-mis-v">0 %</b></label>' +
-      '<input id="cat-mis" class="al-range" type="range" min="0" max="100" step="1" value="0" aria-label="Misfire level"></div>' +
     '<div class="cat-w"><label for="cat-fault">Fault injection</label>' +
       '<select id="cat-fault" class="al-sel" aria-label="Fault injection">' + faultOptions + '</select></div>' +
     '<div class="cat-w"><label>Simulation speed</label>' +
@@ -265,12 +263,6 @@ panel.innerHTML =
 document.body.appendChild(panel);
 
 const elFold  = document.getElementById('cat-fold');
-const elRpm   = document.getElementById('cat-rpm');
-const elRpmV  = document.getElementById('cat-rpm-v');
-const elLam   = document.getElementById('cat-lam');
-const elLamV  = document.getElementById('cat-lam-v');
-const elMis   = document.getElementById('cat-mis');
-const elMisV  = document.getElementById('cat-mis-v');
 const elFault = document.getElementById('cat-fault');
 const elSpeed = document.getElementById('cat-speed');
 const elCold  = document.getElementById('cat-cold');
@@ -282,18 +274,6 @@ const gctx    = gcv.getContext('2d');
 elFold.addEventListener('click', () => {
   panel.classList.toggle('folded');
   elFold.innerHTML = panel.classList.contains('folded') ? '&#43;' : '&#8211;';
-});
-elRpm.addEventListener('input', () => {
-  S.rpm = Number(elRpm.value) || 800;
-  elRpmV.textContent = S.rpm + ' rpm';
-});
-elLam.addEventListener('input', () => {
-  S.lambda = (Number(elLam.value) || 100) / 100;
-  elLamV.textContent = S.lambda.toFixed(2);
-});
-elMis.addEventListener('input', () => {
-  S.misfire = (Number(elMis.value) || 0) / 100;
-  elMisV.textContent = Math.round(S.misfire * 100) + ' %';
 });
 elFault.addEventListener('change', () => { S.fault = elFault.value; });
 elSpeed.addEventListener('click', (e) => {
@@ -328,15 +308,14 @@ function resetModel() {
   sim.lastSample = 0;
 }
 function resetAll() {
-  S.rpm = 1800;   elRpm.value = 1800;   elRpmV.textContent = '1800 rpm';
-  S.lambda = 1.00; elLam.value = 100;   elLamV.textContent = '1.00';
-  S.misfire = 0;  elMis.value = 0;      elMisV.textContent = '0 %';
+  S.rpm = 1800;
+  S.lambda = 1.00;
+  S.misfire = 0;
   S.fault = 'none'; elFault.value = 'none';
   S.speed = 1;
   elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o.dataset.sp === '1'));
   resetModel();
-  const ctlEl = document.getElementById('ctl');
-  if (ctlEl) { ctlEl.value = String(CFG.ctl.val); ctlEl.dispatchEvent(new Event('input', { bubbles: true })); }
+  controls.resetAll();                 /* every axis back to its default (store -> onChange -> S) */
 }
 elReset.addEventListener('click', resetAll);
 

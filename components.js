@@ -28,6 +28,8 @@
    ═══════════════════════════════════════════════════════════════════════ */
 import * as THREE from 'three';
 import * as Base from './kit.js';
+import { controls } from './controls.js';
+export { controls };
 
 /* ── 3D geometry kit ─────────────────────────────────────────────── */
 export function createGeoKit({ root, lowEnd, ptex }) {
@@ -138,8 +140,6 @@ export const Widgets = {
   readout: (cfg) => '<div class="al-read">' + cfg.ro.map(r =>
     `<span class="k">${r[1]}</span><span class="v${r[2] ? ' ' + r[2] : ''}" id="ro-${r[0]}"></span>`).join('') + '</div>',
   legend: (cfg) => '<div class="al-legend">' + cfg.legend.map(l => `<span><i style="background:${l[0]}"></i>${l[1]}</span>`).join('') + '</div>',
-  slider: (cfg) => `<div class="al-w"><label for="ctl">${cfg.ctl.label} <b id="ctl-out"></b></label>
-        <input id="ctl" class="al-range" type="range" min="0" max="100" step="1" value="${cfg.ctl.val}" aria-label="${cfg.ctl.label}"></div>`,
   /* one click handler for every .al-q self-check question inside `host` */
   wireQuiz(host) {
     host.addEventListener('click', (e) => {
@@ -151,6 +151,16 @@ export const Widgets = {
     });
   }
 };
+
+/* Phase 3 — slider specs for a guided module.
+   CFG.ctls[] is the list (each = controls.js axis spec + optional onChange(real, raw, norm)).
+   CFG.ctl { label, val, caption } is kept as a shim and maps to ctls[0] = the module's main 0-100 % control
+   (id 'ctl'; the simulation reads it as k = value / 100, and apply({ctl:'…'}) sets its readout text). */
+export function guidedCtls(CFG) {
+  if (Array.isArray(CFG.ctls) && CFG.ctls.length) return CFG.ctls;
+  const c = CFG.ctl || { label: 'Control', val: 0 };
+  return [{ id: 'ctl', label: c.label, caption: c.caption, preset: 'percent', def: c.val, min: 0, max: 100, step: 1 }];
+}
 
 /* ── Guided-module runtime ───────────────────────────────────────── */
 export function runGuidedModule(CFG, build) {
@@ -165,6 +175,7 @@ const ptex = Base.createParticleTexture();
 const H = createGeoKit({ root, lowEnd, ptex });
 const { V3 } = H;
 
+const CTLS = guidedCtls(CFG);
 const mod = build(H);
 
 /* ── Labels ──────────────────────────────────────────────────────── */
@@ -191,11 +202,8 @@ const ui = Base.UI.create({
   },
   chip: { label: CFG.chipLabel, value: '', unit: '', bar: true, rows: CFG.rows.map(r => ({ id: r[0], label: r[1], value: '' })), status: { text: 'Running' } },
   toolbar: { play: true, reset: true, speed: { label: 'Sim speed', min: 0.15, max: 2.5, step: 0.05, value: 0.85 }, labels: true },
+  axes: CTLS.map((c, i) => Object.assign({ side: i % 2 ? 'right' : 'left' }, c)),
   widgets: {
-    bl: {
-      html: Widgets.slider(CFG),
-      caption: CFG.ctl.caption || 'Control'
-    },
     br: { html: Widgets.legend(CFG), caption: 'Legend' }
   }
 });
@@ -206,11 +214,10 @@ Widgets.wireQuiz(tabHost);
 function renderTab(id) { tabHost.innerHTML = (TABS[id] || TABS.overview)(); }
 renderTab('overview');
 
-const ctlEl = document.getElementById('ctl');
-const ctlOut = document.getElementById('ctl-out');
 const ROE = {}; CFG.ro.forEach(r => { ROE[r[0]] = document.getElementById('ro-' + r[0]); });
-let k = CFG.ctl.val / 100;
-ctlEl.addEventListener('input', () => { k = ctlEl.value / 100; refresh(0); });
+const mainAxis = ui.axis('ctl');                  /* the 0-100 % control the simulation reads as k */
+let k = mainAxis ? mainAxis.get() : 0;
+if (mainAxis) mainAxis.on((n) => { k = n; refresh(0); });
 
 let simT = 0;
 function apply(o) {
@@ -220,14 +227,14 @@ function apply(o) {
   if (o.rows) for (const id in o.rows) ui.chip.set(id, o.rows[id]);
   if (o.ro) for (const id in o.ro) { const el = ROE[id]; if (el) { el.textContent = o.ro[id][0]; el.className = 'v ' + (o.ro[id][1] || ''); } }
   if (o.status) ui.chip.setStatus(o.status[0], o.status[1]);
-  if (o.ctl != null) ctlOut.textContent = o.ctl;
+  if (o.ctl != null && mainAxis) mainAxis.setText(o.ctl);
 }
 function refresh(dt) { apply(mod.update({ t: simT, dt, k, sp: state.playing ? state.speedMul : 0 })); }
 
 const bridge = ui.wireBridge({
   viewManager, state,
   onCommand: (d) => {
-    if (d.action === 'reset') { k = CFG.ctl.val / 100; ctlEl.value = CFG.ctl.val; simT = 0; refresh(0); }
+    if (d.action === 'reset') { controls.resetAll(); k = mainAxis ? mainAxis.get() : 0; simT = 0; refresh(0); }
   }
 });
 bridge.ready();

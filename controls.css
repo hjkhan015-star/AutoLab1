@@ -465,3 +465,123 @@ body.al-sheet-open .al-sheet-scrim { display: block; }
 @media (prefers-reduced-motion: reduce) {
   .al-dock[data-mode="portrait"], .ui-panel { transition: none; }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PHASE 3 — axis (look: slider)  · built by controls.js
+   One slider style for the whole project. Tokens only (R3).
+   ═══════════════════════════════════════════════════════════════════════ */
+.ctl-axis {
+  --ctl-thumb-size: 22px;
+  --ctl-track-h: 6px;
+  --p: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
+  width: 100%;
+  color: var(--text);
+}
+.ctl-axis .ctl-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--ctl-gap);
+  font-size: var(--ctl-text);
+  line-height: 1.2;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-mute, var(--text-dim));
+}
+.ctl-axis .ctl-value {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--ctl-value-text);
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ctl-axis.is-dragging .ctl-value { visibility: hidden; }          /* the bubble shows it instead */
+
+.ctl-axis .ctl-track { position: relative; height: var(--ctl-tap); }
+.ctl-axis .ctl-range {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: var(--ctl-tap);                                         /* 44 px touch target */
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: none;                                             /* drag surface only (R8) */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.ctl-axis .ctl-range:focus { outline: none; }
+.ctl-axis .ctl-range::-webkit-slider-runnable-track {
+  height: var(--ctl-track-h);
+  border-radius: var(--ctl-track-h);
+  background: linear-gradient(to right,
+    var(--ctl-accent) calc(var(--p) * 100%), var(--ctl-track) calc(var(--p) * 100%));
+}
+.ctl-axis .ctl-range::-moz-range-track {
+  height: var(--ctl-track-h);
+  border-radius: var(--ctl-track-h);
+  background: var(--ctl-track);
+}
+.ctl-axis .ctl-range::-moz-range-progress {
+  height: var(--ctl-track-h);
+  border-radius: var(--ctl-track-h);
+  background: var(--ctl-accent);
+}
+.ctl-axis .ctl-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--ctl-thumb-size);
+  height: var(--ctl-thumb-size);
+  margin-top: calc((var(--ctl-track-h) - var(--ctl-thumb-size)) / 2);
+  border-radius: 50%;
+  background: var(--ctl-thumb);
+  border: 2px solid var(--ctl-accent);
+  box-shadow: var(--shadow-sm);
+}
+.ctl-axis .ctl-range::-moz-range-thumb {
+  width: calc(var(--ctl-thumb-size) - 4px);
+  height: calc(var(--ctl-thumb-size) - 4px);
+  border-radius: 50%;
+  background: var(--ctl-thumb);
+  border: 2px solid var(--ctl-accent);
+}
+.ctl-axis .ctl-range:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--ctl-focus); outline-offset: 3px; }
+.ctl-axis .ctl-range:focus-visible::-moz-range-thumb { outline: 2px solid var(--ctl-focus); outline-offset: 3px; }
+
+/* value bubble above the thumb while dragging */
+.ctl-axis .ctl-bubble {
+  position: absolute;
+  bottom: calc(50% + var(--ctl-thumb-size) / 2 + 2px);
+  left: calc(var(--ctl-thumb-size) / 2 + (100% - var(--ctl-thumb-size)) * var(--p));
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  border-radius: var(--ctl-radius);
+  background: var(--surface-2, var(--ctl-track));
+  border: 1px solid var(--ctl-border);
+  color: var(--text);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--ctl-value-text);
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .12s ease;
+}
+.ctl-axis.is-dragging .ctl-bubble { opacity: 1; }
+.ctl-axis.is-disabled { opacity: .5; }
+.ctl-axis.is-disabled .ctl-range { cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) {
+  .ctl-axis .ctl-bubble { transition: none; }
+}

@@ -35,7 +35,6 @@ html.light-theme { --al-accent: color-mix(in oklch, #84cc16 68%, black); }
 .oilp-w label{ display:flex; justify-content:space-between; gap:8px; font-size:10px; letter-spacing:.06em;
   text-transform:uppercase; color:var(--text-mute,#6b7280); }
 .oilp-w b{ color:var(--text,#e5e7eb); font-weight:700; }
-#oilp-panel .al-range{ height:22px; }
 #oilp-panel .al-sel{ min-height:32px; font-size:11px; }
 .oilp-btns{ display:flex; gap:6px; margin-bottom:8px; }
 .oilp-btns button{ flex:1 1 0; min-height:30px; padding:0 4px; border:1px solid var(--border,#333); border-radius:6px;
@@ -70,7 +69,7 @@ html.light-theme { --al-accent: color-mix(in oklch, #84cc16 68%, black); }
 </script>
 
 <script type="module">
-import { runGuidedModule } from './components.js';
+import { runGuidedModule, controls } from './components.js';
 
 /* ── CONFIG (module content) ─────────────────────────────────────── */
 const CFG = {
@@ -82,7 +81,11 @@ const CFG = {
   "camPos": [4.6, 2.4, 6.8],
   "target": [0.6, 0, 0],
   "floorY": -3.1,
-  "ctl": { "label": "Engine speed", "val": 35, "caption": "Crank rpm" },
+  ctls: [   /* Phase 3: sliders live in the dock as axis controls; ctls[0] (id 'ctl') = the main 0-100 % control */
+    { id:'ctl', label:"Engine speed", caption:"Crank rpm", preset:'percent', def:35 },
+    { id:'load', preset:'load', def:30, label:'Engine load', onChange:(v)=>{ S.load = v / 100; } },
+    { id:'wear', preset:'percent', def:0, label:'Bearing wear', onChange:(v)=>{ S.wear = v / 100; } },
+  ],
   "chipLabel": "Oil pressure",
   "rows": [["flow", "Pump flow"], ["relief", "Relief valve"]],
   "ro": [
@@ -239,10 +242,6 @@ panel.innerHTML =
         '<option value="gerotor">Gerotor</option>' +
         '<option value="vane">Vane</option>' +
       '</select></div>' +
-    '<div class="oilp-w"><label for="oilp-load">Engine load <b id="oilp-load-v">30 %</b></label>' +
-      '<input id="oilp-load" class="al-range" type="range" min="0" max="100" step="1" value="30" aria-label="Engine load"></div>' +
-    '<div class="oilp-w"><label for="oilp-wear">Bearing wear <b id="oilp-wear-v">0 %</b></label>' +
-      '<input id="oilp-wear" class="al-range" type="range" min="0" max="100" step="1" value="0" aria-label="Bearing wear"></div>' +
     '<div class="oilp-w"><label for="oilp-fault">Fault injection</label>' +
       '<select id="oilp-fault" class="al-sel" aria-label="Fault injection">' + faultOptions + '</select></div>' +
     '<div class="oilp-w"><label>Simulation speed</label>' +
@@ -263,10 +262,6 @@ document.body.appendChild(panel);
 
 const elFold  = document.getElementById('oilp-fold');
 const elType  = document.getElementById('oilp-type');
-const elLoad  = document.getElementById('oilp-load');
-const elLoadV = document.getElementById('oilp-load-v');
-const elWear  = document.getElementById('oilp-wear');
-const elWearV = document.getElementById('oilp-wear-v');
 const elFault = document.getElementById('oilp-fault');
 const elSpeed = document.getElementById('oilp-speed');
 const elCold  = document.getElementById('oilp-cold');
@@ -280,14 +275,6 @@ elFold.addEventListener('click', () => {
   elFold.innerHTML = panel.classList.contains('folded') ? '&#43;' : '&#8211;';
 });
 elType.addEventListener('change', () => { S.type = elType.value; });
-elLoad.addEventListener('input', () => {
-  S.load = (Number(elLoad.value) || 0) / 100;
-  elLoadV.textContent = Math.round(S.load * 100) + ' %';
-});
-elWear.addEventListener('input', () => {
-  S.wear = (Number(elWear.value) || 0) / 100;
-  elWearV.textContent = Math.round(S.wear * 100) + ' %';
-});
 elFault.addEventListener('change', () => { S.fault = elFault.value; });
 elSpeed.addEventListener('click', (e) => {
   const b = e.target.closest('button[data-sp]');
@@ -311,15 +298,14 @@ function resetModel() {
   sim.samples.length = 0;
 }
 function resetAll() {
-  S.load = 0.30; elLoad.value = 30; elLoadV.textContent = '30 %';
-  S.wear = 0.00; elWear.value = 0;  elWearV.textContent = '0 %';
+  S.load = 0.30;
+  S.wear = 0.00;
   S.type = 'gear'; elType.value = 'gear';
   S.fault = 'none'; elFault.value = 'none';
   S.speed = 1;
   elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o.dataset.sp === '1'));
   resetModel();
-  const ctlEl = document.getElementById('ctl');
-  if (ctlEl) { ctlEl.value = String(CFG.ctl.val); ctlEl.dispatchEvent(new Event('input', { bubbles: true })); }
+  controls.resetAll();                 /* every axis back to its default (store -> onChange -> S) */
 }
 elReset.addEventListener('click', resetAll);
 

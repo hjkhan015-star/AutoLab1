@@ -4,7 +4,7 @@
 | File | Purpose |
 |---|---|
 | `components.js` | Shared 3D helpers (`createGeoKit`), panel widgets (`Widgets`) and the guided-module runtime (`runGuidedModule`) |
-| `components.css` | Styles for readout grid, overview sections, faults, quiz, slider, legend (`.al-*`) |
+| `components.css` | Styles for readout grid, overview sections, faults, quiz, legend (`.al-*`); sliders are styled in `controls.css` (`.ctl-axis`) |
 | `kit.js` / `labels.js` / `app.css` | Unchanged base engine, labels, theme |
 
 ## Link a module (2 lines + 1)
@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="components.css">
 <script type="module">
   import { runGuidedModule } from './components.js';
-  const CFG = { /* text, quiz, faults, readouts, legend, slider */ };
+  const CFG = { /* text, quiz, faults, readouts, legend, ctls[] (sliders) */ };
   function build(H) { const { box, cyl, mat, pipe, stream, THREE } = H; /* parts */ return { labels: [...], update(c) {...} }; }
   runGuidedModule(CFG, build);
 </script>
@@ -44,3 +44,12 @@ obd2, ecu, abs-esc, crankshaft-piston, valvetrain now link `components.css` and 
 - Gears (differential bevel gears, starting-system teeth, steering gears), pulleys, fans/impellers, shock absorbers, hoses: each is built differently per module.
 - Stream update logic (`updateStream`) differs per module; only the shared point-cloud setup was merged.
 To merge one of these: add it to `Parts`, keep the old function as a thin wrapper, compare in a browser.
+
+## Sliders: `axis` (Phase 3)
+One slider primitive for the whole project: `controls.js` builds it, `controls.css` styles it (`.ctl-axis`), `controls-core.js` holds the maths.
+- **Guided modules:** list sliders in `CFG.ctls[]`. `ctls[0]` has id `ctl` (main 0-100 % control, read by `update({k})`; `apply({ctl:'…'})` sets its text). Each extra entry is an axis spec plus `onChange(real, raw, norm)`.
+  `{ id:'rpm', preset:'rpm', max:5500, def:2400, label:'Engine speed', onChange:(v)=>{ S.rpm = v; } }`.
+  `CFG.ctl { label, val, caption }` still works (shim -> `ctls[0]`).
+- **`UI.create` modules:** `axes: [spec, …]` (hosted in the dock's primary zone). Read values with `ui.controls.get(id)` (0..1), `.value(id)` (real units), `.raw(id)` (value x `scale`, e.g. centivolts). Never read a slider's DOM value. Reset: `ui.controls.resetAll()`.
+- **Presets:** `rpm` 800-5000 (def 1800) - `load` 0-100 % - `ambient` -10..45 °C (def 20) - `vehicle-speed` 0-160 km/h - `voltage` 8-15 V (def 13.5, `scale` 100) - `percent`. Override any field in the spec.
+- **Sim speed is not a quantity.** `state.speedMul` is sim speed (⋯ menu) only; engine rpm / load / vehicle speed are their own axes.

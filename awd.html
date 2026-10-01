@@ -35,7 +35,6 @@ html.light-theme { --al-accent: color-mix(in oklch, #22c55e 68%, black); }
 .awd-w label{ display:flex; justify-content:space-between; gap:8px; font-size:10px; letter-spacing:.06em;
   text-transform:uppercase; color:var(--text-mute,#6b7280); }
 .awd-w b{ color:var(--text,#e5e7eb); font-weight:700; }
-#awd-panel .al-range{ height:22px; }
 #awd-panel .al-sel{ min-height:32px; font-size:11px; }
 .awd-btns{ display:flex; gap:6px; margin-bottom:8px; }
 .awd-btns button{ flex:1 1 0; min-height:30px; padding:0 4px; border:1px solid var(--border,#333); border-radius:6px;
@@ -70,7 +69,7 @@ html.light-theme { --al-accent: color-mix(in oklch, #22c55e 68%, black); }
 </script>
 
 <script type="module">
-import { runGuidedModule } from './components.js';
+import { runGuidedModule, controls } from './components.js';
 
 /* ── CONFIG (module content) ─────────────────────────────────────── */
 const CFG = {
@@ -82,7 +81,11 @@ const CFG = {
   "camPos": [1.5, 8.8, 4.6],
   "target": [0, -0.4, 0],
   "floorY": -1.6,
-  "ctl": { "label": "Engine load", "val": 60, "caption": "Engine load" },
+  ctls: [   /* Phase 3: sliders live in the dock as axis controls; ctls[0] (id 'ctl') = the main 0-100 % control */
+    { id:'ctl', label:"Engine load", caption:"Engine load", preset:'percent', def:60 },
+    { id:'rpm', preset:'rpm', max:5500, def:2400, label:'Engine speed', onChange:(v)=>{ S.rpm = v; } },
+    { id:'steer', preset:'percent', def:0, label:'Steering input', onChange:(v)=>{ S.steering = v / 100; } },
+  ],
   "chipLabel": "Rear torque",
   "rows": [["fslip", "Front slip"], ["rslip", "Rear slip"]],
   "ro": [
@@ -226,8 +229,6 @@ for (const id in FAULT_INFO) {
 panel.innerHTML =
   '<div class="awd-h"><span>AWD simulation</span><button type="button" id="awd-fold" aria-label="Collapse controls">&#8211;</button></div>' +
   '<div class="awd-body">' +
-    '<div class="awd-w"><label for="awd-rpm">Engine speed <b id="awd-rpm-v">2400 rpm</b></label>' +
-      '<input id="awd-rpm" class="al-range" type="range" min="800" max="5500" step="50" value="2400" aria-label="Engine speed"></div>' +
     '<div class="awd-w"><label for="awd-surf">Surface</label>' +
       '<select id="awd-surf" class="al-sel" aria-label="Surface">' +
         '<option value="dry" selected>Dry tarmac (&#181; 1.00)</option>' +
@@ -242,8 +243,6 @@ panel.innerHTML =
         '<option value="clutch" selected>Clutch pack (ECU)</option>' +
         '<option value="locked">Locked 50:50 (4H)</option>' +
       '</select></div>' +
-    '<div class="awd-w"><label for="awd-str">Steering input <b id="awd-str-v">0 %</b></label>' +
-      '<input id="awd-str" class="al-range" type="range" min="0" max="100" step="1" value="0" aria-label="Steering input"></div>' +
     '<div class="awd-w"><label for="awd-fault">Fault injection</label>' +
       '<select id="awd-fault" class="al-sel" aria-label="Fault injection">' + faultOptions + '</select></div>' +
     '<div class="awd-w"><label>Simulation speed</label>' +
@@ -263,12 +262,8 @@ panel.innerHTML =
 document.body.appendChild(panel);
 
 const elFold   = document.getElementById('awd-fold');
-const elRpm    = document.getElementById('awd-rpm');
-const elRpmV   = document.getElementById('awd-rpm-v');
 const elSurf   = document.getElementById('awd-surf');
 const elType   = document.getElementById('awd-type');
-const elStr    = document.getElementById('awd-str');
-const elStrV   = document.getElementById('awd-str-v');
 const elFault  = document.getElementById('awd-fault');
 const elSpeed  = document.getElementById('awd-speed');
 const elCool   = document.getElementById('awd-cool');
@@ -281,16 +276,8 @@ elFold.addEventListener('click', () => {
   panel.classList.toggle('folded');
   elFold.innerHTML = panel.classList.contains('folded') ? '&#43;' : '&#8211;';
 });
-elRpm.addEventListener('input', () => {
-  S.rpm = Number(elRpm.value) || 800;
-  elRpmV.textContent = S.rpm + ' rpm';
-});
 elSurf.addEventListener('change', () => { S.surface = elSurf.value; });
 elType.addEventListener('change', () => { S.couplingType = elType.value; });
-elStr.addEventListener('input', () => {
-  S.steering = (Number(elStr.value) || 0) / 100;
-  elStrV.textContent = Math.round(S.steering * 100) + ' %';
-});
 elFault.addEventListener('change', () => { S.fault = elFault.value; });
 elSpeed.addEventListener('click', (e) => {
   const b = e.target.closest('button[data-sp]');
@@ -325,16 +312,15 @@ function resetModel() {
   sim.samples.length = 0;
 }
 function resetAll() {
-  S.rpm = 2400;        elRpm.value = 2400;  elRpmV.textContent = '2400 rpm';
+  S.rpm = 2400;
   S.surface = 'dry';   elSurf.value = 'dry';
   S.couplingType = 'clutch'; elType.value = 'clutch';
-  S.steering = 0;      elStr.value = 0;     elStrV.textContent = '0 %';
+  S.steering = 0;
   S.fault = 'none';    elFault.value = 'none';
   S.speed = 1;
   elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o.dataset.sp === '1'));
   resetModel();
-  const ctlEl = document.getElementById('ctl');
-  if (ctlEl) { ctlEl.value = String(CFG.ctl.val); ctlEl.dispatchEvent(new Event('input', { bubbles: true })); }
+  controls.resetAll();                 /* every axis back to its default (store -> onChange -> S) */
 }
 elReset.addEventListener('click', resetAll);
 

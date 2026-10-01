@@ -35,7 +35,6 @@ html.light-theme { --al-accent: color-mix(in oklch, #38bdf8 68%, black); }
 .ds-w label{ display:flex; justify-content:space-between; gap:8px; font-size:10px; letter-spacing:.06em;
   text-transform:uppercase; color:var(--text-mute,#6b7280); }
 .ds-w b{ color:var(--text,#e5e7eb); font-weight:700; }
-#ds-panel .al-range{ height:22px; }
 #ds-panel .al-sel{ min-height:32px; font-size:11px; }
 .ds-btns{ display:flex; gap:6px; margin-bottom:8px; }
 .ds-btns button{ flex:1 1 0; min-height:30px; padding:0 4px; border:1px solid var(--border,#333); border-radius:6px;
@@ -70,7 +69,7 @@ html.light-theme { --al-accent: color-mix(in oklch, #38bdf8 68%, black); }
 </script>
 
 <script type="module">
-import { runGuidedModule } from './components.js';
+import { runGuidedModule, controls } from './components.js';
 
 /* ── CONFIG (module content) ─────────────────────────────────────── */
 const CFG = {
@@ -82,7 +81,12 @@ const CFG = {
   "camPos": [4.2, 2.8, 5.6],
   "target": [0, 0, 0],
   "floorY": -1.7,
-  "ctl": { "label": "Joint angle", "val": 45, "caption": "Working angle" },
+  ctls: [   /* Phase 3: sliders live in the dock as axis controls; ctls[0] (id 'ctl') = the main 0-100 % control */
+    { id:'ctl', label:"Joint angle", caption:"Working angle", preset:'percent', def:45 },
+    { id:'rpm', preset:'rpm', max:6000, def:2400, label:'Input speed', onChange:(v)=>{ S.rpm = v; } },
+    { id:'length', min:0.8, max:2.5, step:0.05, def:1.5, decimals:2, unit:'m', label:'Shaft length', onChange:(v)=>{ S.length = v; } },
+    { id:'phase', min:0, max:90, step:5, def:0, unit:'\u00B0', label:'Yoke phase error', onChange:(v)=>{ S.phase = v; } },
+  ],
   "chipLabel": "Speed swing",
   "rows": [["ratio", "Instant ratio"], ["rpm", "Input rpm"]],
   "ro": [
@@ -226,12 +230,6 @@ for (const id in FAULT_INFO) {
 panel.innerHTML =
   '<div class="ds-h"><span>Driveshaft simulation</span><button type="button" id="ds-fold" aria-label="Collapse controls">&#8211;</button></div>' +
   '<div class="ds-body">' +
-    '<div class="ds-w"><label for="ds-rpm">Input speed <b id="ds-rpm-v">2400 rpm</b></label>' +
-      '<input id="ds-rpm" class="al-range" type="range" min="800" max="6000" step="50" value="2400" aria-label="Input speed"></div>' +
-    '<div class="ds-w"><label for="ds-len">Shaft length <b id="ds-len-v">1.50 m</b></label>' +
-      '<input id="ds-len" class="al-range" type="range" min="80" max="250" step="5" value="150" aria-label="Shaft length"></div>' +
-    '<div class="ds-w"><label for="ds-ph">Yoke phase error <b id="ds-ph-v">0 &deg;</b></label>' +
-      '<input id="ds-ph" class="al-range" type="range" min="0" max="90" step="5" value="0" aria-label="Yoke phase error"></div>' +
     '<div class="ds-w"><label for="ds-type">Joint type</label>' +
       '<select id="ds-type" class="al-sel" aria-label="Joint type">' +
         '<option value="ujoint" selected>Cardan (U-joint)</option>' +
@@ -256,12 +254,6 @@ panel.innerHTML =
 document.body.appendChild(panel);
 
 const elFold  = document.getElementById('ds-fold');
-const elRpm   = document.getElementById('ds-rpm');
-const elRpmV  = document.getElementById('ds-rpm-v');
-const elLen   = document.getElementById('ds-len');
-const elLenV  = document.getElementById('ds-len-v');
-const elPh    = document.getElementById('ds-ph');
-const elPhV   = document.getElementById('ds-ph-v');
 const elType  = document.getElementById('ds-type');
 const elFault = document.getElementById('ds-fault');
 const elSpeed = document.getElementById('ds-speed');
@@ -275,24 +267,11 @@ elFold.addEventListener('click', () => {
   panel.classList.toggle('folded');
   elFold.innerHTML = panel.classList.contains('folded') ? '&#43;' : '&#8211;';
 });
-elRpm.addEventListener('input', () => {
-  S.rpm = Number(elRpm.value) || 800;
-  elRpmV.textContent = S.rpm + ' rpm';
-});
-elLen.addEventListener('input', () => {
-  S.length = (Number(elLen.value) || 150) / 100;
-  elLenV.textContent = S.length.toFixed(2) + ' m';
-});
-elPh.addEventListener('input', () => {
-  S.phase = Number(elPh.value) || 0;
-  elPhV.textContent = S.phase + ' \u00B0';
-});
 elType.addEventListener('change', () => {
   S.jointType = elType.value;
   /* grey out the phase slider when a CV joint is selected */
   const dim = (S.jointType === 'cv');
-  elPh.disabled = dim;
-  elPh.style.opacity = dim ? 0.45 : 1;
+  controls.setDisabled('phase', dim);
 });
 elFault.addEventListener('change', () => { S.fault = elFault.value; });
 elSpeed.addEventListener('click', (e) => {
@@ -302,8 +281,7 @@ elSpeed.addEventListener('click', (e) => {
   elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o === b));
 });
 elZero.addEventListener('click', () => {
-  const ctlEl = document.getElementById('ctl');
-  if (ctlEl) { ctlEl.value = '0'; ctlEl.dispatchEvent(new Event('input', { bubbles: true })); }
+  controls.set('ctl', 0);
 });
 
 /* ── simulation state (module level so Reset can reach it) ───────── */
@@ -322,17 +300,16 @@ function resetModel() {
   sim.samples.length = 0;
 }
 function resetAll() {
-  S.rpm = 2400;       elRpm.value = 2400;   elRpmV.textContent = '2400 rpm';
-  S.length = 1.5;     elLen.value = 150;    elLenV.textContent = '1.50 m';
-  S.phase = 0;        elPh.value = 0;       elPhV.textContent = '0 \u00B0';
-  elPh.disabled = false; elPh.style.opacity = 1;
+  S.rpm = 2400;
+  S.length = 1.5;
+  S.phase = 0;
+  controls.setDisabled('phase', false);
   S.jointType = 'ujoint'; elType.value = 'ujoint';
   S.fault = 'none';   elFault.value = 'none';
   S.speed = 1;
   elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o.dataset.sp === '1'));
   resetModel();
-  const ctlEl = document.getElementById('ctl');
-  if (ctlEl) { ctlEl.value = String(CFG.ctl.val); ctlEl.dispatchEvent(new Event('input', { bubbles: true })); }
+  controls.resetAll();                 /* every axis back to its default (store -> onChange -> S) */
 }
 elReset.addEventListener('click', resetAll);
 

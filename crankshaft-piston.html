@@ -10,7 +10,6 @@
 <style>
 :root { --al-accent: #ca8a04; }
 html.light-theme { --al-accent: #a16207; }
-.al-w{display:flex;flex-direction:column;gap:6px;min-width:160px;}
 .ui-tb-btn.active{outline:2px solid var(--al-accent);color:var(--al-accent);}
 .cp-seg{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 8px;}
 .cp-seg button{font:600 11px/1 system-ui,sans-serif;padding:6px 9px;border-radius:6px;border:1px solid var(--border-hi);background:var(--surface-2);color:var(--text-dim);cursor:pointer;}
@@ -94,7 +93,6 @@ const STAGES = [
 ];
 
 const state = Base.createUIState();
-state.rodRatio = CFG.ratioDefault;
 
 /* ═══════════════════════════════════════════════════════════════════════
    PHYSICS  (pure functions — used by the readouts AND the graph)
@@ -450,7 +448,8 @@ CYLINDERS.forEach(c => {
    GEOMETRY THAT DEPENDS ON ROD LENGTH
    ═══════════════════════════════════════════════════════════════════════ */
 let crankY = 0;
-const rodLen = () => state.rodRatio * 2 * CFG.r;
+const rodRatio = () => (Base.controls.has('rodRatio') ? Base.controls.value('rodRatio') : CFG.ratioDefault);  /* applyGeometry() runs once before the UI exists */
+const rodLen = () => rodRatio() * 2 * CFG.r;
 function applyGeometry() {
   const l = rodLen();
   crankY = CFG.pinTDC - l - CFG.r;               // longer rod → crank sits lower, block stays put
@@ -660,16 +659,9 @@ const ui = Base.UI.create({
       { id: 'btn-gas', label: 'GAS',   title: 'Show / hide the gas colour', onClick: toggleGas }
     ]
   },
+  axes: [{ id: 'rodRatio', min: CFG.ratioMin, max: CFG.ratioMax, step: 0.05, def: CFG.ratioDefault, decimals: 2,
+           label: 'Rod ratio', side: 'left', onChange: () => { applyGeometry(); updateReadouts(); } }],
   widgets: {
-    bl: {
-      html: `<div class="al-w">
-        <label for="rr-range">Rod ratio <b id="rr-out">${CFG.ratioDefault.toFixed(2)}</b></label>
-        <input id="rr-range" class="al-range" type="range" min="${CFG.ratioMin}" max="${CFG.ratioMax}" step="0.05"
-               value="${CFG.ratioDefault}" aria-label="Rod ratio (rod length divided by stroke)">
-      </div>`,
-      caption: 'Rod length ÷ stroke',
-      onMount: mountRodWidget
-    },
     br: {
       html: `<div class="al-legend">
         <span><i style="background:#38bdf8"></i>Intake</span>
@@ -706,20 +698,6 @@ function renderTab(id) {
   if (currentTab === 'motion') drawGraph();
 }
 renderTab('overview');
-
-function mountRodWidget(el) {
-  const inp = el.querySelector('#rr-range');
-  const out = el.querySelector('#rr-out');
-  if (!inp || !out) return;
-  inp.value = state.rodRatio;
-  out.textContent = state.rodRatio.toFixed(2);
-  inp.addEventListener('input', () => {
-    state.rodRatio = Number(inp.value);
-    out.textContent = state.rodRatio.toFixed(2);
-    applyGeometry();
-    updateReadouts();
-  });
-}
 
 function setFocusButton() {
   const b = document.getElementById('btn-cyl');
@@ -759,7 +737,7 @@ function drawGraph() {
   const grid = light ? 'rgba(15,23,42,.10)' : 'rgba(255,255,255,.10)';
   const padL = 40, padR = 8, padT = 24, padB = 20;
   const pw = W - padL - padR, ph = Hh - padT - padB;
-  const rpm = engineRpm(), ratio = state.rodRatio, fc = CYLINDERS[focus];
+  const rpm = engineRpm(), ratio = rodRatio(), fc = CYLINDERS[focus];
   const def = GRAPH[graphMode];
 
   const N = 180, main = [], second = [];
@@ -826,7 +804,7 @@ const cycleDeg = () => mod(thetaTotal / DEG, 720);
 const stageOf = phi => Math.floor(phi / 180);
 
 function updateReadouts() {
-  const rpm = engineRpm(), ratio = state.rodRatio;
+  const rpm = engineRpm(), ratio = rodRatio();
   const cyc = cycleDeg();
   const fc = CYLINDERS[focus];
   const e = evalCyl(mod(cyc - fc.fire, 720), rpm, ratio);
@@ -875,12 +853,9 @@ const bridge = ui.wireBridge({
   state,
   onCommand: (d) => {
     if (d.action === 'reset') {
-      state.rodRatio = CFG.ratioDefault;
+      ui.controls.resetAll();
       thetaTotal = 0;
       focus = 0;
-      const inp = $('rr-range'), out = $('rr-out');
-      if (inp) inp.value = CFG.ratioDefault;
-      if (out) out.textContent = CFG.ratioDefault.toFixed(2);
       applyGeometry();
       setFocusButton();
       updateReadouts();
