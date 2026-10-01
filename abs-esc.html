@@ -322,7 +322,9 @@ const ui = Base.UI.create({
   },
   axes: [
     { id: 'speed', preset: 'vehicle-speed', max: 140, def: 60, label: 'Vehicle speed', side: 'left',   onChange: () => updateReadouts() },
-    { id: 'brake', preset: 'percent', def: 40, label: 'Brake pedal', side: 'right', onChange: () => updateReadouts() }   /* Phase 4: becomes a pedal */
+    /* Phase 4: the interim slider is now a pedal (same id, same 0–100 % mapping). A pedal springs back to 0, so the old
+       resting default of 40 % is gone: press the pedal to brake. k = -ln(0.88)·60. */
+    { id: 'brake', look: 'pedal', preset: 'percent', label: 'Brake', ariaLabel: 'Brake pedal', spring: 'return', k: 7.67, keys: 'arrows', side: 'right', color: 'var(--crit)', onChange: () => updateReadouts() }
   ],
   widgets: {
     br: {

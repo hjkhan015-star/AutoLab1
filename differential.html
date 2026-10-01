@@ -124,51 +124,6 @@
   .diff-controls .toggle input[type=checkbox] { accent-color: var(--accent, #38bdf8); }
 
   /* ═══════════════════════════════════════════════════════════
-     WIDGET INTERIOR — steering wheel (bottom-right)
-     ═══════════════════════════════════════════════════════════ */
-  #steer-overlay {
-    display: flex; flex-direction: column; align-items: center;
-    pointer-events: none;
-  }
-  #steer-wheel {
-    pointer-events: auto; cursor: grab;
-    width: 118px; height: 118px;
-    filter: drop-shadow(0 10px 22px rgba(0,0,0,.65));
-    transition: filter var(--dur-fast, .2s) var(--ease-out, ease);
-  }
-  #steer-wheel:hover {
-    filter: drop-shadow(0 10px 22px rgba(0,0,0,.65))
-            drop-shadow(0 0 12px rgba(56,189,248,.22));
-  }
-  #steer-wheel.grabbing { cursor: grabbing; }
-  #steer-rotor {
-    transition: transform var(--dur-fast, .03s) linear;
-    will-change: transform;
-    transform-origin: center center;
-  }
-  .sw-rim-shadow { fill: none; stroke: rgba(0,0,0,.55); stroke-width: 9; opacity: .55; }
-  .sw-rim { fill: none; stroke: url(#sw-rim-grad); stroke-width: 8; }
-  .sw-rim-hi { fill: none; stroke: url(#sw-rim-hi-grad); stroke-width: 2.5; opacity: .75; }
-  .sw-spoke { fill: url(#sw-spoke-grad); stroke: rgba(0,0,0,.35); stroke-width: 0.8; }
-  .sw-hub-ring { fill: none; stroke: rgba(0,0,0,.55); stroke-width: 2; }
-  .sw-hub { fill: url(#sw-hub-grad); stroke: #b9c2cc; stroke-width: 1.4; }
-  .sw-hub-dot { fill: #b9c2cc; opacity: .85; }
-  .sw-marker { fill: var(--accent, #38bdf8); filter: drop-shadow(0 0 4px rgba(56,189,248,.9)); }
-
-  #steer-label {
-    margin-top: 10px; color: var(--text-dim, #94a3b8);
-    font-size: 10.5px; font-weight: 700;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    background: rgba(10,14,20,.82);
-    padding: 5px 12px; border-radius: 999px;
-    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-    border: 1px solid var(--border, rgba(255,255,255,.08));
-    pointer-events: none;
-    box-shadow: 0 4px 14px rgba(0,0,0,.4);
-    white-space: nowrap;
-  }
-
-  /* ═══════════════════════════════════════════════════════════
      OVERLAY — camera presets (top-right)
      ═══════════════════════════════════════════════════════════ */
   #cam-presets {
@@ -285,13 +240,6 @@
   html.light-theme .cam-btn:hover { background: rgba(15,23,42,.06); color: #0a0d13; }
   html.light-theme .cam-btn.active { color: #ffffff; }
 
-  html.light-theme #steer-label {
-    background: rgba(255,255,255,.94);
-    border-color: rgba(15,23,42,.14);
-    color: #334155;
-  }
-  html.light-theme #steer-wheel { filter: drop-shadow(0 8px 20px rgba(15,23,42,.18)); }
-
   html.light-theme .tyre-speed-chip {
     background: rgba(255,255,255,.94);
     border-color: rgba(15,23,42,.16);
@@ -314,8 +262,6 @@
       padding: 4px;
     }
     .cam-btn { padding: 6px 9px; font-size: 10px; }
-    #steer-wheel { width: 86px; height: 86px; }
-    #steer-label { display: none; }
     .tyre-speed-chip { padding: 4px 8px; }
     .tyre-speed-chip .tsc-label { font-size: 10px; }
     .tyre-speed-chip .tsc-val { font-size: 10.5px; }
@@ -1554,13 +1500,7 @@
   /* ═══════════════════════════════════════════════════════════
      STEERING STATE
      ═══════════════════════════════════════════════════════════ */
-  let steerWheelEl = null;   /* assigned by widget onMount */
-  let steerRotorEl = null;   /* assigned by widget onMount */
-  let steerAngle = 0, steerInput = 0;
-  let steerDragging = false, steerPointerId = null, steerLastPointerAngle = 0;
-  const STEER_RETURN_RATE = 4.0;
-
-  const clampSteer = a => Math.max(-MAX_STEER_ANGLE, Math.min(MAX_STEER_ANGLE, a));
+  let steerAngle = 0, steerInput = 0;   /* radians, > 0 = clockwise; the 'wheel' dial owns the value */
 
   /* ═══════════════════════════════════════════════════════════
      UI — kit-driven chrome + module widgets
@@ -1663,97 +1603,18 @@
           if (chkExplode) chkExplode.addEventListener('change', () => { explodeTarget = chkExplode.checked ? 1 : 0; });
           if (chkAutoDrive) chkAutoDrive.addEventListener('change', () => { autoDrive = chkAutoDrive.checked; });
         }
-      },
-
-      br: {
-        caption: 'Drag to steer',
-        html: `
-          <div id="steer-overlay">
-            <div id="steer-wheel" role="slider" tabindex="0"
-                 aria-label="Steering wheel — drag to steer"
-                 aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0">
-              <div id="steer-rotor">
-                <svg viewBox="-60 -60 120 120" aria-hidden="true">
-                  <defs>
-                    <radialGradient id="sw-rim-grad" cx="35%" cy="28%" r="85%">
-                      <stop offset="0%"  stop-color="#6b7788"/>
-                      <stop offset="45%" stop-color="#3a4555"/>
-                      <stop offset="100%" stop-color="#161c24"/>
-                    </radialGradient>
-                    <radialGradient id="sw-rim-hi-grad" cx="35%" cy="24%" r="70%">
-                      <stop offset="0%"  stop-color="#c8d1dc" stop-opacity="0.9"/>
-                      <stop offset="70%" stop-color="#c8d1dc" stop-opacity="0"/>
-                    </radialGradient>
-                    <linearGradient id="sw-spoke-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%"  stop-color="#5a6577"/>
-                      <stop offset="100%" stop-color="#262d38"/>
-                    </linearGradient>
-                    <radialGradient id="sw-hub-grad" cx="35%" cy="30%" r="80%">
-                      <stop offset="0%"  stop-color="#4a5568"/>
-                      <stop offset="100%" stop-color="#151a22"/>
-                    </radialGradient>
-                  </defs>
-                  <circle class="sw-rim-shadow" cx="0" cy="2" r="48"/>
-                  <circle class="sw-rim" cx="0" cy="0" r="48"/>
-                  <circle class="sw-rim-hi" cx="0" cy="0" r="48"/>
-                  <rect class="sw-spoke" x="-48" y="-6" width="34" height="12" rx="6"/>
-                  <rect class="sw-spoke" x="14"  y="-6" width="34" height="12" rx="6"/>
-                  <rect class="sw-spoke" x="-6"  y="14" width="12" height="34" rx="6"/>
-                  <circle class="sw-hub-ring" cx="0" cy="0" r="16"/>
-                  <circle class="sw-hub" cx="0" cy="0" r="14"/>
-                  <circle class="sw-hub-dot" cx="0" cy="0" r="3.5"/>
-                  <path class="sw-marker" d="M0,-57 L-8,-45 L8,-45 Z"/>
-                </svg>
-              </div>
-            </div>
-            <div id="steer-label">Drag to steer</div>
-          </div>
-        `,
-        onMount: (el) => {
-          steerWheelEl = el.querySelector('#steer-wheel');
-          steerRotorEl = el.querySelector('#steer-rotor');
-          if (!steerWheelEl) return;
-
-          function pointerAngle(e) {
-            const r = steerWheelEl.getBoundingClientRect();
-            return Math.atan2(e.clientY - (r.top + r.height/2), e.clientX - (r.left + r.width/2));
-          }
-
-          steerWheelEl.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
-            disengageAutoDrive();
-            steerDragging = true; steerPointerId = e.pointerId;
-            try { steerWheelEl.setPointerCapture(e.pointerId); } catch (_) {}
-            steerLastPointerAngle = pointerAngle(e);
-            steerWheelEl.classList.add('grabbing');
-          });
-          steerWheelEl.addEventListener('pointermove', (e) => {
-            if (!steerDragging || e.pointerId !== steerPointerId) return;
-            e.preventDefault();
-            const a = pointerAngle(e);
-            let d = a - steerLastPointerAngle;
-            if (d >  Math.PI) d -= Math.PI * 2;
-            if (d < -Math.PI) d += Math.PI * 2;
-            steerLastPointerAngle = a;
-            steerAngle = clampSteer(steerAngle + d);
-            steerInput = steerAngle / MAX_STEER_ANGLE;
-          });
-          const endDrag = () => {
-            if (!steerDragging) return;
-            steerDragging = false; steerPointerId = null;
-            steerWheelEl.classList.remove('grabbing');
-          };
-          steerWheelEl.addEventListener('pointerup', endDrag);
-          steerWheelEl.addEventListener('pointercancel', endDrag);
-          steerWheelEl.addEventListener('lostpointercapture', endDrag);
-          steerWheelEl.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowLeft')  { e.preventDefault(); disengageAutoDrive(); steerAngle = clampSteer(steerAngle - 0.16); steerInput = steerAngle/MAX_STEER_ANGLE; }
-            if (e.key === 'ArrowRight') { e.preventDefault(); disengageAutoDrive(); steerAngle = clampSteer(steerAngle + 0.16); steerInput = steerAngle/MAX_STEER_ANGLE; }
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); steerAngle = 0; steerInput = 0; }
-          });
-        }
       }
-    }
+    },
+
+    /* Phase 5: the steering wheel is a controls.js dial (id 'wheel'). Range = ±MAX_STEER_ANGLE (±129.6°), clockwise =
+       right = positive, exactly the old steerAngle sign (steerInput = dial). It springs back to centre unless Auto
+       Drive is steering (the module then drives it with controls.set, which never springs). Enter / Home = centre.
+       k = 4.14 s⁻¹ is the old return rate 4.0 (0.933 / frame at 60 Hz) as a time constant. */
+    axes: [
+      { id: 'wheel', type: 'dial', look: 'wheel', label: 'Steering', ariaLabel: 'Steering wheel',
+        range: 2 * MAX_STEER_ANGLE * 180 / Math.PI, def: 0, step: 1, spring: 'return', k: 4.14, side: 'right',
+        onGrab: (on) => { if (on) disengageAutoDrive(); } }
+    ]
   });
 
   /* ── panel readout element handles ── */
@@ -1778,6 +1639,7 @@
   });
 
   function resetAll() {
+    ui.controls.resetAll();                       /* wheel back to centre */
     steerAngle = 0; steerInput = 0;
     autoDrive = true; if (chkAutoDrive) chkAutoDrive.checked = true;
     vehiclePos.set(0, 0, 0); vehicleHeading = 0;
@@ -1849,19 +1711,16 @@
   }
 
   function updateDiff(dt) {
-    if (autoDrive && !steerDragging) {
+    if (autoDrive && !ui.controls.dragging('wheel')) {
       const desiredInput = computeAutoSteerInput(vehiclePos, vehicleHeading);
       const desiredAngle = desiredInput * MAX_STEER_ANGLE;
       steerAngle += (desiredAngle - steerAngle) * Math.min(1, dt * AUTO_STEER_RATE);
-    } else if (!steerDragging && steerAngle !== 0) {
-      steerAngle += (0 - steerAngle) * Math.min(1, dt * STEER_RETURN_RATE);
-      if (Math.abs(steerAngle) < 0.002) steerAngle = 0;
+      ui.controls.set('wheel', steerAngle / MAX_STEER_ANGLE);     /* Auto Drive turns the wheel (no spring) */
+    } else {
+      steerAngle = ui.controls.get('wheel') * MAX_STEER_ANGLE;    /* the dial owns it: drag, ←/→, spring-back */
     }
 
     steerInput = steerAngle / MAX_STEER_ANGLE;
-    if (steerRotorEl) {
-      steerRotorEl.style.transform = 'rotate(' + (steerAngle / DEG).toFixed(2) + 'deg)';
-    }
 
     const omega_c = 2.2 * state.speedMul;
     const roadAngle = -steerInput * MAX_ROAD_ANGLE;

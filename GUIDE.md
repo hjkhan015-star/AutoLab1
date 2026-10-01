@@ -59,6 +59,12 @@ The old floating pill and the old settings sheet are gone. Title and accent colo
 ## Sliders (Phase 3)
 Every slider is an `axis` (`controls.js`): 44 px target, value bubble while dragging, `aria-valuetext` with unit, ↑/↓ keys, focus ring. Values live in one store; modules read `ui.controls.get/value/raw(id)`. Guided modules list them in `CFG.ctls[]`, other modules pass `axes:[…]` to `UI.create`. Engine rpm / load / vehicle speed are their own axes in `ignition`, `mpfi`, `cooling`, `abs-esc` — the ⋯ menu's Sim speed can no longer change them. See COMPONENTS.md for specs and presets.
 
+## Pedals (Phase 4)
+Brake, accelerator and clutch are `controls.js` primitives: an `axis` with `look:'pedal'` (spring-back, ↑/↓, Shift-hold) and a `momentary` (clutch). Phones get a 52 px horizontal bar; desktop a vertical 54×158 pedal. Read them with `ui.controls.get('throttle' | 'brake' | 'clutch')`; Space is only play/pause. Modules must not keep their own pedal variable or key handlers. See COMPONENTS.md.
+
+## Dials (Phase 5)
+The steering wheel and the engine crank are `controls.js` primitives: `type:'dial'` with `look:'wheel' | 'crank' | 'knob'`. Drag anywhere on it, ←/→ turn 10° (→ = clockwise = right in every module), Enter / Home = default; it is 96 px on phones and shows its angle once, as small text. Read it with `ui.controls.get('wheel')` (−1..1, clockwise +) or `ui.controls.value('wheel')` (degrees). `steering`, `differential` and `awd` use a `wheel`; `engine` uses a wrapping 0–720° `crank`. See COMPONENTS.md.
+
 ## What's NOT done yet: simulation depth for the other 43 modules
 
 The valvetrain module previously had a cam-advance slider that only

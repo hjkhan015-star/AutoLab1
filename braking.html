@@ -110,56 +110,7 @@
     box-shadow: 0 0 10px color-mix(in oklch, var(--crit) 35%, transparent);
   }
 
-  .br-pedal {
-    display: flex; flex-direction: column;
-    align-items: center; gap: 6px;
-  }
-  .br-pedal-track {
-    position: relative;
-    width: 62px; height: 148px;
-    pointer-events: auto; cursor: pointer;
-    touch-action: none;
-    user-select: none; -webkit-user-select: none;
-    border-radius: var(--r-md);
-    overflow: hidden;
-    background: var(--surface-3);
-    border: 1px solid var(--border);
-    box-shadow: inset 0 0 0 1px oklch(1 0 0 / .03),
-                0 10px 24px oklch(0 0 0 / .35);
-    transition: border-color var(--dur-fast) var(--ease-out);
-  }
-  .br-pedal-track.active { border-color: color-mix(in oklch, var(--crit) 60%, transparent); }
-  .br-pedal-fill {
-    position: absolute; left: 0; right: 0; bottom: 0;
-    height: 0%;
-    background: linear-gradient(180deg, #dc2626, #f87171);
-    transition: height var(--dur-fast) linear;
-  }
-  .br-pedal-pad {
-    position: absolute;
-    left: -6px; right: -6px;
-    bottom: 0%; height: 42px;
-    transform: translateY(50%);
-    filter: drop-shadow(0 6px 10px oklch(0 0 0 / .55));
-    transition: bottom var(--dur-fast) linear,
-                filter var(--dur-fast) var(--ease-out);
-  }
-  .br-pedal-track.active .br-pedal-pad {
-    filter: drop-shadow(0 0 12px color-mix(in oklch, var(--crit) 55%, transparent))
-            drop-shadow(0 6px 10px oklch(0 0 0 / .55));
-  }
-  .br-pedal-pad svg { width: 100%; height: 100%; display: block; }
-  .br-pedal-pad .plate {
-    fill: var(--surface-3);
-    stroke: color-mix(in oklch, var(--text) 40%, transparent);
-    stroke-width: 1.4;
-  }
-  .br-pedal-pad .grip { fill: color-mix(in oklch, var(--text) 28%, transparent); }
-  .br-pedal-track.active .br-pedal-pad .plate { stroke: var(--crit); }
-
   @media (max-width: 600px) {
-    .br-pedal-track { width: 48px; height: 118px; }
-    .br-pedal-pad { height: 34px; }
     .cfg-arrow { width: 19px; height: 19px; font-size: 12px; }
     #cfg-label { min-width: 72px; font-size: 10px; }
     .br-toggle { padding: 0 8px; height: 26px; font-size: 10px; }
@@ -1361,7 +1312,6 @@ import { Parts } from './components.js';
   /* ═══════════════════════════════════════════════════════════════════
      STATE
      ═══════════════════════════════════════════════════════════════════ */
-  let pedalPos = 0;
   let effectivePedal = 0;
   let rotorTemp = 32;
   let drumTemp = 32;
@@ -1417,30 +1367,11 @@ import { Parts } from './components.js';
       extras: []
     },
 
-    widgets: {
-      br: {
-        caption: 'Press &amp; hold · <span data-pedal-cap>0%</span>',
-        html: `
-          <div class="br-pedal">
-            <div class="br-pedal-track" data-role="track"
-                 role="slider" tabindex="0"
-                 aria-label="Brake pedal"
-                 aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-              <div class="br-pedal-fill" data-role="fill"></div>
-              <div class="br-pedal-pad" data-role="pad">
-                <svg viewBox="0 0 70 44" aria-hidden="true">
-                  <rect class="plate" x="4" y="4" width="62" height="36" rx="9"/>
-                  <rect class="grip" x="12" y="12" width="46" height="4" rx="2"/>
-                  <rect class="grip" x="12" y="20" width="46" height="4" rx="2"/>
-                  <rect class="grip" x="12" y="28" width="46" height="4" rx="2"/>
-                </svg>
-              </div>
-            </div>
-          </div>
-        `,
-        onMount: (el) => wirePedal(el)
-      }
-    }
+    /* Phase 4: the brake pedal is a controls.js pedal (id 'brake'); read it with ui.controls.get('brake').
+       k = -ln(0.88)·60 — the old per-frame spring-back factor, now time-based. */
+    axes: [
+      { id: 'brake', look: 'pedal', label: 'Brake', preset: 'percent', spring: 'return', k: 7.67, keys: 'arrows', side: 'right', color: 'var(--crit)' }
+    ]
   });
 
   const panelBody = ui.panel.body;
@@ -1583,82 +1514,10 @@ import { Parts } from './components.js';
   applyConfig(0);
 
   /* ═══════════════════════════════════════════════════════════════════
-     PEDAL WIDGET
-     ═══════════════════════════════════════════════════════════════════ */
-  function wirePedal(root) {
-    const track  = root.querySelector('[data-role="track"]');
-    const fill   = root.querySelector('[data-role="fill"]');
-    const pad    = root.querySelector('[data-role="pad"]');
-    const caption = document.getElementById('ui-widget-br-cap');
-
-    let dragging = false;
-    let pointerId = null;
-    let returnRAF = 0;
-
-    function setPos(v) {
-      pedalPos = Math.max(0, Math.min(1, v));
-      const pct = Math.round(pedalPos * 100);
-      fill.style.height = pct + '%';
-      pad.style.bottom  = pct + '%';
-      track.setAttribute('aria-valuenow', String(pct));
-      if (caption) {
-        const span = caption.querySelector('[data-pedal-cap]');
-        if (span) span.textContent = pct + '%';
-      }
-    }
-    function percentFromEvent(e) {
-      const r = track.getBoundingClientRect();
-      return Math.max(0, Math.min(1, 1 - (e.clientY - r.top) / r.height));
-    }
-    function cancelReturn() {
-      if (returnRAF) { cancelAnimationFrame(returnRAF); returnRAF = 0; }
-    }
-    function springRelease() {
-      cancelReturn();
-      const step = () => {
-        const next = pedalPos * 0.88;
-        setPos(next < 0.005 ? 0 : next);
-        returnRAF = pedalPos > 0 ? requestAnimationFrame(step) : 0;
-      };
-      returnRAF = requestAnimationFrame(step);
-    }
-
-    track.addEventListener('pointerdown', e => {
-      e.preventDefault();
-      cancelReturn();
-      dragging = true;
-      pointerId = e.pointerId;
-      try { track.setPointerCapture(e.pointerId); } catch (_) {}
-      track.classList.add('active');
-      setPos(percentFromEvent(e));
-    });
-    track.addEventListener('pointermove', e => {
-      if (!dragging || e.pointerId !== pointerId) return;
-      e.preventDefault();
-      setPos(percentFromEvent(e));
-    });
-    function endDrag() {
-      if (!dragging) return;
-      dragging = false;
-      pointerId = null;
-      track.classList.remove('active');
-      springRelease();
-    }
-    track.addEventListener('pointerup', endDrag);
-    track.addEventListener('pointercancel', endDrag);
-    track.addEventListener('lostpointercapture', endDrag);
-
-    root.__setPos = setPos;
-    root.__cancelReturn = cancelReturn;
-  }
-
-  /* Space is play/pause everywhere now (keys.js). The pedal is pointer / arrow-key only until
-     Phase 4 adds Shift-hold quick-press. */
-
-  /* ═══════════════════════════════════════════════════════════════════
      FORCE MODEL
      ═══════════════════════════════════════════════════════════════════ */
   function computeForces() {
+    const pedalPos = ui.controls.get('brake');
     const airPenalty = state.airBubble ? 0.65 : 1.0;
     const padClearance = 0.12;
     const raw = pedalPos <= padClearance ? 0 : (pedalPos - padClearance) / (1 - padClearance);
@@ -1743,9 +1602,7 @@ import { Parts } from './components.js';
      RESET + BRIDGE
      ═══════════════════════════════════════════════════════════════════ */
   function resetSim() {
-    const w = document.getElementById('ui-widget-br');
-    if (w && w.__cancelReturn) w.__cancelReturn();
-    if (w && w.__setPos) w.__setPos(0);
+    ui.controls.resetAll();                       /* releases the brake pedal */
     rotorTemp = 32;
     drumTemp  = 32;
     applyConfig(0);
@@ -1791,6 +1648,7 @@ import { Parts } from './components.js';
     const dt = Math.min(clock.getDelta(), 0.05);
     const sim = state.playing ? dt * state.speedMul : 0;
 
+    const pedalPos = ui.controls.get('brake');
     const forces = computeForces();
 
     const active = configs[activeConfigIdx];

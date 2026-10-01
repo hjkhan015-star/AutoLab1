@@ -68,71 +68,7 @@
     font-family: var(--font-mono);
   }
 
-  .carb-pedal {
-    display: flex; flex-direction: column;
-    align-items: center;
-    gap: 6px;
-  }
-  .carb-pedal-track {
-    position: relative;
-    width: 54px; height: 158px;
-    pointer-events: auto; cursor: pointer;
-    touch-action: none; user-select: none;
-    -webkit-user-select: none;
-    border-radius: var(--r-md);
-    overflow: hidden;
-    background: var(--surface-3);
-    border: 1px solid var(--border);
-    box-shadow: inset 0 0 0 1px oklch(1 0 0 / .03),
-                0 10px 24px oklch(0 0 0 / .35);
-    transition: border-color var(--dur-fast) var(--ease-out);
-  }
-  .carb-pedal-track.active {
-    border-color: color-mix(in oklch, var(--accent) 55%, transparent);
-  }
-  .carb-pedal-fill {
-    position: absolute; left: 0; right: 0; bottom: 0;
-    height: 0%;
-    background: linear-gradient(180deg, #f97316, #f59e0b);
-    transition: height var(--dur-fast) linear,
-                background var(--dur-base) var(--ease-out);
-  }
-  .carb-pedal-ticks span {
-    position: absolute; left: 7px; right: 7px;
-    height: 1px;
-    background: color-mix(in oklch, var(--text) 15%, transparent);
-  }
-  .carb-pedal-ticks span:nth-child(1) { bottom: 25%; }
-  .carb-pedal-ticks span:nth-child(2) { bottom: 50%; }
-  .carb-pedal-ticks span:nth-child(3) { bottom: 75%; }
-  .carb-pedal-pad {
-    position: absolute;
-    left: -4px; right: -4px;
-    bottom: 0%; height: 34px;
-    transform: translateY(50%);
-    filter: drop-shadow(0 6px 10px oklch(0 0 0 / .6));
-    transition: bottom var(--dur-fast) linear,
-                filter var(--dur-fast) var(--ease-out);
-  }
-  .carb-pedal-track.active .carb-pedal-pad {
-    filter: drop-shadow(0 0 10px color-mix(in oklch, var(--accent) 55%, transparent))
-            drop-shadow(0 6px 10px oklch(0 0 0 / .6));
-  }
-  .carb-pedal-pad svg { width: 100%; height: 100%; display: block; }
-  .carb-pedal-pad .plate {
-    fill: var(--surface-3);
-    stroke: color-mix(in oklch, var(--text) 40%, transparent);
-    stroke-width: 1.4;
-  }
-  .carb-pedal-pad .grip {
-    fill: color-mix(in oklch, var(--text) 28%, transparent);
-  }
-  .carb-pedal-track.active .carb-pedal-pad .plate {
-    stroke: var(--accent);
-  }
-
   @media (max-width: 600px) {
-    .carb-pedal-track { width: 44px; height: 128px; }
     .cfg-arrow { width: 19px; height: 19px; font-size: 12px; }
     #cfg-label { min-width: 72px; font-size: 9px; }
   }
@@ -1001,7 +937,6 @@
   /* ═══════════════════════════════════════════════════════════════════
      STATE
      ═══════════════════════════════════════════════════════════════════ */
-  let accelPos = 0;
   let lastPhaseIdx = -1;
 
   const RPM_AT_DEFAULT_SPEED = 900;
@@ -1043,31 +978,10 @@
       labels: true, gas: true
     },
 
-    widgets: {
-      br: {
-        caption: 'Press &amp; hold · <span data-throttle-cap>0%</span>',
-        html: `
-          <div class="carb-pedal">
-            <div class="carb-pedal-track" data-role="track"
-                 role="slider" tabindex="0"
-                 aria-label="Accelerator pedal"
-                 aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-              <div class="carb-pedal-fill" data-role="fill"></div>
-              <div class="carb-pedal-ticks"><span></span><span></span><span></span></div>
-              <div class="carb-pedal-pad" data-role="pad">
-                <svg viewBox="0 0 60 34" aria-hidden="true">
-                  <rect class="plate" x="4" y="4" width="52" height="26" rx="8"/>
-                  <rect class="grip" x="10" y="9" width="40" height="4" rx="2"/>
-                  <rect class="grip" x="10" y="16" width="40" height="4" rx="2"/>
-                  <rect class="grip" x="10" y="23" width="40" height="4" rx="2"/>
-                </svg>
-              </div>
-            </div>
-          </div>
-        `,
-        onMount: (el) => wirePedal(el)
-      }
-    }
+    /* Phase 4: the accelerator is a controls.js pedal (id 'throttle'). k = -ln(0.86)·60. */
+    axes: [
+      { id: 'throttle', look: 'pedal', label: 'Throttle', preset: 'percent', spring: 'return', k: 9.05, keys: 'arrows', ticks: 3, side: 'right' }
+    ]
   });
 
   /* ── Mixture ratio chip ── */
@@ -1174,96 +1088,10 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-     PEDAL WIDGET
-     ═══════════════════════════════════════════════════════════════════ */
-  function wirePedal(root) {
-    const track  = root.querySelector('[data-role="track"]');
-    const fill   = root.querySelector('[data-role="fill"]');
-    const pad    = root.querySelector('[data-role="pad"]');
-    const caption = document.getElementById('ui-widget-br-cap');
-
-    let dragging = false;
-    let pointerId = null;
-    let returnRAF = null;
-    let keyHeld = false;
-
-    function setPos(v) {
-      accelPos = Math.max(0, Math.min(1, v));
-      const pct = Math.round(accelPos * 100);
-      fill.style.height = pct + '%';
-      pad.style.bottom  = pct + '%';
-      track.setAttribute('aria-valuenow', String(pct));
-      if (caption) {
-        const span = caption.querySelector('[data-throttle-cap]');
-        if (span) span.textContent = pct + '%';
-      }
-    }
-    function percentFromEvent(e) {
-      const r = track.getBoundingClientRect();
-      return Math.max(0, Math.min(1, 1 - (e.clientY - r.top) / r.height));
-    }
-    function cancelReturn() {
-      if (returnRAF) { cancelAnimationFrame(returnRAF); returnRAF = null; }
-    }
-    function springRelease() {
-      cancelReturn();
-      const step = () => {
-        const next = accelPos * 0.86;
-        setPos(next < 0.004 ? 0 : next);
-        returnRAF = accelPos > 0 ? requestAnimationFrame(step) : null;
-      };
-      returnRAF = requestAnimationFrame(step);
-    }
-
-    track.addEventListener('pointerdown', e => {
-      e.preventDefault();
-      cancelReturn();
-      dragging = true;
-      pointerId = e.pointerId;
-      try { track.setPointerCapture(e.pointerId); } catch (_) {}
-      track.classList.add('active');
-      if (caption) caption.classList.add('active');
-      setPos(percentFromEvent(e));
-    });
-    track.addEventListener('pointermove', e => {
-      if (!dragging || e.pointerId !== pointerId) return;
-      e.preventDefault();
-      setPos(percentFromEvent(e));
-    });
-    function endDrag() {
-      if (!dragging) return;
-      dragging = false;
-      pointerId = null;
-      track.classList.remove('active');
-      if (caption) caption.classList.remove('active');
-      springRelease();
-    }
-    track.addEventListener('pointerup', endDrag);
-    track.addEventListener('pointercancel', endDrag);
-    track.addEventListener('lostpointercapture', endDrag);
-    track.addEventListener('keydown', e => {
-      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
-      e.preventDefault();
-      cancelReturn();
-      keyHeld = true;
-      setPos(accelPos + (e.key === 'ArrowUp' ? 0.05 : -0.05));
-    });
-    track.addEventListener('keyup', e => {
-      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
-      if (keyHeld) { keyHeld = false; springRelease(); }
-    });
-
-    root.__setPos = setPos;
-    root.__cancelReturn = cancelReturn;
-  }
-
-  /* ═══════════════════════════════════════════════════════════════════
      RESET + BRIDGE
      ═══════════════════════════════════════════════════════════════════ */
   function resetSim() {
-    const brWidget = document.getElementById('ui-widget-br');
-    if (brWidget && brWidget.__cancelReturn) brWidget.__cancelReturn();
-    if (brWidget && brWidget.__setPos) brWidget.__setPos(0);
+    ui.controls.resetAll();                       /* releases the throttle pedal */
     applyConfig(0);
   }
 
@@ -1289,12 +1117,9 @@
           state.showGas = !!d.value;
           { const c = document.getElementById('chk-gas'); if (c) c.checked = state.showGas; }
           break;
-        case 'setAccelerator': {
-          const brWidget = document.getElementById('ui-widget-br');
-          if (brWidget && brWidget.__cancelReturn) brWidget.__cancelReturn();
-          if (brWidget && brWidget.__setPos) brWidget.__setPos(+d.value);
+        case 'setAccelerator':
+          ui.controls.set('throttle', +d.value);          /* 0..1, stays where it is (no spring) */
           break;
-        }
         case 'reset': resetSim(); break;
       }
     }
@@ -1313,6 +1138,7 @@
     frame++;
     const dt = Math.min(clock.getDelta(), 0.05);
 
+    const accelPos = ui.controls.get('throttle');
     const ratio = afrRatio(accelPos);
     setMixtureUI(accelPos, ratio);
 
