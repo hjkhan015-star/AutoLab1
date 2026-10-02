@@ -55,3 +55,41 @@ Legend: **7a-1** = done in part 1; **7a-2** = done in part 2 (both in this zip) 
 - 7a-2 (this zip): the ten guided graph modules and all 13 rpm-label callers are done. Duplicates removed: abs-esc (static unit), electrical, exhaustsystem, ignition, suspension.
 - Trace values are normalised to 0–100 % of each old axis range, so both series keep their old shape; the caption says "% of full scale".
 - Duplicates for bespoke modules need a human read of each page (listed under 7b); this scan only flags where two surfaces exist.
+
+
+## Phase 7b1 — chip → Monitor (the 23 bespoke pages)
+
+Every page below now declares `monitor: { config, initial }` and writes through `ui.monitor.update(...)`. Same ids, labels, units and values as before; adjacent calls inside one straight-line block are merged into one update. `ui.chip.*`, the `chip:` config, `chipToMonitor()` and `ui.toolbar.setRpmLabel` are deleted from kit.js. Hard-coded colours were left as they were (token cleanup is Phase 8) and are listed here.
+
+| Page | ui.chip calls before | ui.monitor.update calls now | Hard-coded colours kept in updates (Phase 8) | 7b1 |
+|---|---|---|---|---|
+| abs-esc | 5 | 1 | - | done |
+| automatic | 7 | 3 | - | done |
+| braking | 6 | 2 | - | done |
+| carburetor | 3 | 3 | - | done |
+| clutch | 5 | 1 | #22c55e, #ef4444, #f59e0b | done |
+| cooling | 5 | 2 | - | done |
+| crankshaft-piston | 5 | 1 | - | done |
+| differential | 7 | 5 | #38bdf8 | done |
+| ecu | 5 | 1 | - | done |
+| electrical | 23 | 12 | #22c55e, #ef4444, #f59e0b | done |
+| engine | 3 | 2 | - | done |
+| exhaustsystem | 18 | 5 | #0ea5e9, #22c55e, #38bdf8, #f59e0b | done |
+| gearbox | 5 | 1 | #22c55e, #38bdf8, #a855f7, #ef4444, #f59e0b | done |
+| ignition | 10 | 6 | #f59e0b, #ff5566 | done |
+| lubrication | 6 | 2 | - | done |
+| mpfi | 6 | 3 | - | done |
+| obd2 | 5 | 1 | - | done |
+| starting-system | 24 | 5 | #22c55e, #38bdf8, #ef4444, #f59e0b | done |
+| steering | 5 | 1 | #38bdf8, #a855f7 | done |
+| suspension | 7 | 4 | #38bdf8, #ef4444 | done |
+| transmission | 12 | 4 | #3b82f6, #a855f7 | done |
+| turbocharger | 7 | 4 | - | done |
+| valvetrain | 5 | 1 | - | done |
+
+Special cases:
+- **cooling**: status colour classes (`warn-status` / `crit-status`) and the `#chip-status` CSS are gone; the Monitor status tone (`warn` / `crit`) carries it. The bespoke temp graph and surface-area row are still appended to `ui.monitor.root` (7b2 moves them to a trace / meter).
+- **engine**: the big value is the stroke name; `#ui-chip #chip-value` CSS became `#ui-monitor .mon-value`; the stroke click calls `ui.monitor.flush()` so the name changes at once.
+- **carburetor**: `#ui-chip #chip-row-phase` became `#ui-monitor [data-row="phase"] .mon-row-v` (rows now carry `data-row`).
+- **exhaustsystem**: the head label changes with the mode, now `ui.monitor.update({ label })` (new Monitor label channel).
+- **ecu**: the `chip:` key of the 3D material table was renamed `pcbChip` (it was only a grep hit).

@@ -1,5 +1,11 @@
 # Changelog
 
+## 8.7.1 - Control-system refactor, Phase 7b1 (chip -> Monitor)
+- 23 bespoke pages (abs-esc, automatic, braking, carburetor, clutch, cooling, crankshaft-piston, differential, ecu, electrical, engine, exhaustsystem, gearbox, ignition, lubrication, mpfi, obd2, starting-system, steering, suspension, transmission, turbocharger, valvetrain) declare `monitor: { config, initial }` instead of `chip:` and call `ui.monitor.update(...)`; adjacent calls in one block are merged. Values, ids, labels and units unchanged.
+- `kit.js`: removed the `ui.chip` getter, `chipToMonitor()`, the `chip:` fallback and `ui.toolbar.setRpmLabel`. `monitor.js`: new `label` channel in `update()`; every row carries `data-row="<id>"` (module CSS hook).
+- cooling uses the Monitor status tone instead of status classes; engine flushes the stroke name immediately; exhaustsystem changes the head label through `update({ label })`; ecu's material key `chip` is now `pcbChip`.
+- Tests (`tests/monitor.test.mjs`, 31 groups): no page uses `ui.chip` / `chip:` / old chip selectors, every converted page has a `monitor:` block, no adjacent unmerged updates, label channel and tone, optional jsdom group. Cache `autolab-v8.7.1`.
+
 ## 8.7.0 - Control-system refactor, Phase 7a complete (Monitor traces + rpm rows)
 - Rebased onto the Phase 6 build (v8.6.2): Phase 7a part 1 was first built on Phase 5; it is now applied on top of Phase 6 and 6.5.
 - The ten guided modules (awd, catalytic, commonrail, dpf, driveshaft, egr, fuelpump, intercooler, oilpump, radiator): the panel graph canvas, `drawGraph()`, the history buffer, the `*-warn` element and their CSS are gone. Each module declares `CFG.traces` (one trace `hist`, two series, token colours) and returns `traces: { hist: [a, b] | null }` and a status that carries the warning sentence (warn tone). Samples are normalised to 0-100 % of the old axis ranges. Simulation maths unchanged.

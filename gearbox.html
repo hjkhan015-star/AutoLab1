@@ -834,16 +834,9 @@
              direction.`
     },
 
-    chip: {
-      label: 'Selected gear',
-      value: 'N',
-      unit:  '',
-      bar:   true,
-      rows: [
-        { id: 'in',  label: 'Input',  value: '1000 rpm' },
-        { id: 'out', label: 'Output', value: '0 rpm' }
-      ],
-      status: { text: 'Neutral' }
+    monitor: {
+      config: { label: 'Selected gear', value: { label: 'Selected gear', unit: '', max: 100, bar: true }, rows: [['in', 'Input'], ['out', 'Output']], status: { text: 'Neutral' } },
+      initial: { value: { text: 'N', unit: '' }, rows: { in: '1000 rpm', out: '0 rpm' }, status: ['Neutral', false] }
     },
 
     toolbar: {
@@ -1039,13 +1032,11 @@
     if (tqRpmEl) tqRpmEl.textContent = rpmIn + ' → ' + rpmOut + ' rpm';
 
     /* Chip */
-    ui.chip.setBig(GEAR_SHORT[gbCurrentGear], '');
-    ui.chip.setColor(
-      ['#22c55e', '#38bdf8', '#22c55e', '#f59e0b', '#a855f7', '#ef4444'][gbCurrentGear] || '#22c55e'
-    );
-    ui.chip.set('in',  rpmIn  + ' rpm');
-    ui.chip.set('out', rpmOut + ' rpm');
-    ui.chip.setStatus(GEAR_NAMES[gbCurrentGear], gbCurrentGear !== 0);
+    ui.monitor.update({
+      value: { text: String(GEAR_SHORT[gbCurrentGear]), unit: '', color: (['#22c55e', '#38bdf8', '#22c55e', '#f59e0b', '#a855f7', '#ef4444'][gbCurrentGear] || '#22c55e') || '' },
+      rows: { in: rpmIn  + ' rpm', out: rpmOut + ' rpm' },
+      status: [GEAR_NAMES[gbCurrentGear], gbCurrentGear !== 0]
+    });
   }
 
   /* ═══════════════════════════════════════════════════════════

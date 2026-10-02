@@ -324,16 +324,9 @@ const ui = Base.UI.create({
     badge: { text: 'DOHC · 4-valve', color: CFG.accent },
     readout: readoutHTML()
   },
-  chip: {
-    label: 'Engine',
-    value: '—',
-    unit: ' rpm',
-    bar: true,
-    rows: [
-      { id: 'in',  label: 'Intake',  value: '—' },
-      { id: 'ex',  label: 'Exhaust', value: '—' }
-    ],
-    status: { text: 'Running' }
+  monitor: {
+    config: { label: 'Engine', value: { label: 'Engine', unit: ' rpm', max: 100, bar: true }, rows: [['in', 'Intake'], ['ex', 'Exhaust']], status: { text: 'Running' } },
+    initial: { value: { text: '—', unit: ' rpm' }, rows: { in: '—', ex: '—' }, status: ['Running', false] }
   },
   toolbar: {
     play: true,
@@ -474,11 +467,11 @@ function updateReadouts() {
     ro.eff.className = 'v ' + cls;
   }
 
-  ui.chip.setBig(rpm, ' rpm');
-  ui.chip.set('in',  (liMm).toFixed(1) + ' mm');
-  ui.chip.set('ex',  (leMm).toFixed(1) + ' mm');
-  ui.chip.setBar(camFrac * 100, 'var(--al-accent)');
-  ui.chip.setStatus(ev.li > 0.05 || ev.le > 0.05 ? 'Valve open' : 'Idle', true);
+  ui.monitor.update({
+    value: { text: String(rpm), unit: ' rpm', bar: camFrac * 100, barColor: 'var(--al-accent)' },
+    rows: { in: (liMm).toFixed(1) + ' mm', ex: (leMm).toFixed(1) + ' mm' },
+    status: [ev.li > 0.05 || ev.le > 0.05 ? 'Valve open' : 'Idle', true]
+  });
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

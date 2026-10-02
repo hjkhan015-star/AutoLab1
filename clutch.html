@@ -809,17 +809,9 @@ import { Parts } from './components.js';
              so the disc slips freely.`
     },
 
-    chip: {
-      label: 'Clutch slip',
-      value: 0,
-      unit:  'rpm',
-      bar:   true,
-      rows: [
-        { id: 'fw',  label: 'Flywheel',     value: '— rpm' },
-        { id: 'out', label: 'Output shaft', value: '— rpm' },
-        { id: 'rpm', label: 'Engine speed', value: '—' }
-      ],
-      status: { text: 'Engaged' }
+    monitor: {
+      config: { label: 'Clutch slip', value: { label: 'Clutch slip', unit: 'rpm', max: 100, bar: true }, rows: [['fw', 'Flywheel'], ['out', 'Output shaft'], ['rpm', 'Engine speed']], status: { text: 'Engaged' } },
+      initial: { value: { text: '0', unit: 'rpm' }, rows: { fw: '— rpm', out: '— rpm', rpm: '—' }, status: ['Engaged', false] }
     },
 
     toolbar: {
@@ -967,22 +959,18 @@ import { Parts } from './components.js';
     const rpmOut = Math.round(clOmegaOut * RPM_PER_UNIT);
     const slip   = Math.abs(rpmIn - rpmOut);
 
-    ui.chip.set('fw',  rpmIn  + ' rpm');
-    ui.chip.set('out', rpmOut + ' rpm');
-    ui.chip.setBig(slip, 'rpm');
-
     const engagement = engagementFromPedal(clPedalInput);
-    ui.chip.setBar(Math.round(engagement * 100),
-      engagement > 0.95 ? '#22c55e' : engagement > 0.05 ? '#f59e0b' : '#ef4444');
-
-    ui.monitor.update({ rows: { rpm: `~${Math.round(OMEGA_BASE * state.speedMul * RPM_PER_UNIT)} rpm` } });
-
     let s;
     if (engagement < 0.02) s = 'Disengaged';
     else if (engagement < 0.98) s = 'Releasing';
     else if (clLastSlipping) s = 'Slipping';
     else s = 'Engaged';
-    ui.chip.setStatus(s, s === 'Engaged');
+
+    ui.monitor.update({
+      value: { text: String(slip), unit: 'rpm', bar: Math.round(engagement * 100), barColor: engagement > 0.95 ? '#22c55e' : engagement > 0.05 ? '#f59e0b' : '#ef4444' },
+      rows: { fw: rpmIn + ' rpm', out: rpmOut + ' rpm', rpm: `~${Math.round(OMEGA_BASE * state.speedMul * RPM_PER_UNIT)} rpm` },
+      status: [s, s === 'Engaged']
+    });
   }
 
   /* ═══════════════════════════════════════════════════════════

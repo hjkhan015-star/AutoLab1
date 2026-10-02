@@ -762,16 +762,9 @@
              </div>`
     },
 
-    chip: {
-      label: 'Live transmission',
-      value: '4W',
-      unit:  '',
-      bar:   true,
-      rows: [
-        { id: 'path', label: 'Path', value: 'Prop shaft' },
-        { id: 'rpm',  label: 'RPM',  value: '900' }
-      ],
-      status: { text: '4-Wheeler' }
+    monitor: {
+      config: { label: 'Live transmission', value: { label: 'Live transmission', unit: '', max: 100, bar: true }, rows: [['path', 'Path'], ['rpm', 'RPM']], status: { text: '4-Wheeler' } },
+      initial: { value: { text: '4W', unit: '' }, rows: { path: 'Prop shaft', rpm: '900' }, status: ['4-Wheeler', false] }
     },
 
     toolbar: {
@@ -822,20 +815,20 @@
     if (mode === '4W') {
       if (descTitleEl) descTitleEl.textContent = '4-Wheeler Drive (Propeller Shaft)';
       if (descBodyEl) descBodyEl.innerHTML = 'Engine power flows from the <strong>flywheel</strong> into the <strong>gearbox</strong>. A <strong>universal joint</strong> transfers torque through the <strong>propeller shaft</strong> to the <strong>differential</strong>. The differential turns the power 90° and splits it to the <strong>rear axles</strong>, driving the rear wheels.';
-      ui.chip.setBig('4W', '');
-      ui.chip.setColor('#3b82f6');
-      ui.chip.setBar(100, '#3b82f6');
-      ui.chip.set('path', 'Prop shaft');
-      ui.chip.setStatus('4-Wheeler Drive', true);
+      ui.monitor.update({
+        value: { text: '4W', unit: '', color: '#3b82f6', bar: 100, barColor: '#3b82f6' },
+        rows: { path: 'Prop shaft' },
+        status: ['4-Wheeler Drive', true]
+      });
       if (bridge) bridge.setStatus('4-Wheeler Drive', '#3b82f6');
     } else {
       if (descTitleEl) descTitleEl.textContent = '2-Wheeler Drive (Chain Drive)';
       if (descBodyEl) descBodyEl.innerHTML = 'Engine power flows into the <strong>gearbox</strong>, which turns the <strong>front sprocket</strong>. A <strong>chain</strong> transfers this power to the larger <strong>rear sprocket</strong>, providing gear reduction and driving the <strong>rear wheel</strong>.';
-      ui.chip.setBig('2W', '');
-      ui.chip.setColor('#a855f7');
-      ui.chip.setBar(50, '#a855f7');
-      ui.chip.set('path', 'Chain');
-      ui.chip.setStatus('2-Wheeler Drive', true);
+      ui.monitor.update({
+        value: { text: '2W', unit: '', color: '#a855f7', bar: 50, barColor: '#a855f7' },
+        rows: { path: 'Chain' },
+        status: ['2-Wheeler Drive', true]
+      });
       if (bridge) bridge.setStatus('2-Wheeler Drive', '#a855f7');
     }
     camGoal = CAM_PRESETS[mode];
@@ -972,7 +965,7 @@
     }
 
     if (frame % 15 === 0) {
-      ui.chip.set('rpm', Math.round(400 + state.speedMul * 900));
+      ui.monitor.update({ rows: { rpm: Math.round(400 + state.speedMul * 900) } });
     }
 
     controls.update();
@@ -986,7 +979,7 @@
   camera.position.copy(CAM_PRESETS['4W'].pos);
   controls.target.copy(CAM_PRESETS['4W'].target);
   camGoal = null;
-  ui.chip.set('rpm', Math.round(400 + state.speedMul * 900));
+  ui.monitor.update({ rows: { rpm: Math.round(400 + state.speedMul * 900) } });
   animate();
   bridge.setStatus('4-Wheeler Drive', '#3b82f6');
   </script>

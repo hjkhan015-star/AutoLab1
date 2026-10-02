@@ -41,7 +41,7 @@
 
 
 
-  #ui-chip #chip-row-phase { font-size: 10px; }
+  #ui-monitor [data-row="phase"] .mon-row-v { font-size: 10px; }
 </style>
 </head>
 <body>
@@ -930,15 +930,9 @@
       hint: ''
     },
 
-    chip: {
-      label: 'Live mixture',
-      value: '12.4',
-      unit: ' : 1',
-      rows: [
-        { id: 'thr',   label: 'Throttle', value: '0%' },
-        { id: 'phase', label: 'Phase',    value: 'Idle' },
-        { id: 'rpm', label: 'Engine speed', value: '—' }
-      ]
+    monitor: {
+      config: { label: 'Live mixture', value: { label: 'Live mixture', unit: ' : 1', max: 100, bar: false }, rows: [['thr', 'Throttle'], ['phase', 'Phase'], ['rpm', 'Engine speed']], status: null },
+      initial: { value: { text: '12.4', unit: ' : 1' }, rows: { thr: '0%', phase: 'Idle', rpm: '—' } }
     },
 
     toolbar: {
@@ -1005,8 +999,7 @@
     afrEls.forEach(el => { el.textContent = ratioStr + ' : 1'; });
     mixRatioEl.textContent = ratioStr + ' : 1';
 
-    ui.chip.setBig(ratioStr, ' : 1');
-    ui.chip.set('thr', pct + '%');
+    ui.monitor.update({ value: { text: String(ratioStr), unit: ' : 1' }, rows: { thr: pct + '%' } });
 
     const idx = phaseIndex(t);
     if (idx !== lastPhaseIdx) {
@@ -1016,7 +1009,7 @@
       badgeEl.style.background = `color-mix(in oklch, ${m.color} 18%, transparent)`;
       badgeEl.style.color = m.color;
       noteEl.innerHTML = m.desc;
-      ui.chip.set('phase', m.name.split(' — ')[0]);
+      ui.monitor.update({ rows: { phase: m.name.split(' — ')[0] } });
     }
   }
 

@@ -832,16 +832,9 @@ import { Parts } from './components.js';
       desc: `<strong>With suspension.</strong> Coil springs, leaf springs and dampers absorb every bump. The chassis stays nearly level — passengers feel only a gentle float. Watch the leaf spring flatten through potholes and the shackle swing as it stretches.`
     },
 
-    chip: {
-      label: 'Mode',
-      value: 'With',
-      unit:  ' susp',
-      bar:   true,
-      rows: [
-        { id: 'speed', label: 'Speed', value: '~38 km/h' },
-        { id: 'road',  label: 'Road',  value: 'Flat' }
-      ],
-      status: { text: 'Suspended', on: true }
+    monitor: {
+      config: { label: 'Mode', value: { label: 'Mode', unit: ' susp', max: 100, bar: true }, rows: [['speed', 'Speed'], ['road', 'Road']], status: { text: 'Suspended' } },
+      initial: { value: { text: 'With', unit: ' susp' }, rows: { speed: '~38 km/h', road: 'Flat' }, status: ['Suspended', true] }
     },
 
     toolbar: {
@@ -960,10 +953,10 @@ import { Parts } from './components.js';
 
     ui.controls.set('susp', withSusp ? 0 : 1);              /* keep the dock choice in step (bridge setSuspension) */
 
-    ui.chip.setBig(withSusp ? 'With' : 'Rigid', withSusp ? ' susp' : ' link');
-    ui.chip.setColor(withSusp ? '#38bdf8' : '#ef4444');
-    ui.chip.setBar(withSusp ? 100 : 15, withSusp ? '#38bdf8' : '#ef4444');
-    ui.chip.setStatus(withSusp ? 'Suspended' : 'Rigid', withSusp);
+    ui.monitor.update({
+      value: { text: String(withSusp ? 'With' : 'Rigid'), unit: (withSusp ? ' susp' : ' link') ?? '', color: (withSusp ? '#38bdf8' : '#ef4444') || '', bar: withSusp ? 100 : 15, barColor: withSusp ? '#38bdf8' : '#ef4444' },
+      status: [withSusp ? 'Suspended' : 'Rigid', !!(withSusp)]
+    });
 
     if (bridge) bridge.setStatus(withSusp ? 'With Suspension' : 'Without Suspension',
                                  withSusp ? '#38bdf8' : '#ef4444');
@@ -974,7 +967,7 @@ import { Parts } from './components.js';
     } else {
       const kmh = Math.round(2.4 * state.speedMul * 16);
     }
-    ui.chip.set('speed', slowMo ? 'SLO-MO' : `~${Math.round(2.4 * state.speedMul * 16)} km/h`);
+    ui.monitor.update({ rows: { speed: slowMo ? 'SLO-MO' : `~${Math.round(2.4 * state.speedMul * 16)} km/h` } });
   }
 
   function resetSim() {
@@ -1282,14 +1275,14 @@ import { Parts } from './components.js';
     if (!f) {
       roadValEl.textContent = 'Flat';
       roadValEl.className = 'val';
-      ui.chip.set('road', 'Flat');
+      ui.monitor.update({ rows: { road: 'Flat' } });
     } else {
       const lateral = f.mode === 'left' ? 'L wheel' : f.mode === 'right' ? 'R wheel' : 'Both';
       const type = f.type === 'bump' ? 'Bump' : f.type === 'pot' ? 'Pothole'
                  : f.type === 'ripple' ? 'Washboard' : 'Wave';
       roadValEl.textContent = type + ' · ' + lateral;
       roadValEl.className = 'val ' + (f.type === 'pot' ? 'pot' : 'bump');
-      ui.chip.set('road', type);
+      ui.monitor.update({ rows: { road: type } });
     }
 
     const nx = nextRoadFeatureAt(xNow + 2);

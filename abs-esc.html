@@ -300,16 +300,9 @@ const ui = Base.UI.create({
     badge: { text: 'ABS ready', color: CFG.accent },
     readout: readoutHTML()
   },
-  chip: {
-    label: 'Vehicle',
-    value: '—',
-    unit: ' km/h',
-    bar: true,
-    rows: [
-      { id: 'slip', label: 'Slip', value: '—' },
-      { id: 'abs',  label: 'ABS',  value: '—' }
-    ],
-    status: { text: 'Monitoring' }
+  monitor: {
+    config: { label: 'Vehicle', value: { label: 'Vehicle', unit: ' km/h', max: 100, bar: true }, rows: [['slip', 'Slip'], ['abs', 'ABS']], status: { text: 'Monitoring' } },
+    initial: { value: { text: '—', unit: ' km/h' }, rows: { slip: '—', abs: '—' }, status: ['Monitoring', false] }
   },
   toolbar: {
     play: true,
@@ -442,14 +435,11 @@ function updateReadouts() {
     ro.esc.className = 'v ' + (s.escActive ? 'warn' : '');
   }
 
-  ui.chip.setBig(Math.round(s.v), ' km/h');
-  ui.chip.set('slip', Math.round(s.slip * 100) + ' %');
-  ui.chip.set('abs', state.wssFault ? 'OFF' : s.absActive ? 'ACTIVE' : 'IDLE');
-  ui.chip.setBar((ui.controls.value('brake') / 100) * 100, s.absActive ? 'var(--warn)' : 'var(--al-accent)');
-  ui.chip.setStatus(
-    state.wssFault ? 'Sensor fault' : s.absActive ? 'ABS active' : 'Monitoring',
-    !state.wssFault
-  );
+  ui.monitor.update({
+    value: { text: String(Math.round(s.v)), unit: ' km/h', bar: (ui.controls.value('brake') / 100) * 100, barColor: s.absActive ? 'var(--warn)' : 'var(--al-accent)' },
+    rows: { slip: Math.round(s.slip * 100) + ' %', abs: state.wssFault ? 'OFF' : s.absActive ? 'ACTIVE' : 'IDLE' },
+    status: [state.wssFault ? 'Sensor fault' : s.absActive ? 'ABS active' : 'Monitoring', !state.wssFault]
+  });
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

@@ -575,23 +575,6 @@ export const UI = {
 
 const HOME_URL = 'index.html';
 
-/* Phase 7a: legacy `chip: { label, value, unit, bar, rows:[{id,label,value}], status:{text} }` → Monitor config + initial values. */
-export function chipToMonitor(c) {
-  const hasValue = c.value !== undefined || !!c.bar;
-  const config = {
-    label: c.label || '',
-    value: hasValue ? { label: c.label || '', unit: c.unit || '', max: 100, bar: !!c.bar } : null,
-    rows: (c.rows || []).map((r) => [r.id, r.label]),
-    status: c.status ? { text: c.status.text || '' } : null,
-  };
-  const initial = {};
-  if (c.value !== undefined) initial.value = { text: String(c.value), unit: c.unit || '' };
-  const rows = {}; (c.rows || []).forEach((r) => { if (r.value !== undefined && r.value !== '') rows[r.id] = r.value; });
-  if (Object.keys(rows).length) initial.rows = rows;
-  if (c.status) initial.status = [c.status.text || '', false];
-  return { config, initial };
-}
-
 class UIKit {
   constructor(cfg) {
     this.cfg = cfg || {};
@@ -612,8 +595,7 @@ class UIKit {
     if (!this._embedded) this._buildStandaloneHeader();
 
     if (cfg.panel)   this._buildPanel(cfg.panel);
-    if (cfg.monitor) this._buildMonitor(cfg.monitor);              /* Phase 7a: the Monitor is the one readout surface */
-    else if (cfg.chip) this._buildMonitor(chipToMonitor(cfg.chip)); /* legacy `chip:` configs are translated; ui.chip.* wrap the Monitor until 7b */
+    if (cfg.monitor) this._buildMonitor(cfg.monitor);              /* Phase 7a/7b1: the Monitor is the one readout surface */
     if (cfg.toolbar) this._buildToolbar(cfg.toolbar);
     if (cfg.axes)    this._buildAxes(cfg.axes);      /* Phase 3: axis controls first, so legend widgets come last */
     if (cfg.options) this._buildOptions(cfg.options);   /* Phase 6: choice / toggle / action (options row, or primary when primary:true) */
@@ -849,7 +831,7 @@ class UIKit {
   }
 
   /* Phase 7a — the Monitor (monitor.js). `monitor` = { config, initial } | a plain config. Phones: one-line strip + card;
-     desktop: card with the collapse orb. Legacy `chip:` configs arrive here through chipToMonitor(). */
+     desktop: card with the collapse orb. */
   _buildMonitor(m) {
     const config = m && m.config ? m.config : m, initial = (m && m.initial) || null;
     this._monitor = createMonitor({ mount: this._slots.tr, doc: document, moduleId: this.moduleId });
@@ -1015,7 +997,7 @@ class UIKit {
 
   /* Phase 7a: the Monitor API. set(config) rebuilds the channels; update(patch) writes values (text ≤ 9 Hz, traces ≤ 30 Hz).
        set({ value:{label,unit,max}, rows:[[id,label]], traces:[{id,series:[…]}], gauge, status:true, footer })
-       update({ value, rows:{id:text|[text,tone]}, traces:{id:[v…]}, gauge, status:[text,on] })  — see monitor-core.js */
+       update({ label, value, rows:{id:text|[text,tone]}, traces:{id:[v…]}, gauge, status:[text,on,tone?] })  — see monitor-core.js */
   get monitor() {
     const self = this, M = () => self._monitor;
     return {
@@ -1028,23 +1010,9 @@ class UIKit {
     };
   }
 
-  /* Thin wrappers over the Monitor — deleted in 7b once the last caller has moved to ui.monitor. */
-  get chip() {
-    const self = this, up = (p) => { if (self._monitor) self._monitor.update(p); };
-    return {
-      set(id, value) { up({ rows: { [id]: value } }); },
-      setBig(value, unit) { up({ value: { text: String(value), unit: unit ?? '' } }); },
-      setColor(color) { up({ value: { color: color || '' } }); },
-      setBar(pct, color) { up({ value: Object.assign({ bar: pct }, color ? { barColor: color } : {}) }); },
-      setStatus(text, on) { up({ status: [text, !!on] }); },
-      get root() { return self._monitor ? self._monitor.root : null; },
-    };
-  }
-
   get toolbar() {
     const self = this;
     return {
-      setRpmLabel(text) { if (self._toolbar?.rpmLabel) self._toolbar.rpmLabel.textContent = text; },
       get root() { return self._dock.root; },                 /* the dock is the toolbar now */
       get dock() { return self._dock; },
     };

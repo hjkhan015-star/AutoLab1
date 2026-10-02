@@ -49,7 +49,7 @@
     color: color-mix(in oklch, var(--crit) 88%, var(--text));
   }
 
-  /* ── Chip: temp graph (appended into #ui-chip) ── */
+  /* ── Chip: temp graph (appended into #ui-monitor, until 7b2 moves it to a Monitor trace) ── */
   #temp-graph {
     width: 100%;
     height: 26px;
@@ -74,7 +74,7 @@
     transition: fill var(--dur-base) var(--ease-out);
   }
 
-  /* ── Chip: surface-area row (appended into #ui-chip) ── */
+  /* ── Chip: surface-area row (appended into #ui-monitor, until 7b2 moves it to a Monitor trace) ── */
   #surface-row {
     padding-top: 8px;
     margin-top: 8px;
@@ -237,16 +237,6 @@
   
     @keyframes finWarn {
     50% { box-shadow: 0 0 16px color-mix(in oklch, var(--crit) 45%, transparent); }
-  }
-
-  /* ── Chip status colour override (kit only supports on/off) ── */
-  #chip-status.warn-status {
-    background: color-mix(in oklch, var(--warn) 18%, transparent);
-    color: var(--warn);
-  }
-  #chip-status.crit-status {
-    background: color-mix(in oklch, var(--crit) 18%, transparent);
-    color: var(--crit);
   }
 
   /* ── Mobile ── */
@@ -1125,13 +1115,9 @@ const ui = UI.create({
     desc: modeInfo.air.desc
   },
 
-  chip: {
-    label: 'Temperature',
-    value: 70,
-    unit: '°C',
-    bar: true,
-    rows: [ { id: 'rpm', label: 'Engine speed', value: '—' } ],
-    status: { text: 'Normal operating range' }
+  monitor: {
+    config: { label: 'Temperature', value: { label: 'Temperature', unit: '°C', max: 100, bar: true }, rows: [['rpm', 'Engine speed']], status: { text: 'Normal operating range' } },
+    initial: { value: { text: '70', unit: '°C' }, rows: { rpm: '—' }, status: ['Normal operating range', false] }
   },
 
   toolbar: {
@@ -1154,7 +1140,7 @@ const ui = UI.create({
 /* Engine level (was state.speedMul, which the ⋯ menu's Sim speed also wrote — D8): 1.0 = 2800 rpm, same scale as before. */
 const engLevel = () => (ui.controls.value('rpm') - 700) / 2100;
 
-/* ─── Inject SVG graph into the chip root ─── */
+/* ─── Inject SVG graph into the monitor root (bespoke canvas: 7b2) ─── */
 const graphSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
 graphSvg.id = 'temp-graph';
 graphSvg.setAttribute('viewBox', '0 0 180 26');
@@ -1166,16 +1152,16 @@ graphSvg.innerHTML = `
   <path id="temp-area" class="area" d=""/>
   <path id="temp-line" class="line" d="" stroke="#38bdf8"/>
 `;
-ui.chip.root.appendChild(graphSvg);
+ui.monitor.root.appendChild(graphSvg);
 
-/* ─── Inject surface-area row into the chip root ─── */
+/* ─── Inject surface-area row into the monitor root ─── */
 const surfaceRowEl = document.createElement('div');
 surfaceRowEl.id = 'surface-row';
 surfaceRowEl.innerHTML = `
   <div id="surface-title"><span id="surface-label">Surface area</span><b id="surface-mult">3.2× base</b></div>
   <div id="surface-bar"><div id="surface-bar-fill"></div></div>
 `;
-ui.chip.root.appendChild(surfaceRowEl);
+ui.monitor.root.appendChild(surfaceRowEl);
 
 /* ═══════════════════════════════════════════════════════════════════════
    DOM REFS (post-kit)
@@ -1191,7 +1177,6 @@ const surfaceLabel    = document.getElementById('surface-label');
 const surfaceBarFill  = document.getElementById('surface-bar-fill');
 const tempLine        = document.getElementById('temp-line');
 const tempArea        = document.getElementById('temp-area');
-const chipStatusEl    = ui.chip.root.querySelector('#chip-status');
 const overheat        = document.getElementById('overheat-overlay');
 const alertChip       = document.getElementById('alert-chip');
 
@@ -1437,32 +1422,20 @@ function updateSim(dt) {
 function updateTempCard() {
   const t = state.temp + Math.sin(state.time * 1.4) * 1.6;
 
-  ui.chip.setBig(Math.round(t), '°C');
-  ui.chip.setBar(
-    THREE.MathUtils.clamp((t - 45) / 75 * 100, 4, 100),
-    null
-  );
-
-  let c, label, statusClass = '';
+  let c, label, tone = '';
   if (t < 88) { c = '#38bdf8'; label = 'Normal operating range'; }
-  else if (t < 100) { c = '#fbbf24'; label = 'Running warm'; statusClass = 'warn-status'; }
+  else if (t < 100) { c = '#fbbf24'; label = 'Running warm'; tone = 'warn'; }
   else {
     c = '#f87171';
-    statusClass = 'crit-status';
+    tone = 'crit';
     if (state.mode === 'radiator') label = 'OVERHEATING — check coolant';
     else label = state.fins ? 'OVERHEATING — raise speed' : 'OVERHEATING — refit fins';
   }
 
-  ui.chip.setColor(c);
-  ui.chip.setBar(
-    THREE.MathUtils.clamp((t - 45) / 75 * 100, 4, 100),
-    c
-  );
-  ui.chip.setStatus(label, false);
-  if (chipStatusEl) {
-    chipStatusEl.classList.remove('warn-status', 'crit-status');
-    if (statusClass) chipStatusEl.classList.add(statusClass);
-  }
+  ui.monitor.update({
+    value: { text: String(Math.round(t)), unit: '°C', color: c, bar: THREE.MathUtils.clamp((t - 45) / 75 * 100, 4, 100), barColor: c },
+    status: [label, false, tone]
+  });
 
   const isOverheat = t > 105;
   overheat.classList.toggle('on', isOverheat);

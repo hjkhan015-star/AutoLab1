@@ -63,7 +63,7 @@
   /* ── Engine-config switcher (lives inside toolbar extras) ── */
 
   /* ── Chip: the stroke name is text, so reduce the big-value font ── */
-  #ui-chip #chip-value {
+  #ui-monitor .mon-value {
     font-size: 15px; letter-spacing: -.01em; font-weight: 800;
     line-height: 1.15;
   }
@@ -1096,12 +1096,9 @@ function createRadial5() {
       desc: strokes[0].desc
     },
 
-    chip: {
-      label: 'Live cycle',
-      value: strokes[0].name,
-      rows: [
-        { id: 'cam',   label: 'Cam',   value: '0°' }
-      ]
+    monitor: {
+      config: { label: 'Live cycle', value: { label: 'Live cycle', unit: '', max: 100, bar: false }, rows: [['cam', 'Cam']], status: null },
+      initial: { value: { text: String(strokes[0].name), unit: '' }, rows: { cam: '0°' } }
     },
 
     toolbar: {
@@ -1158,9 +1155,8 @@ function createRadial5() {
 
     strokeDescEl.innerHTML = s.desc;
 
-    ui.chip.setBig(s.name, '');
-    ui.chip.setColor(s.color);
-    /* the stroke-name colour is applied by ui.chip.setColor above (Monitor value channel) */
+    ui.monitor.update({ value: { text: s.name, unit: '', color: s.color } });
+    ui.monitor.flush();                                   /* the stroke name changes on a click: show it now, not on the next 9 Hz tick */
 
     syncingStroke = true; ui.controls.set('stroke', idx); syncingStroke = false;      /* the dock choice follows the simulation */
     const strokeCtl = ui.axis('stroke'); if (strokeCtl) strokeCtl.el.style.setProperty('--ctl-accent', s.color);
@@ -1472,7 +1468,7 @@ function createRadial5() {
 
     /* Update the chip rows */
     if (frame % 4 === 0) {
-      ui.chip.set('cam',   camDegText);
+      ui.monitor.update({ rows: { cam: camDegText } });
     }
 
     if (state.speedMul !== lastSpeedMul) {
