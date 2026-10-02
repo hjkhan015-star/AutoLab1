@@ -2,11 +2,14 @@
 // Source-level guarantees only; they do NOT replace opening the app on a phone (see the manual checklist).
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
 import * as M from '../monitor-core.js';
 
 const rd = (f) => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
 let n = 0;
-const t = (name, fn) => { fn(); n++; console.log('ok  ', name); };
+const t = async (name, fn) => { await fn(); n++; console.log('ok  ', name); };
 
 t('rolling buffer: fills, wraps at capacity, keeps oldest → newest order', () => {
   const b = M.createRolling(4);
@@ -103,11 +106,10 @@ t('monitor.js: no authored <input>/<select>; its one <button> is the phone toggl
   assert.ok(!/<input|<select/.test(strip(mon)));
   assert.equal((strip(mon).match(/el\('button'/g) || []).length, 1);
 });
-t('kit.js: ui.monitor exists and ui.chip.* only wraps it (no second readout code path)', () => {
-  assert.match(kit, /get monitor\(\)/); assert.match(kit, /_buildMonitor\(/); assert.match(kit, /createMonitor\(/);
-  const chip = kit.slice(kit.indexOf('get chip()'), kit.indexOf('get toolbar()'));
-  assert.ok(!/textContent|innerHTML|style\./.test(chip), 'chip wrappers must not touch the DOM');
-  assert.ok(!/_chipEls|_chipRows|_buildChip/.test(kit), 'old chip DOM removed');
+t('kit.js: ui.monitor is the only readout API (7b1: the ui.chip wrappers, chipToMonitor and setRpmLabel are gone)', () => {
+  const kit = rd('kit.js');
+  assert.match(kit, /get monitor\(\)/);
+  assert.ok(!/get chip\(\)|chipToMonitor|setRpmLabel|_chipEls|_chipRows|_buildChip|cfg\.chip/.test(kit), 'legacy chip code left in kit.js');
 });
 t('runGuidedModule: every guided number goes through ui.monitor (no ro-* grid, no ui.chip, no direct DOM writes)', () => {
   const g = comp.slice(comp.indexOf('export function runGuidedModule'));
@@ -152,17 +154,18 @@ t('7a-2 (c): each graph module declares CFG.traces and returns traces + a status
     assert.match(s, /color: 'var\(--accent\)'/); assert.match(s, /color: 'var\(--warn\)'/);
   }
 });
-t('7a-2 (b)(d): no *.html calls setRpmLabel any more (kit.js keeps a no-op until 7b)', () => {
+t('7a-2 (b)(d): no *.html calls setRpmLabel any more, and kit.js no longer defines it (deleted in 7b1)', () => {
   for (const m of RPM13) assert.ok(!/setRpmLabel/.test(rd(m + '.html')), `${m}: setRpmLabel`);
   const all = readdirSync(new URL('../', import.meta.url)).filter((f) => f.endsWith('.html'));
-  assert.equal(all.filter((f) => /ui\.toolbar\.setRpmLabel/.test(rd(f))).length, 0);
+  assert.equal(all.filter((f) => /setRpmLabel/.test(rd(f))).length, 0);
+  assert.ok(!/setRpmLabel/.test(rd('kit.js')));
 });
-t('7a-2: the rpm / speed rows exist where setRpmLabel used to print a number', () => {
+t('7a-2: the rpm / speed rows exist where setRpmLabel used to print a number (monitor config + a row update)', () => {
   const rows = { automatic: 'speed', carburetor: 'rpm', clutch: 'rpm', cooling: 'rpm', differential: 'rpm', mpfi: 'rpm', 'starting-system': 'rpm', turbocharger: 'rpm' };
   for (const m in rows) {
     const s = rd(m + '.html');
-    assert.match(s, new RegExp(`\\{ id: '${rows[m]}', label: '[^']+', value: '[^']*' \\}`), `${m}: ${rows[m]} row`);
-    assert.match(s, new RegExp(`ui\\.monitor\\.update\\(\\{ rows: \\{ ${rows[m]}:`), `${m}: row update`);
+    assert.match(s, new RegExp(`\\['${rows[m]}', '[^']+'\\]`), `${m}: ${rows[m]} row in the monitor config`);
+    assert.match(s, new RegExp(`ui\\.monitor\\.update\\(\\{[^;]*?rows: \\{[^}]*?\\b${rows[m]}:`, 's'), `${m}: row update`);
   }
 });
 t('monitor-core: status tone is normalised (warn / crit only), anything else is no tone', () => {
@@ -181,5 +184,84 @@ t('components.js: CFG.traces reach the Monitor and traces/status tone are forwar
   const s = rd('components.js');
   assert.match(s, /traces: CFG\.traces \|\| \[\]/); assert.match(s, /function pushTraces/); assert.match(s, /o\.status\[2\] \|\| ''/);
 });
+
+/* ── Phase 7b1: chip → monitor ─────────────────────────────────────────────── */
+const CHIP23 = ['abs-esc', 'automatic', 'braking', 'carburetor', 'clutch', 'cooling', 'crankshaft-piston', 'differential', 'ecu', 'electrical', 'engine',
+  'exhaustsystem', 'gearbox', 'ignition', 'lubrication', 'mpfi', 'obd2', 'starting-system', 'steering', 'suspension', 'transmission', 'turbocharger', 'valvetrain'];
+const stripJs = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+await t('7b1: no page calls ui.chip.* or declares a `chip:` config; no page reaches into the old chip DOM', () => {
+  const all = readdirSync(new URL('../', import.meta.url)).filter((f) => f.endsWith('.html'));
+  for (const f of all) {
+    const s = stripJs(rd(f));
+    assert.ok(!/ui\.chip\b/.test(s), `${f}: ui.chip`);
+    assert.ok(!/\bchip\s*:\s*\{/.test(s), `${f}: chip: config`);
+    assert.ok(!/#ui-chip|\.ui-chip|#chip-|chipStatusEl/.test(s), `${f}: old chip selector`);
+  }
+});
+await t('7b1: all 23 converted pages declare a monitor: block (config + initial), and call ui.monitor.update', () => {
+  for (const m of CHIP23) {
+    const s = rd(m + '.html');
+    assert.match(s, /\bmonitor:\s*\{\s*config:\s*\{ label:/, `${m}: monitor config`);
+    assert.match(s, /initial:\s*\{/, `${m}: monitor initial`);
+    assert.match(s, /ui\.monitor\.update\(/, `${m}: ui.monitor.update`);
+  }
+});
+await t('7b1: adjacent updates are merged — no function calls ui.monitor.update twice in a row for the same statement run', () => {
+  for (const m of CHIP23) {
+    const s = rd(m + '.html');
+    assert.ok(!/ui\.monitor\.update\([^;]*\);\s*ui\.monitor\.update\(/s.test(s.replace(/\n\s*/g, ' ')), `${m}: two adjacent ui.monitor.update calls`);
+  }
+});
+await t('7b1: the Monitor takes a label channel (exhaustsystem modes) and rows carry data-row (module CSS hook)', () => {
+  const m = rd('monitor.js');
+  assert.match(m, /p\.label !== undefined/); assert.match(m, /row\.dataset\.row = r\.id/);
+  assert.match(rd('exhaustsystem.html'), /label: 'Noise reduction'/); assert.match(rd('exhaustsystem.html'), /label: 'Tailpipe noise'/);
+  assert.match(rd('carburetor.html'), /\[data-row="phase"\] \.mon-row-v/);
+  assert.match(rd('engine.html'), /#ui-monitor \.mon-value/);
+});
+await t('7b1: cooling uses the Monitor status tone (no class on the status node) and engine flushes the stroke name', () => {
+  const c = rd('cooling.html'), e = rd('engine.html');
+  assert.match(c, /status: \[label, false, tone\]/); assert.ok(!/warn-status|crit-status/.test(c));
+  assert.match(e, /ui\.monitor\.flush\(\)/);
+});
+
+let JSDOM = null;
+try {
+  const req = createRequire(process.env.JSDOM_PATH ? pathToFileURL(path.join(process.env.JSDOM_PATH, 'x.js')) : import.meta.url);
+  JSDOM = req('jsdom').JSDOM;
+} catch (_) { /* skipped below */ }
+if (!JSDOM) {
+  console.log('skip  monitor DOM tests (jsdom not available; set JSDOM_PATH to a dir with jsdom installed)');
+} else {
+  const dom = new JSDOM('<!doctype html><body></body>', { pretendToBeVisual: true });
+  globalThis.document = dom.window.document; globalThis.window = dom.window; globalThis.getComputedStyle = dom.window.getComputedStyle;
+  const { createMonitor } = await import('../monitor.js');
+  const mk = () => { document.body.innerHTML = ''; const mon = createMonitor({ mount: document.body, doc: document, moduleId: 't' });
+    mon.set({ label: 'Heat', value: { label: 'Heat', unit: ' kW', max: 100, bar: true }, rows: [['tin', 'Coolant in'], ['phase', 'Phase']], status: { text: 'Normal' } });
+    return mon; };
+  await t('7b1 DOM: update({label}) changes the head label once; value, rows and status merge into one flush', () => {
+    const mon = mk();
+    mon.update({ label: 'Noise reduction', value: { text: '42', unit: '% cut', bar: 42, color: 'red', barColor: 'blue' }, rows: { tin: '90 °C' }, status: ['Silenced', true] });
+    mon.flush();
+    const q = (s) => mon.root.querySelector(s);
+    assert.equal(q('.mon-label').textContent, 'Noise reduction');
+    assert.equal(q('.mon-value-text').textContent, '42'); assert.equal(q('.mon-value-unit').textContent, '% cut');
+    assert.equal(q('.mon-bar-fill').style.width, '42%'); assert.equal(q('.mon-value').style.color, 'red');
+    assert.equal(q('[data-row="tin"] .mon-row-v').textContent, '90 °C');
+    assert.equal(q('.mon-status-text').textContent, 'Silenced'); assert.ok(q('.mon-status').classList.contains('on'));
+    const w = mon.stats.textWrites; mon.update({ label: 'Noise reduction', rows: { tin: '90 °C' } }); mon.flush();
+    assert.equal(mon.stats.textWrites, w, 'identical text is not rewritten');
+    mon.update({ label: 'Silencer advantage' }); mon.flush();
+    assert.equal(q('.mon-label').textContent, 'Silencer advantage');
+  });
+  await t('7b1 DOM: a status tone replaces the cooling status classes; String(number) keeps decimals (no rounding)', () => {
+    const mon = mk();
+    mon.update({ status: ['OVERHEATING — raise speed', false, 'crit'], value: { text: String(14.7), unit: ' : 1' } }); mon.flush();
+    assert.equal(mon.root.querySelector('.mon-status').dataset.tone, 'crit');
+    assert.equal(mon.root.querySelector('.mon-value-text').textContent, '14.7');
+    mon.update({ status: ['Normal', false, ''] }); mon.flush();
+    assert.equal(mon.root.querySelector('.mon-status').dataset.tone, undefined);
+  });
+}
 
 console.log(`\n${n} test groups passed`);
