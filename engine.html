@@ -26,48 +26,8 @@
   #cam-deg { color: var(--warn) !important; }
 
   /* ── Simplified / Advanced toggle ── */
-  .view-mode { display: flex; gap: 6px; margin-top: 12px; }
-  .vm-btn {
-    flex: 1; padding: 8px;
-    border-radius: 9px;
-    border: 1px solid var(--border);
-    background: var(--surface-2);
-    color: var(--text-dim);
-    font-size: 11px; font-weight: 700;
-    letter-spacing: .03em;
-    cursor: pointer; font-family: inherit;
-    transition: background var(--dur-fast) var(--ease-out),
-                color var(--dur-fast) var(--ease-out),
-                border-color var(--dur-fast) var(--ease-out),
-                box-shadow var(--dur-fast) var(--ease-out);
-  }
-  .vm-btn:hover { background: var(--surface-3); }
-  .vm-btn.active {
-    background: var(--accent); color: #0b0e14;
-    border-color: var(--accent);
-    box-shadow: 0 0 12px color-mix(in oklch, var(--accent) 40%, transparent);
-  }
 
   /* ── Timeline (4 stroke buttons) ── */
-  .timeline {
-    display: grid; grid-template-columns: repeat(4, 1fr);
-    gap: 5px; margin: 12px 0;
-  }
-  .tl-btn {
-    border: 1px solid var(--border);
-    background: var(--surface-2);
-    color: var(--text-dim);
-    border-radius: 10px;
-    padding: 7px 3px;
-    font-size: 10.5px; font-weight: 600;
-    cursor: pointer;
-    transition: all var(--dur-fast) var(--ease-out);
-    text-align: center; line-height: 1.25;
-    font-family: inherit;
-  }
-  .tl-btn:hover { border-color: var(--border-hi); color: var(--text); }
-  .tl-btn.active { color: #0b0e14; border-color: transparent; }
-  .tl-btn .num { display: block; font-size: 14px; font-weight: 800; margin-bottom: 1px; }
 
   /* ── Cycle bar + scale ── */
   .cycle-bar {
@@ -98,34 +58,9 @@
   }
 
   /* ── Slow-mo toggle (override accent to warn colour) ── */
-  #btn-slowmo.active {
-    background: color-mix(in oklch, var(--warn) 22%, transparent);
-    border-color: color-mix(in oklch, var(--warn) 48%, transparent);
-    color: var(--warn);
-  }
   #rpm-label.slow { color: var(--warn) !important; font-weight: 800; }
 
   /* ── Engine-config switcher (lives inside toolbar extras) ── */
-  .cfg-group {
-    display: flex; align-items: center; gap: 4px;
-    padding-left: 8px; margin-left: 4px;
-    border-left: 1px solid var(--border);
-  }
-  .cfg-arrow {
-    width: 22px; height: 22px; border-radius: 50%;
-    border: none; background: var(--surface-3);
-    color: var(--text); font-size: 14px; line-height: 1;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; font-family: inherit; padding: 0;
-    transition: background var(--dur-fast) var(--ease-out),
-                color var(--dur-fast) var(--ease-out);
-  }
-  .cfg-arrow:hover, .cfg-arrow:active { background: var(--accent); color: #0b0e14; }
-  #cfg-label {
-    min-width: 78px; text-align: center; white-space: nowrap;
-    font-size: 10.5px; font-weight: 700; letter-spacing: .02em;
-    color: var(--text); font-family: var(--font-mono);
-  }
 
   /* ── Chip: the stroke name is text, so reduce the big-value font ── */
   #ui-chip #chip-value {
@@ -133,10 +68,6 @@
     line-height: 1.15;
   }
 
-  @media (max-width: 600px) {
-    .cfg-arrow { width: 19px; height: 19px; font-size: 12px; }
-    #cfg-label { min-width: 62px; font-size: 10px; }
-  }
 </style>
 </head>
 <body>
@@ -1152,18 +1083,6 @@ function createRadial5() {
           <span id="cam-readout">Cam <b id="cam-deg">0°</b></span>
         </div>
 
-        <div class="view-mode">
-          <button id="btn-simple"   class="vm-btn" type="button">Simplified</button>
-          <button id="btn-advanced" class="vm-btn active" type="button">Advanced</button>
-        </div>
-
-        <div class="timeline">
-          <button class="tl-btn" data-stroke="0"><span class="num">1</span>Intake</button>
-          <button class="tl-btn" data-stroke="1"><span class="num">2</span>Compression</button>
-          <button class="tl-btn" data-stroke="2"><span class="num">3</span>Power</button>
-          <button class="tl-btn" data-stroke="3"><span class="num">4</span>Exhaust</button>
-        </div>
-
         <div class="cycle-bar" id="cycle-bar" title="Click to jump to a crank angle">
           <div id="cycle-fill"></div>
           <div class="tick" style="left:25%"></div>
@@ -1189,10 +1108,7 @@ function createRadial5() {
       play: true, reset: true,
       speed: { label: 'Speed', min: 0.15, max: 2.5, step: 0.05, value: 0.85 },
       labels: true, gas: true,
-      extras: [
-        { id: 'btn-slowmo', title: 'Super slow motion · study each stroke',
-          icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2h12v6l-4 4 4 4v6H6v-6l4-4-4-4V2zm10 12.5V20H8v-5.5l4-4 4 4zM8 4v3.5l4 4 4-4V4H8z"/></svg>' }
-      ]
+      extras: []
     },
 
     /* Phase 5: the crank is a controls.js dial (id 'crank', 0–720°, wraps). It shows the angle ONCE, as small text;
@@ -1205,38 +1121,23 @@ function createRadial5() {
     ]
   });
 
-  /* ── Insert the engine-config switcher into the toolbar extras ── */
-  (function buildConfigSwitcher() {
-    const extras = document.getElementById('toolbar-extras');
-    if (!extras) return;
-    const cfgGroup = document.createElement('div');
-    cfgGroup.className = 'cfg-group';
-    cfgGroup.setAttribute('role', 'group');
-    cfgGroup.setAttribute('aria-label', 'Engine configuration');
-    cfgGroup.innerHTML = `
-      <button class="cfg-arrow" id="cfg-prev" type="button" aria-label="Previous engine configuration">‹</button>
-      <span id="cfg-label">Inline‑1</span>
-      <button class="cfg-arrow" id="cfg-next" type="button" aria-label="Next engine configuration">›</button>
-    `;
-    extras.appendChild(cfgGroup);
-  })();
-
-  /* ── Move slow-mo button next to play for a familiar layout ── */
-  (function reorderToolbar() {
-    const toolbarRoot = ui.toolbar.root;
-    if (!toolbarRoot) return;
-    const playBtn   = toolbarRoot.querySelector('#btn-play');
-    const slowmoBtn = toolbarRoot.querySelector('#btn-slowmo');
-    if (playBtn && slowmoBtn) playBtn.insertAdjacentElement('afterend', slowmoBtn);
-  })();
+  /* Phase 6: engine configuration, view mode, stroke jump and slow-mo are dock controls (no panel / toolbar buttons) */
+  const ENGINE_CONFIGS = [
+    { id: 'inline1', label: 'Inline\u20111' }, { id: 'inline4', label: 'Inline\u20114' }, { id: 'vtwin', label: 'V\u2011Twin 45\u00b0' },
+    { id: 'v8', label: 'V8 Cross\u2011plane' }, { id: 'radial5', label: 'Radial\u20115' }
+  ];
+  ui.addOptions([
+    { id: 'config', type: 'choice', layout: 'select', label: 'Engine', ariaLabel: 'Engine configuration', options: ENGINE_CONFIGS },
+    { id: 'view', type: 'choice', layout: 'segmented', label: 'View', options: [{ id: 'simple', label: 'Simplified' }, { id: 'advanced', label: 'Advanced' }], def: 'advanced' },
+    { id: 'stroke', type: 'choice', layout: 'segmented', label: 'Stroke', ariaLabel: 'Jump to stroke',
+      options: [{ id: 'intake', label: '1 Intake' }, { id: 'compression', label: '2 Compression' }, { id: 'power', label: '3 Power' }, { id: 'exhaust', label: '4 Exhaust' }] },
+    { id: 'slowmo', type: 'toggle', label: 'Slow-mo', ariaLabel: 'Super slow motion, study each stroke' }
+  ]);
 
   /* ═══════════════════════════════════════════════════════════════════
      PANEL BODY UI — view-mode toggle, timeline, cycle-bar
      ═══════════════════════════════════════════════════════════════════ */
   const panelBody = ui.panel.body;
-  const tlBtns      = panelBody.querySelectorAll('.tl-btn');
-  const btnSimple   = panelBody.querySelector('#btn-simple');
-  const btnAdvanced = panelBody.querySelector('#btn-advanced');
   const cycleBarEl  = panelBody.querySelector('#cycle-bar');
   const cycleFillEl = panelBody.querySelector('#cycle-fill');
   const camDegEl       = panelBody.querySelector('#cam-deg');
@@ -1245,6 +1146,7 @@ function createRadial5() {
   const badgeEl        = document.getElementById('stroke-badge');
   const badgeTextEl    = document.getElementById('badge-text');
 
+  let syncingStroke = false;
   function setStrokeUI(idx) {
     if (idx === lastStrokeIdx) return;
     lastStrokeIdx = idx;
@@ -1260,17 +1162,14 @@ function createRadial5() {
     ui.chip.setColor(s.color);
     ui.chip.root.querySelector('.ui-chip-value').style.color = s.color;
 
-    tlBtns.forEach((b, i) => {
-      if (i === idx) { b.classList.add('active'); b.style.background = s.color; b.style.color = '#0b0e14'; }
-      else { b.classList.remove('active'); b.style.background = ''; b.style.color = ''; }
-    });
+    syncingStroke = true; ui.controls.set('stroke', idx); syncingStroke = false;      /* the dock choice follows the simulation */
+    const strokeCtl = ui.axis('stroke'); if (strokeCtl) strokeCtl.el.style.setProperty('--ctl-accent', s.color);
   }
 
   function applyMechView() {
     const v = !!state.showMech;
     mechParts.forEach(m => { m.visible = v; });
-    if (btnSimple)   btnSimple.classList.toggle('active', !v);
-    if (btnAdvanced) btnAdvanced.classList.toggle('active', v);
+    ui.controls.set('view', v ? 1 : 0);
     if (camReadoutEl) camReadoutEl.style.display = v ? '' : 'none';
   }
   function setMechView(v) {
@@ -1278,15 +1177,15 @@ function createRadial5() {
     mechLabelsDirty = true;
     applyMechView();
   }
-  if (btnSimple)   btnSimple.addEventListener('click', () => setMechView(false));
-  if (btnAdvanced) btnAdvanced.addEventListener('click', () => setMechView(true));
+  ui.controls.on('view', (i) => { if ((i === 1) !== !!state.showMech) setMechView(i === 1); });
   applyMechView();
 
-  /* Timeline buttons — jump to a stroke */
-  tlBtns.forEach(btn => btn.addEventListener('click', () => {
-    theta = parseInt(btn.dataset.stroke, 10) * Math.PI + 5 * DEG;
+  /* Stroke choice: a user pick jumps to that stroke (the sim's own updates are ignored via syncingStroke) */
+  ui.controls.on('stroke', (i) => {
+    if (syncingStroke) return;
+    theta = i * Math.PI + 5 * DEG;
     flashT = 0;
-  }));
+  });
 
   /* Cycle bar — scrub to a crank angle */
   if (cycleBarEl) cycleBarEl.addEventListener('click', (e) => {
@@ -1306,26 +1205,17 @@ function createRadial5() {
   };
   let activeConfig = 'inline1';
 
-  const cfgLabelEl = document.getElementById('cfg-label');
-  const cfgPrevEl  = document.getElementById('cfg-prev');
-  const cfgNextEl  = document.getElementById('cfg-next');
-
   function applyEngineConfig(id) {
     activeConfig = id;
     engine.visible = (id === 'inline1');
     Object.keys(extraEngines).forEach(key => {
       extraEngines[key].group.visible = (key === id);
     });
-    if (cfgLabelEl) cfgLabelEl.textContent = CONFIG_LABELS[id];
+    ui.controls.set('config', CONFIG_ORDER.indexOf(id));          /* keep the dock choice in step */
     theta = 0; flashT = 0;
     mechLabelsDirty = true;
   }
-  function stepEngineConfig(dir) {
-    const i = CONFIG_ORDER.indexOf(activeConfig);
-    applyEngineConfig(CONFIG_ORDER[(i + dir + CONFIG_ORDER.length) % CONFIG_ORDER.length]);
-  }
-  if (cfgPrevEl) cfgPrevEl.addEventListener('click', () => stepEngineConfig(-1));
-  if (cfgNextEl) cfgNextEl.addEventListener('click', () => stepEngineConfig(1));
+  ui.controls.on('config', (i) => { const id = CONFIG_ORDER[i]; if (id !== activeConfig) applyEngineConfig(id); });
   applyEngineConfig('inline1');
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -1346,12 +1236,7 @@ function createRadial5() {
   }
   updateRpmLabel();
 
-  const btnSlow = document.getElementById('btn-slowmo');
-  if (btnSlow) btnSlow.addEventListener('click', () => {
-    slowMo = !slowMo;
-    btnSlow.classList.toggle('active', slowMo);
-    updateRpmLabel();
-  });
+  ui.controls.on('slowmo', (v) => { slowMo = v === 1; updateRpmLabel(); });
 
   /* ═══════════════════════════════════════════════════════════════════
      MANUAL CRANK — controls.js dial 'crank' (0–720°, wraps)
@@ -1494,8 +1379,7 @@ function createRadial5() {
     ui.controls.resetAll();                             /* crank dial back to 0° */
     theta = 0;
     flashT = 0;
-    slowMo = false;
-    if (btnSlow) btnSlow.classList.remove('active');
+    slowMo = false;                                    /* the toggle itself is reset by controls.resetAll() above */
     updateRpmLabel();
   }
 

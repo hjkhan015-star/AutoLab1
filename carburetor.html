@@ -39,39 +39,7 @@
   }
   .carb-note strong { color: var(--text); }
 
-  .cfg-group {
-    display: flex; align-items: center; gap: 4px;
-    padding-left: 8px; margin-left: 4px;
-    border-left: 1px solid var(--border);
-  }
-  .cfg-arrow {
-    width: 22px; height: 22px;
-    border-radius: 50%;
-    border: none;
-    background: var(--surface-3);
-    color: var(--text);
-    font-size: 14px; line-height: 1;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; font-family: inherit; padding: 0;
-    transition: background var(--dur-fast) var(--ease-out),
-                color var(--dur-fast) var(--ease-out);
-  }
-  .cfg-arrow:hover, .cfg-arrow:active {
-    background: var(--accent);
-    color: #0b0e14;
-  }
-  #cfg-label {
-    min-width: 92px; text-align: center; white-space: nowrap;
-    font-size: 10.5px; font-weight: 700;
-    letter-spacing: .02em;
-    color: var(--text);
-    font-family: var(--font-mono);
-  }
 
-  @media (max-width: 600px) {
-    .cfg-arrow { width: 19px; height: 19px; font-size: 12px; }
-    #cfg-label { min-width: 72px; font-size: 9px; }
-  }
 
   #ui-chip #chip-row-phase { font-size: 10px; }
 </style>
@@ -997,45 +965,11 @@
   noteEl.innerHTML = mixturePhases[0].desc;
   panelBody.appendChild(noteEl);
 
-  /* ═════════════════════════════════════════════════════════════════════
-     ★ TOOLBAR WIRING — connects kit-generated controls to `state`
-     ═════════════════════════════════════════════════════════════════════ */
-  (function syncToolbarIcons() {   /* Phase 2: click wiring removed — the kit (dock.js/kit.js) owns btn-play / btn-reset; only icon sync stays */
-
-    function syncPlayIcons() {
-      const ip  = document.getElementById('icon-play');
-      const ipa = document.getElementById('icon-pause');
-      if (ip)  ip.style.display  = state.playing ? 'none'  : 'block';
-      if (ipa) ipa.style.display = state.playing ? 'block' : 'none';
-    }
-    syncPlayIcons();
-
-
-    /* Expose the sync so the shell's `setPlaying` command keeps icons fresh */
-    window.__carbSyncPlayIcons = syncPlayIcons;
-  })();
-
-  /* ═════════════════════════════════════════════════════════════════════
-     CONFIG SWITCHER
-     ═════════════════════════════════════════════════════════════════════ */
-  (function buildConfigSwitcher() {
-    const extras = document.getElementById('toolbar-extras');
-    if (!extras) return;
-    const cfgGroup = document.createElement('div');
-    cfgGroup.className = 'cfg-group';
-    cfgGroup.setAttribute('role', 'group');
-    cfgGroup.setAttribute('aria-label', 'Fuel delivery configuration');
-    cfgGroup.innerHTML = `
-      <button class="cfg-arrow" id="cfg-prev" type="button" aria-label="Previous configuration">‹</button>
-      <span id="cfg-label">${CONFIG_DEFS[0].label}</span>
-      <button class="cfg-arrow" id="cfg-next" type="button" aria-label="Next configuration">›</button>
-    `;
-    extras.appendChild(cfgGroup);
-  })();
-
-  const cfgLabelEl = document.getElementById('cfg-label');
-  const cfgPrevEl  = document.getElementById('cfg-prev');
-  const cfgNextEl  = document.getElementById('cfg-next');
+  /* Phase 6: the configuration switcher is a dock choice (replaces the ‹ › arrows + label) */
+  ui.addOptions([
+    { id: 'config', type: 'choice', layout: 'select', label: 'Fuel delivery', ariaLabel: 'Fuel delivery configuration',
+      options: CONFIG_DEFS.map(d => ({ id: d.id, label: d.label })) }
+  ]);
 
   let bridge = null;
 
@@ -1044,16 +978,14 @@
     configs.forEach((c, i) => { c.group.visible = (i === activeConfigIdx); });
 
     const active = configs[activeConfigIdx];
-    if (cfgLabelEl) cfgLabelEl.textContent = active.label;
+    ui.controls.set('config', activeConfigIdx);          /* keep the dock choice in step */
     panelBody.querySelector('#stroke-desc').innerHTML = active.desc;
 
     if (active.id !== 'carb') labels.hideAll();
 
     if (bridge) bridge.setStatus(active.label, active.badge);
   }
-  function stepConfig(dir) { applyConfig(activeConfigIdx + dir); }
-  if (cfgPrevEl) cfgPrevEl.addEventListener('click', () => stepConfig(-1));
-  if (cfgNextEl) cfgNextEl.addEventListener('click', () => stepConfig(1));
+  ui.controls.on('config', (i) => { if (i !== activeConfigIdx) applyConfig(i); });
   applyConfig(0);
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -1102,7 +1034,6 @@
       switch (d.action) {
         case 'setPlaying':
           state.playing = !!d.value;
-          if (window.__carbSyncPlayIcons) window.__carbSyncPlayIcons();
           break;
         case 'setSpeed':
           state.speedMul = +d.value;

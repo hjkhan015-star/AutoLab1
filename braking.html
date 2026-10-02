@@ -60,61 +60,8 @@
   }
   .br-pascal .mult b { color: var(--ok); font-weight: 900; }
 
-  .cfg-group {
-    display: flex; align-items: center; gap: 4px;
-    padding-left: 8px; margin-left: 4px;
-    border-left: 1px solid var(--border);
-  }
-  .cfg-arrow {
-    width: 22px; height: 22px;
-    border-radius: 50%;
-    border: none;
-    background: var(--surface-3);
-    color: var(--text);
-    font-size: 14px; line-height: 1;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; font-family: inherit; padding: 0;
-    transition: background var(--dur-fast) var(--ease-out),
-                color var(--dur-fast) var(--ease-out);
-  }
-  .cfg-arrow:hover, .cfg-arrow:active {
-    background: var(--accent); color: #0b0e14;
-  }
-  #cfg-label {
-    min-width: 92px; text-align: center; white-space: nowrap;
-    font-size: 10.5px; font-weight: 700;
-    letter-spacing: .02em;
-    color: var(--text);
-    font-family: var(--font-mono);
-  }
 
-  .br-toggle {
-    padding: 0 10px; height: 30px;
-    border-radius: var(--r-sm);
-    background: var(--surface-3);
-    color: var(--text-dim);
-    font-size: 10px; font-weight: 800;
-    letter-spacing: .05em; text-transform: uppercase;
-    border: 1px solid var(--border);
-    cursor: pointer; font-family: inherit;
-    transition: background var(--dur-fast) var(--ease-out),
-                color var(--dur-fast) var(--ease-out),
-                border-color var(--dur-fast) var(--ease-out),
-                box-shadow var(--dur-fast) var(--ease-out);
-  }
-  .br-toggle:hover { color: var(--text); }
-  .br-toggle.active {
-    background: color-mix(in oklch, var(--crit) 22%, transparent);
-    color: var(--crit);
-    border-color: color-mix(in oklch, var(--crit) 45%, transparent);
-    box-shadow: 0 0 10px color-mix(in oklch, var(--crit) 35%, transparent);
-  }
 
-  @media (max-width: 600px) {
-    .cfg-arrow { width: 19px; height: 19px; font-size: 12px; }
-    #cfg-label { min-width: 72px; font-size: 10px; }
-    .br-toggle { padding: 0 8px; height: 26px; font-size: 10px; }
-  }
 </style>
 </head>
 <body>
@@ -1371,8 +1318,19 @@ import { Parts } from './components.js';
        k = -ln(0.88)·60 — the old per-frame spring-back factor, now time-based. */
     axes: [
       { id: 'brake', look: 'pedal', label: 'Brake', preset: 'percent', spring: 'return', k: 7.67, keys: 'arrows', side: 'right', color: 'var(--crit)' }
+    ],
+
+    /* Phase 6: toggles + the configuration choice live in the dock options row */
+    options: [
+      { id: 'config', type: 'choice', layout: 'select', label: 'Configuration', options: CONFIG_DEFS.map(d => ({ id: d.id, label: d.label })) },
+      { id: 'abs',  type: 'toggle', label: 'ABS',  ariaLabel: 'ABS, anti-lock braking system' },
+      { id: 'fail', type: 'toggle', label: 'FAIL', ariaLabel: 'Simulate front circuit failure' },
+      { id: 'air',  type: 'toggle', label: 'AIR',  ariaLabel: 'Air bubble in the lines' }
     ]
   });
+  ui.controls.on('abs',  (v) => { state.abs = v === 1; });
+  ui.controls.on('fail', (v) => { state.circuitFail = v === 1; });
+  ui.controls.on('air',  (v) => { state.airBubble = v === 1; });
 
   const panelBody = ui.panel.body;
   const badgeEl     = document.getElementById('stroke-badge');
@@ -1398,71 +1356,6 @@ import { Parts } from './components.js';
     mult: panelBody.querySelector('[data-pc="mult"]')
   };
 
-  /* ═════════════════════════════════════════════════════════════════════
-     ★ DEFENSIVE TOOLBAR WIRING
-     Works even if the shell's kit.js hasn't auto-wired yet. If your kit.js
-     has been updated, this block is harmless (idempotent duplicate).
-     ═════════════════════════════════════════════════════════════════════ */
-  (function syncToolbarIcons() {   /* Phase 2: click wiring removed — the kit (dock.js/kit.js) owns btn-play / btn-reset; only icon sync stays */
-
-    function syncIcons() {
-      const ip  = document.getElementById('icon-play');
-      const ipa = document.getElementById('icon-pause');
-      if (ip)  ip.style.display  = state.playing ? 'none'  : 'block';
-      if (ipa) ipa.style.display = state.playing ? 'block' : 'none';
-    }
-    syncIcons();
-
-
-    /* Watch state.playing in case it changes from the shell — keep icons honest */
-    setInterval(syncIcons, 500);
-
-    window.__brakeSyncIcons = syncIcons;
-  })();
-
-  /* ═══════════════════════════════════════════════════════════════════
-     TOOLBAR EXTRAS — toggles + config switcher
-     ═══════════════════════════════════════════════════════════════════ */
-  (function buildToolbarExtras() {
-    const extras = document.getElementById('toolbar-extras');
-    if (!extras) return;
-
-    const toggleGroup = document.createElement('div');
-    toggleGroup.className = 'cfg-group';
-    toggleGroup.innerHTML = `
-      <button class="br-toggle" id="br-toggle-abs" title="ABS — Anti-lock Braking System">ABS</button>
-      <button class="br-toggle" id="br-toggle-fail" title="Simulate front circuit failure">FAIL</button>
-      <button class="br-toggle" id="br-toggle-air" title="Air bubble in the lines">AIR</button>
-    `;
-    extras.appendChild(toggleGroup);
-
-    const cfgGroup = document.createElement('div');
-    cfgGroup.className = 'cfg-group';
-    cfgGroup.innerHTML = `
-      <button class="cfg-arrow" id="cfg-prev" type="button" aria-label="Previous configuration">‹</button>
-      <span id="cfg-label">${CONFIG_DEFS[0].label}</span>
-      <button class="cfg-arrow" id="cfg-next" type="button" aria-label="Next configuration">›</button>
-    `;
-    extras.appendChild(cfgGroup);
-
-    document.getElementById('br-toggle-abs').addEventListener('click', (e) => {
-      state.abs = !state.abs;
-      e.currentTarget.classList.toggle('active', state.abs);
-    });
-    document.getElementById('br-toggle-fail').addEventListener('click', (e) => {
-      state.circuitFail = !state.circuitFail;
-      e.currentTarget.classList.toggle('active', state.circuitFail);
-    });
-    document.getElementById('br-toggle-air').addEventListener('click', (e) => {
-      state.airBubble = !state.airBubble;
-      e.currentTarget.classList.toggle('active', state.airBubble);
-    });
-  })();
-
-  const cfgLabelEl = document.getElementById('cfg-label');
-  const cfgPrevEl  = document.getElementById('cfg-prev');
-  const cfgNextEl  = document.getElementById('cfg-next');
-
   let bridge = null;
 
   function applyConfig(idx) {
@@ -1470,7 +1363,7 @@ import { Parts } from './components.js';
     configs.forEach((c, i) => { c.group.visible = (i === activeConfigIdx); });
 
     const active = configs[activeConfigIdx];
-    if (cfgLabelEl) cfgLabelEl.textContent = active.label;
+    ui.controls.set('config', activeConfigIdx);          /* keeps the dock choice in step (no-op when it already matches) */
     badgeTextEl.textContent = active.label;
     badgeEl.style.background = `color-mix(in oklch, ${active.badge} 18%, transparent)`;
     badgeEl.style.color = active.badge;
@@ -1508,9 +1401,7 @@ import { Parts } from './components.js';
 
     if (bridge) bridge.setStatus(active.label, active.badge);
   }
-  function stepConfig(dir) { applyConfig(activeConfigIdx + dir); }
-  if (cfgPrevEl) cfgPrevEl.addEventListener('click', () => stepConfig(-1));
-  if (cfgNextEl) cfgNextEl.addEventListener('click', () => stepConfig(1));
+  ui.controls.on('config', (i) => { if (i !== activeConfigIdx) applyConfig(i); });
   applyConfig(0);
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -1615,7 +1506,6 @@ import { Parts } from './components.js';
       switch (d.action) {
         case 'setPlaying':
           state.playing = !!d.value;
-          if (window.__brakeSyncIcons) window.__brakeSyncIcons();
           break;
         case 'setSpeed':
           state.speedMul = +d.value;

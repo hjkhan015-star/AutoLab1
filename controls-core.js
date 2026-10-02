@@ -60,6 +60,8 @@ export function resolveSpec(spec) {
 export function defaultNormalized(spec) {
   const s = resolveSpec(spec);
   if (isDial(s)) return dialDefault(s);
+  if (isChoice(s)) return choiceDefault(s);
+  if (isToggle(s)) return toggleDefault(s);
   if (typeof s.min === 'number' && typeof s.max === 'number') {
     return normalize(typeof s.def === 'number' ? s.def : s.min, s.min, s.max);
   }
@@ -84,6 +86,8 @@ export function stepCount(spec) {
 /** Snap a normalised value to the nearest step. */
 export function snapNormalized(n, spec) {
   if (isDial(spec)) return snapDial(n, spec);
+  if (isChoice(spec)) return clampChoice(n, spec.options.length);
+  if (isToggle(spec)) return toggleValue(n);
   const c = stepCount(spec);
   return clamp(Math.round(clamp(Number.isFinite(n) ? n : 0, 0, 1) * c), 0, c) / c;
 }
@@ -91,6 +95,8 @@ export function snapNormalized(n, spec) {
 export function realValue(n, spec) {
   const s = resolveSpec(spec);
   if (isDial(s)) return dialRealValue(n, s);
+  if (isChoice(s)) return choiceId(n, s.options);            /* the option id */
+  if (isToggle(s)) return !!n;                               /* boolean */
   const c = stepCount(s);
   const idx = clamp(Math.round(clamp(Number.isFinite(n) ? n : 0, 0, 1) * c), 0, c);
   const step = (s.max - s.min) / c;
@@ -99,12 +105,16 @@ export function realValue(n, spec) {
 /** normalised -> legacy raw units (display value * scale), e.g. volts -> centivolts. */
 export function rawValue(n, spec) {
   const s = resolveSpec(spec);
+  if (isChoice(s)) return clampChoice(n, s.options.length);     /* raw = the index */
+  if (isToggle(s)) return toggleValue(n);                        /* raw = 0 | 1 */
   return roundTo(realValue(n, s) * (s.scale ?? 1), 6);
 }
 /** real value (display units) -> normalised, step-snapped. */
 export function fromReal(value, spec) {
   const s = resolveSpec(spec);
   if (isDial(s)) return snapDial(degToDial(value, s), s);
+  if (isChoice(s)) { const i = choiceIndex(value, s.options); return i < 0 ? choiceDefault(s) : i; }
+  if (isToggle(s)) return toggleValue(value);
   return snapNormalized(normalize(value, s.min, s.max), s);
 }
 
@@ -296,6 +306,94 @@ export function createPedalModel({ k = DEFAULT_PEDAL_K, ramp = PEDAL_RAMP, value
   return m;
 }
 
+
+/* ── choice / toggle / action (Phase 6) — pure ────────────────────────────
+   choice : registry stores the selected INDEX (0..n-1), not a normalised value
+   toggle : registry stores 0 / 1
+   action : no stored value (momentary click → onAction)
+   Options are written  ['A','B']  or  [{id,label,tone}]  and normalised to {id,label,tone,index}. */
+export const isChoice = (spec) => !!spec && (spec.type === 'choice' || spec.kind === 'choice');
+export const isToggle = (spec) => !!spec && (spec.type === 'toggle' || spec.kind === 'toggle');
+export const isAction = (spec) => !!spec && (spec.type === 'action' || spec.kind === 'action');
+export const CHOICE_LAYOUTS = Object.freeze(['segmented', 'select', 'gate']);
+export const TONES = Object.freeze(['normal', 'crit']);
+
+/** ['A','B'] | [{id,label,tone}] -> [{id,label,tone,index}]. Throws on empty / duplicate ids. */
+export function normalizeOptions(options) {
+  if (!Array.isArray(options) || options.length === 0) throw new Error('controls-core: choice needs a non-empty options array');
+  const seen = new Set();
+  return options.map((o, index) => {
+    const raw = (o !== null && typeof o === 'object') ? o : { id: o };
+    if (raw.id === undefined || raw.id === null || raw.id === '') throw new Error('controls-core: choice option needs an id');
+    const id = String(raw.id);
+    if (seen.has(id)) throw new Error(`controls-core: duplicate choice option "${id}"`);
+    seen.add(id);
+    const tone = TONES.includes(raw.tone) ? raw.tone : 'normal';
+    const out = { id, label: raw.label == null ? id : String(raw.label), tone, index };
+    if (raw.sub != null) out.sub = String(raw.sub);
+    return out;
+  });
+}
+/** index of an option id (or of an already-numeric index) in options; -1 when absent. */
+export function choiceIndex(value, options) {
+  const list = normalizeOptions(options);
+  if (typeof value === 'number' && Number.isInteger(value)) return value >= 0 && value < list.length ? value : -1;
+  const i = list.findIndex((o) => o.id === String(value));
+  return i;
+}
+/** clamp an index into 0..n-1 (non-finite -> 0) */
+export function clampChoice(index, n) {
+  if (!(n > 0)) return 0;
+  const i = Number.isFinite(index) ? Math.round(index) : 0;
+  return i < 0 ? 0 : i > n - 1 ? n - 1 : i;
+}
+/** step an index by ±step across n options; wrap = loop round, otherwise clamp at the ends */
+export function stepChoice(index, step, n, wrap = false) {
+  if (!(n > 0)) return 0;
+  const cur = clampChoice(index, n);
+  const next = cur + (Number.isFinite(step) ? Math.trunc(step) : 0);
+  if (wrap) return ((next % n) + n) % n;
+  return clampChoice(next, n);
+}
+/** option id for a registry index (clamped) */
+export function choiceId(index, options) {
+  const list = normalizeOptions(options);
+  return list[clampChoice(index, list.length)].id;
+}
+/** default index of a choice spec: spec.def as id or index, else 0 */
+export function choiceDefault(spec) {
+  const s = spec || {};
+  if (!Array.isArray(s.options) || !s.options.length) return 0;
+  if (s.def === undefined) return 0;
+  const i = choiceIndex(s.def, s.options);
+  return i < 0 ? 0 : i;
+}
+/** toggle default: spec.def truthy -> 1 */
+export const toggleDefault = (spec) => (spec && spec.def ? 1 : 0);
+/** Toggle value from anything boolean-ish -> 0 | 1 */
+export const toggleValue = (v) => (v ? 1 : 0);
+export const toggleFlip = (v) => (v ? 0 : 1);
+/** Text for aria-valuetext / readout of a choice */
+export function choiceText(index, options) {
+  const list = normalizeOptions(options);
+  return list[clampChoice(index, list.length)].label;
+}
+
+/**
+ * The H-gate gearbox stick: ↑/↓ shift up / down through the gears, N = neutral, Esc / Home = neutral too
+ * (the single reset path). `spec.neutral` = index of neutral (default 0). Returns
+ *   { step:+1|-1 } | { to:index } | null
+ */
+export function gateKeyToIntent(ev, spec = {}) {
+  const key = ev && ev.key;
+  const neutral = Number.isInteger(spec.neutral) ? spec.neutral : 0;
+  if (key === 'ArrowUp')   return { step: +1 };
+  if (key === 'ArrowDown') return { step: -1 };
+  if (key === 'n' || key === 'N') return { to: neutral };
+  if (key === 'Escape' || key === 'Home') return { to: neutral };
+  return null;
+}
+
 /* ── keyboard mapping ─────────────────────────────────────────────────── */
 export const KEY_STEP_AXIS = 0.08;       /* per press, normalised 0..1      */
 export const KEY_STEP_DIAL_DEG = 10;     /* per press, degrees              */
@@ -330,6 +428,9 @@ export function keyToIntent(kind, ev, spec = {}) {
     case 'choice':
       if (key === 'ArrowRight') return { step: +1 };
       if (key === 'ArrowLeft')  return { step: -1 };
+      return null;
+    case 'toggle':
+      if (key === 'Enter' || key === ' ' || key === 'Spacebar') return { flip: true };
       return null;
     case 'momentary':
       if (key === 'Shift') return { pressed: true };
@@ -382,8 +483,10 @@ export function createRegistry() {
       const it = items.get(id);
       if (!it) throw new Error(`controls-core: unknown control id "${id}"`);
       const s = it.spec || {};
-      const lo = isDial(s) ? dialMin(s) : 0;
-      const v = clamp(Number.isFinite(value) ? value : 0, lo, 1);
+      let v;
+      if (isChoice(s)) v = clampChoice(value, Array.isArray(s.options) ? s.options.length : 1);     /* index */
+      else if (isToggle(s)) v = toggleValue(value);                                                  /* 0 | 1 */
+      else v = clamp(Number.isFinite(value) ? value : 0, isDial(s) ? dialMin(s) : 0, 1);
       if (v === it.value) return v;
       it.value = v;
       (listeners.get(id) || []).forEach((fn) => fn(v, id));

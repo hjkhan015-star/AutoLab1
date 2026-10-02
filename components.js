@@ -158,6 +158,7 @@ export const Widgets = {
    (id 'ctl'; the simulation reads it as k = value / 100, and apply({ctl:'…'}) sets its readout text). */
 export function guidedCtls(CFG) {
   if (Array.isArray(CFG.ctls) && CFG.ctls.length) return CFG.ctls;
+  if (CFG.ctl === null) return [];                 /* no main slider: the module reads a choice instead (lighting) */
   const c = CFG.ctl || { label: 'Control', val: 0 };
   return [{ id: 'ctl', label: c.label, caption: c.caption, preset: 'percent', def: c.val, min: 0, max: 100, step: 1 }];
 }
@@ -203,6 +204,7 @@ const ui = Base.UI.create({
   chip: { label: CFG.chipLabel, value: '', unit: '', bar: true, rows: CFG.rows.map(r => ({ id: r[0], label: r[1], value: '' })), status: { text: 'Running' } },
   toolbar: { play: true, reset: true, speed: { label: 'Sim speed', min: 0.15, max: 2.5, step: 0.05, value: 0.85 }, labels: true },
   axes: CTLS.map((c, i) => Object.assign({ side: i % 2 ? 'right' : 'left' }, c)),
+  options: CFG.options || [],                      /* Phase 6: choice / toggle / action (dock options row) */
   widgets: {
     br: { html: Widgets.legend(CFG), caption: 'Legend' }
   }
@@ -234,7 +236,7 @@ function refresh(dt) { apply(mod.update({ t: simT, dt, k, sp: state.playing ? st
 const bridge = ui.wireBridge({
   viewManager, state,
   onCommand: (d) => {
-    if (d.action === 'reset') { controls.resetAll(); k = mainAxis ? mainAxis.get() : 0; simT = 0; refresh(0); }
+    if (d.action === 'reset') { if (typeof CFG.onReset === 'function') CFG.onReset(); controls.resetAll(); k = mainAxis ? mainAxis.get() : 0; simT = 0; refresh(0); }
   }
 });
 bridge.ready();

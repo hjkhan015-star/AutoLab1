@@ -65,6 +65,13 @@ Brake, accelerator and clutch are `controls.js` primitives: an `axis` with `look
 ## Dials (Phase 5)
 The steering wheel and the engine crank are `controls.js` primitives: `type:'dial'` with `look:'wheel' | 'crank' | 'knob'`. Drag anywhere on it, ←/→ turn 10° (→ = clockwise = right in every module), Enter / Home = default; it is 96 px on phones and shows its angle once, as small text. Read it with `ui.controls.get('wheel')` (−1..1, clockwise +) or `ui.controls.value('wheel')` (degrees). `steering`, `differential` and `awd` use a `wheel`; `engine` uses a wrapping 0–720° `crank`. See COMPONENTS.md.
 
+## Options: choice / toggle / action (Phase 6)
+A module never authors a `<button>`, `<select>` or `<input>`. Declare `options: [spec]` in `UI.create` (or `CFG.options` for `runGuidedModule`; `ui.addOptions([...])` if the list is built later):
+- `{ id, type:'choice', layout:'segmented'|'select'|'gate', label, options:['A','B'] | [{id,label,tone:'crit'}], def, onChange(id, index) }` — 2–4 short options = segmented, longer lists = select, a gearbox stick = gate.
+- `{ id, type:'toggle', label, def:false, onChange(bool) }`
+- `{ id, type:'action', label, tone, onAction() }` (no state; a reset is an action only for module-specific extras — the dock Reset already exists).
+Read with `ui.controls.value(id)` (option id / boolean), follow the simulation with `ui.controls.set(id, indexOrBool)`, hide mode-dependent ones with `ui.controls.setHidden(id, true)`. Use `primary:true` only for something the user holds or flicks mid-run (a gear selector). Put module-specific resets in `CFG.onReset` (guided) or the bridge's `onCommand` — the dock Reset also calls `controls.resetAll()`. Control ids must be unique per page.
+
 ## What's NOT done yet: simulation depth for the other 43 modules
 
 The valvetrain module previously had a cam-advance slider that only

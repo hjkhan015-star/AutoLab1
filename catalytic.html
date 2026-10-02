@@ -25,28 +25,8 @@ html.light-theme { --al-accent: color-mix(in oklch, #fb923c 68%, black); }
   color:var(--text-dim,#9aa4b2);
   max-height:calc(100dvh - 24px); overflow:auto;
 }
-#cat-panel.folded .cat-body{ display:none; }
 .cat-h{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
 .cat-h span{ font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--text-mute,#6b7280); font-weight:700; }
-.cat-h button{ width:24px; height:24px; flex:0 0 24px; border:1px solid var(--border,#333); border-radius:6px;
-  background:transparent; color:var(--text-dim,#9aa4b2); cursor:pointer; font:inherit; line-height:1; }
-.cat-h button:hover{ border-color:var(--al-accent); color:var(--text,#e5e7eb); }
-.cat-w{ display:flex; flex-direction:column; gap:4px; margin-bottom:8px; }
-.cat-w label{ display:flex; justify-content:space-between; gap:8px; font-size:10px; letter-spacing:.06em;
-  text-transform:uppercase; color:var(--text-mute,#6b7280); }
-.cat-w b{ color:var(--text,#e5e7eb); font-weight:700; }
-#cat-panel .al-sel{ min-height:32px; font-size:11px; }
-.cat-btns{ display:flex; gap:6px; margin-bottom:8px; }
-.cat-btns button{ flex:1 1 0; min-height:30px; padding:0 4px; border:1px solid var(--border,#333); border-radius:6px;
-  background:transparent; color:var(--text-dim,#9aa4b2); font:inherit; font-size:11px; cursor:pointer; }
-.cat-btns button:hover{ border-color:var(--al-accent); color:var(--text,#e5e7eb); }
-.cat-btns button.on{ border-color:var(--al-accent); color:var(--text,#e5e7eb); background:rgba(251,146,60,.14); }
-#cat-cold{ color:#22d3ee; border-color:rgba(34,211,238,.4); }
-#cat-cold:hover{ border-color:#22d3ee; }
-.cat-warn{ display:none; margin:0 0 8px; padding:7px 8px; border-radius:6px;
-  border:1px solid var(--crit,#ef4444); background:rgba(239,68,68,.08);
-  font-size:10px; line-height:1.45; color:var(--crit,#ef4444); }
-.cat-warn.show{ display:block; }
 #cat-graph{ width:100%; height:auto; display:block; border:1px solid var(--border,#333);
   border-radius:6px; background:rgba(0,0,0,.28); }
 .cat-key{ display:flex; flex-wrap:wrap; gap:10px; margin-top:5px; font-size:10px; color:var(--text-mute,#6b7280); }
@@ -242,47 +222,18 @@ for (const id in FAULT_INFO) {
   faultOptions += '<option value="' + id + '"' + (id === 'none' ? ' selected' : '') + '>' + FAULT_INFO[id].label + '</option>';
 }
 panel.innerHTML =
-  '<div class="cat-h"><span>Catalyst simulation</span><button type="button" id="cat-fold" aria-label="Collapse controls">&#8211;</button></div>' +
+  '<div class="cat-h"><span>Catalyst simulation</span></div>' +
   '<div class="cat-body">' +
-    '<div class="cat-w"><label for="cat-fault">Fault injection</label>' +
-      '<select id="cat-fault" class="al-sel" aria-label="Fault injection">' + faultOptions + '</select></div>' +
-    '<div class="cat-w"><label>Simulation speed</label>' +
-      '<div class="cat-btns" id="cat-speed">' +
-        '<button type="button" data-sp="1" class="on">1&times;</button>' +
-        '<button type="button" data-sp="5">5&times;</button>' +
-        '<button type="button" data-sp="20">20&times;</button>' +
-      '</div></div>' +
-    '<div class="cat-btns">' +
-      '<button type="button" id="cat-cold">Cold start</button>' +
-      '<button type="button" id="cat-reset">Reset</button>' +
-    '</div>' +
     '<div class="cat-warn" id="cat-warn"></div>' +
     '<canvas id="cat-graph" width="480" height="150" aria-label="Conversion and catalyst temperature history"></canvas>' +
     '<div class="cat-key"><span><i style="background:#22d3ee"></i>CO conv. %</span><span><i style="background:#fb923c"></i>Bed &deg;C</span></div>' +
   '</div>';
+
 document.body.appendChild(panel);
 
-const elFold  = document.getElementById('cat-fold');
-const elFault = document.getElementById('cat-fault');
-const elSpeed = document.getElementById('cat-speed');
-const elCold  = document.getElementById('cat-cold');
-const elReset = document.getElementById('cat-reset');
 const elWarn  = document.getElementById('cat-warn');
 const gcv     = document.getElementById('cat-graph');
 const gctx    = gcv.getContext('2d');
-
-elFold.addEventListener('click', () => {
-  panel.classList.toggle('folded');
-  elFold.innerHTML = panel.classList.contains('folded') ? '&#43;' : '&#8211;';
-});
-elFault.addEventListener('change', () => { S.fault = elFault.value; });
-elSpeed.addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-sp]');
-  if (!b) return;
-  S.speed = Number(b.dataset.sp) || 1;
-  elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o === b));
-});
-elCold.addEventListener('click', () => { sim.Tbed = COLD_START_T; });
 
 /* ── simulation state (module level so Reset can reach it) ───────── */
 const GRAPH_N = 150;
@@ -311,13 +262,11 @@ function resetAll() {
   S.rpm = 1800;
   S.lambda = 1.00;
   S.misfire = 0;
-  S.fault = 'none'; elFault.value = 'none';
+  S.fault = 'none';
   S.speed = 1;
-  elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o.dataset.sp === '1'));
   resetModel();
   controls.resetAll();                 /* every axis back to its default (store -> onChange -> S) */
 }
-elReset.addEventListener('click', resetAll);
 
 /* ── rolling graph ───────────────────────────────────────────────── */
 function drawGraph() {
@@ -613,6 +562,17 @@ function build(H){
  };
 }
 
+/* Phase 6: every option / action lives in the dock (controls.js), nothing interactive is left in the panel.
+   'Time scale' is the module's own physics time-compression (thermal warm-up); the menu's Sim speed is separate. */
+CFG.options = [
+  { id: "fault", type: 'choice', layout: 'select', label: "Fault injection", options: Object.keys(FAULT_INFO).map(id => ({ id, label: FAULT_INFO[id].label })), def: 'none',
+    onChange: (id) => { S.fault = id; } },
+  { id: 'timeScale', type: 'choice', layout: 'segmented', label: 'Time scale', options: [{ id: '1', label: '1×' }, { id: '5', label: '5×' }, { id: '20', label: '20×' }], def: '1',
+    onChange: (id) => { S.speed = Number(id) || 1; } },
+  { id: "cold", type: 'action', label: "Cold start",
+    onAction: () => { sim.Tbed = COLD_START_T; } }
+];
+CFG.onReset = resetAll;      /* the dock Reset runs the module reset (model + every control) */
 runGuidedModule(CFG, build);
 </script>
 </body>

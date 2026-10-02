@@ -25,28 +25,8 @@ html.light-theme { --al-accent: color-mix(in oklch, #06b6d4 68%, black); }
   color:var(--text-dim,#9aa4b2);
   max-height:calc(100dvh - 24px); overflow:auto;
 }
-#rad-panel.folded .rad-body{ display:none; }
 .rad-h{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
 .rad-h span{ font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--text-mute,#6b7280); font-weight:700; }
-.rad-h button{ width:24px; height:24px; flex:0 0 24px; border:1px solid var(--border,#333); border-radius:6px;
-  background:transparent; color:var(--text-dim,#9aa4b2); cursor:pointer; font:inherit; line-height:1; }
-.rad-h button:hover{ border-color:var(--al-accent); color:var(--text,#e5e7eb); }
-.rad-w{ display:flex; flex-direction:column; gap:4px; margin-bottom:8px; }
-.rad-w label{ display:flex; justify-content:space-between; gap:8px; font-size:10px; letter-spacing:.06em;
-  text-transform:uppercase; color:var(--text-mute,#6b7280); }
-.rad-w b{ color:var(--text,#e5e7eb); font-weight:700; }
-#rad-panel .al-sel{ min-height:32px; font-size:11px; }
-.rad-btns{ display:flex; gap:6px; margin-bottom:8px; }
-.rad-btns button{ flex:1 1 0; min-height:30px; padding:0 4px; border:1px solid var(--border,#333); border-radius:6px;
-  background:transparent; color:var(--text-dim,#9aa4b2); font:inherit; font-size:11px; cursor:pointer; }
-.rad-btns button:hover{ border-color:var(--al-accent); color:var(--text,#e5e7eb); }
-.rad-btns button.on{ border-color:var(--al-accent); color:var(--text,#e5e7eb); background:rgba(6,182,212,.14); }
-#rad-cold{ color:#38bdf8; border-color:rgba(56,189,248,.4); }
-#rad-cold:hover{ border-color:#38bdf8; }
-.rad-warn{ display:none; margin:0 0 8px; padding:7px 8px; border-radius:6px;
-  border:1px solid var(--crit,#ef4444); background:rgba(239,68,68,.08);
-  font-size:10px; line-height:1.45; color:var(--crit,#ef4444); }
-.rad-warn.show{ display:block; }
 #rad-graph{ width:100%; height:auto; display:block; border:1px solid var(--border,#333);
   border-radius:6px; background:rgba(0,0,0,.28); }
 .rad-key{ display:flex; flex-wrap:wrap; gap:10px; margin-top:5px; font-size:10px; color:var(--text-mute,#6b7280); }
@@ -234,58 +214,18 @@ for (const id in FAULT_INFO) {
   faultOptions += '<option value="' + id + '"' + (id === 'none' ? ' selected' : '') + '>' + FAULT_INFO[id].label + '</option>';
 }
 panel.innerHTML =
-  '<div class="rad-h"><span>Radiator simulation</span><button type="button" id="rad-fold" aria-label="Collapse controls">&#8211;</button></div>' +
+  '<div class="rad-h"><span>Radiator simulation</span></div>' +
   '<div class="rad-body">' +
-    '<div class="rad-w"><label for="rad-fan">Cooling fan</label>' +
-      '<select id="rad-fan" class="al-sel" aria-label="Cooling fan mode">' +
-        '<option value="auto" selected>Auto (ECU)</option>' +
-        '<option value="on">Forced on</option>' +
-        '<option value="off">Forced off</option>' +
-      '</select></div>' +
-    '<div class="rad-w"><label for="rad-fault">Fault injection</label>' +
-      '<select id="rad-fault" class="al-sel" aria-label="Fault injection">' + faultOptions + '</select></div>' +
-    '<div class="rad-w"><label>Simulation speed</label>' +
-      '<div class="rad-btns" id="rad-speed">' +
-        '<button type="button" data-sp="1" class="on">1&times;</button>' +
-        '<button type="button" data-sp="5">5&times;</button>' +
-        '<button type="button" data-sp="20">20&times;</button>' +
-      '</div></div>' +
-    '<div class="rad-btns">' +
-      '<button type="button" id="rad-cold">Cold start</button>' +
-      '<button type="button" id="rad-reset">Reset</button>' +
-    '</div>' +
     '<div class="rad-warn" id="rad-warn"></div>' +
     '<canvas id="rad-graph" width="480" height="150" aria-label="Coolant temperature and heat rejected history"></canvas>' +
     '<div class="rad-key"><span><i style="background:#06b6d4"></i>Coolant &deg;C</span><span><i style="background:#fb923c"></i>Heat kW</span></div>' +
   '</div>';
+
 document.body.appendChild(panel);
 
-const elFold  = document.getElementById('rad-fold');
-const elFan   = document.getElementById('rad-fan');
-const elFault = document.getElementById('rad-fault');
-const elSpeed = document.getElementById('rad-speed');
-const elCold  = document.getElementById('rad-cold');
-const elReset = document.getElementById('rad-reset');
 const elWarn  = document.getElementById('rad-warn');
 const gcv     = document.getElementById('rad-graph');
 const gctx    = gcv.getContext('2d');
-
-elFold.addEventListener('click', () => {
-  panel.classList.toggle('folded');
-  elFold.innerHTML = panel.classList.contains('folded') ? '&#43;' : '&#8211;';
-});
-elFan.addEventListener('change', () => { S.fanMode = elFan.value; });
-elFault.addEventListener('change', () => { S.fault = elFault.value; });
-elSpeed.addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-sp]');
-  if (!b) return;
-  S.speed = Number(b.dataset.sp) || 1;
-  elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o === b));
-});
-elCold.addEventListener('click', () => {
-  sim.Tcool = COLD_START_T;
-  sim.coolantLevel = 1.0;
-});
 
 /* ── simulation state (module level so Reset can reach it) ───────── */
 const GRAPH_N = 150;
@@ -306,14 +246,12 @@ function resetAll() {
   S.rpm = 800;
   S.speedKmh = 0;
   S.ambient = 25;
-  S.fanMode = 'auto'; elFan.value = 'auto';
-  S.fault = 'none'; elFault.value = 'none';
+  S.fanMode = 'auto';
+  S.fault = 'none';
   S.speed = 1;
-  elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o.dataset.sp === '1'));
   resetModel();
   controls.resetAll();                 /* every axis back to its default (store -> onChange -> S) */
 }
-elReset.addEventListener('click', resetAll);
 
 /* ── rolling graph ───────────────────────────────────────────────── */
 function drawGraph() {
@@ -630,6 +568,19 @@ function build(H){
  };
 }
 
+/* Phase 6: every option / action lives in the dock (controls.js), nothing interactive is left in the panel.
+   'Time scale' is the module's own physics time-compression (thermal warm-up); the menu's Sim speed is separate. */
+CFG.options = [
+  { id: "fan", type: 'choice', layout: 'select', label: "Cooling fan", options: [{ id: "auto", label: "Auto (ECU)" }, { id: "on", label: "Forced on" }, { id: "off", label: "Forced off" }], def: "auto",
+    onChange: (id) => { S.fanMode = id; } },
+  { id: "fault", type: 'choice', layout: 'select', label: "Fault injection", options: Object.keys(FAULT_INFO).map(id => ({ id, label: FAULT_INFO[id].label })), def: 'none',
+    onChange: (id) => { S.fault = id; } },
+  { id: 'timeScale', type: 'choice', layout: 'segmented', label: 'Time scale', options: [{ id: '1', label: '1×' }, { id: '5', label: '5×' }, { id: '20', label: '20×' }], def: '1',
+    onChange: (id) => { S.speed = Number(id) || 1; } },
+  { id: "cold", type: 'action', label: "Cold start",
+    onAction: () => { sim.Tcool = COLD_START_T; sim.coolantLevel = 1.0; } }
+];
+CFG.onReset = resetAll;      /* the dock Reset runs the module reset (model + every control) */
 runGuidedModule(CFG, build);
 </script>
 </body>

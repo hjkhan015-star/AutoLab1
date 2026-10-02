@@ -110,29 +110,6 @@
   #mp-desc strong { color: var(--text, #e5e7eb); font-weight: 700; }
   #mp-desc em { color: #f59e0b; font-style: normal; font-weight: 700; }
 
-  #mp-actions {
-    margin-top: 14px;
-    display: flex; flex-wrap: wrap; gap: 6px;
-  }
-  #mp-actions button {
-    flex: 1 1 auto;
-    min-width: 92px;
-    padding: 6px 10px;
-    font: 600 11px/1.2 ui-sans-serif, system-ui, sans-serif;
-    border-radius: 8px;
-    border: 1px solid rgba(148,163,184,.32);
-    background: rgba(15,23,42,.72);
-    color: #e2e8f0;
-    cursor: pointer;
-    transition: background .15s, border-color .15s, color .15s;
-  }
-  #mp-actions button:hover { background: rgba(148,163,184,.18); }
-  #mp-actions button.on {
-    background: var(--al-accent, #22c55e);
-    color: #fff; border-color: transparent;
-  }
-  #mp-actions button.cold { border-color: rgba(56,189,248,.5); color: #7dd3fc; }
-  #mp-actions button.warn { border-color: rgba(239,68,68,.5); color: #fca5a5; }
 
   html.light-theme .mp-rows .mp-row b { color: #0a0d13; }
   html.light-theme #mp-desc { color: #475569; }
@@ -1732,11 +1709,6 @@
 
           <div id="mp-desc"></div>
 
-          <div id="mp-actions">
-            <button type="button" class="cold" data-action="cold">❄ Cold start</button>
-            <button type="button" data-action="egr">EGR pulse</button>
-            <button type="button" data-action="reset">⟲ Reset trims</button>
-          </div>
         </div>
       `
     },
@@ -1757,7 +1729,14 @@
       labels: true,
       gas: true
     },
-    axes: [{ id: 'load', preset: 'load', def: 20, label: 'Engine load', side: 'left', onChange: () => updateRpmLabelFromLoad() }]
+    axes: [{ id: 'load', preset: 'load', def: 20, label: 'Engine load', side: 'left', onChange: () => updateRpmLabelFromLoad() }],
+
+    /* Phase 6: cold start, EGR pulse and reset trims are controls.js actions in the dock options row */
+    options: [
+      { id: 'cold',  type: 'action', label: 'Cold start',  onAction: () => triggerColdStart() },
+      { id: 'egr',   type: 'action', label: 'EGR pulse',   onAction: () => triggerEgrPulse() },
+      { id: 'trims', type: 'action', label: 'Reset trims', tone: 'crit', onAction: () => resetTrims() }
+    ]
   });
 
   /* ─── Resolve panel DOM refs ─────────────────────────────────── */
@@ -1790,11 +1769,6 @@
   /* Per-cylinder trim bar fills and value labels. */
   const trimFills  = [0, 1, 2, 3].map(i => panelBody.querySelector(`[data-trim="${i}"]`));
   const trimLabels = [0, 1, 2, 3].map(i => panelBody.querySelector(`[data-trimval="${i}"]`));
-
-  /* Actions row. */
-  const btnCold  = panelBody.querySelector('[data-action="cold"]');
-  const btnEgr   = panelBody.querySelector('[data-action="egr"]');
-  const btnReset = panelBody.querySelector('[data-action="reset"]');
 
   /* Graph canvas context. */
   let gctx = null;
@@ -1895,7 +1869,7 @@
     viewManager.setMeshMaterial(fuelSurface, isCRDI ? M.dieselTop : M.fuelTop);
 
     /* Show the EGR action only in CRDI; hide otherwise. */
-    if (btnEgr) btnEgr.style.display = isCRDI ? '' : 'none';
+    ui.controls.setHidden('egr', !isCRDI);
 
     /* Clear per-mode state that shouldn't persist. */
     egrPosition = 0;
@@ -2135,7 +2109,6 @@
      ══════════════════════════════════════════════════════════════ */
   function triggerColdStart() {
     coldStartT = COLD_START_DURATION;
-    if (btnCold) btnCold.classList.add('on');
   }
   function triggerEgrPulse() {
     if (sysMode !== 'crdi') return;
@@ -2148,12 +2121,7 @@
     for (let i = 0; i < 4; i++) cylTrims[i] = 0;
     graphHistory.stft.length = 0;
     graphHistory.ltft.length = 0;
-    if (btnCold) btnCold.classList.remove('on');
   }
-
-  if (btnCold)  btnCold.addEventListener('click', triggerColdStart);
-  if (btnEgr)   btnEgr.addEventListener('click', triggerEgrPulse);
-  if (btnReset) btnReset.addEventListener('click', resetTrims);
 
   /* ══════════════════════════════════════════════════════════════
      BRIDGE
@@ -2206,7 +2174,6 @@
       /* Cold-start enrichment */
       if (coldStartT > 0) {
         coldStartT = Math.max(0, coldStartT - sim);
-        if (coldStartT === 0 && btnCold) btnCold.classList.remove('on');
       }
       const coldEnrich = coldStartT > 0 ? 2.4 * (coldStartT / COLD_START_DURATION) : 0;
 

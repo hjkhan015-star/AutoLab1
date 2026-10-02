@@ -107,44 +107,11 @@
   #impact-warning.on { opacity: 1; }
 
   /* ═══════ Toolbar extra — SUSP toggle ═══════ */
-  #btn-susp-toggle {
-    padding: 7px 13px !important;
-    font-size: 11px !important;
-    font-weight: 800 !important;
-    letter-spacing: .05em !important;
-    text-transform: uppercase !important;
-    border-radius: 9px !important;
-    white-space: nowrap;
-    transition: all .2s !important;
-    font-family: inherit !important;
-    cursor: pointer;
-    border: 1px solid var(--border, rgba(255,255,255,.10));
-    background: rgba(255,255,255,.05);
-    color: var(--text, #e5e7eb);
-  }
-  #btn-susp-toggle.suspended {
-    background: rgba(56,189,248,.20) !important;
-    color: #38bdf8 !important;
-    border-color: rgba(56,189,248,.45) !important;
-    box-shadow: 0 0 10px rgba(56,189,248,.35) !important;
-  }
-  #btn-susp-toggle.rigid {
-    background: rgba(239,68,68,.22) !important;
-    color: #f87171 !important;
-    border-color: rgba(239,68,68,.55) !important;
-    box-shadow: 0 0 12px rgba(239,68,68,.45) !important;
-    animation: suspRigidPulse .8s ease-in-out infinite alternate;
-  }
   @keyframes suspRigidPulse {
     from { box-shadow: 0 0 8px rgba(239,68,68,.35); }
     to   { box-shadow: 0 0 18px rgba(239,68,68,.7); }
   }
 
-  #btn-slowmo-susp.active {
-    background: #f97316 !important;
-    color: #0b0e14 !important;
-    box-shadow: 0 0 14px rgba(249,115,22,.45) !important;
-  }
 </style>
 </head>
 <body>
@@ -880,12 +847,17 @@ import { Parts } from './components.js';
     toolbar: {
       play: true, reset: true,
       speed: { label: 'Speed', min: 0.15, max: 2.5, step: 0.05, value: 0.85 },
-      labels: true,
-      extras: [
-        { id: 'btn-slowmo-susp', title: 'Super slow motion',
-          icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2h12v6l-4 4 4 4v6H6v-6l4-4-4-4V2zm10 12.5V20H8v-5.5l4-4 4 4zM8 4v3.5l4 4 4-4V4H8z"/></svg>' }
-      ]
-    }
+      labels: true
+    },
+
+    /* Phase 6: suspension on / off and slow motion are controls.js controls in the dock options row */
+    options: [
+      { id: 'susp', type: 'choice', layout: 'segmented', label: 'Link', ariaLabel: 'Suspension or rigid axle',
+        options: [{ id: 'susp', label: 'Susp' }, { id: 'rigid', label: 'Rigid', tone: 'crit' }],
+        onChange: (id) => { const w = id === 'susp'; if (w !== withSusp) { withSusp = w; applyMode(); } } },
+      { id: 'slowmo', type: 'toggle', label: 'Slow-mo', ariaLabel: 'Super slow motion',
+        onChange: (on) => { slowMo = on; updateSpeedLabel(); } }
+    ]
   });
 
   const panelBody = ui.panel.body;
@@ -906,24 +878,6 @@ import { Parts } from './components.js';
   const impactWarnEl  = document.getElementById('impact-warning');
   const roadValEl     = document.getElementById('road-val');
   const roadNextLabelEl = document.getElementById('road-next-label');
-
-  /* ═══════════════════════════════════════════════════════════
-     Mode toggle injected into toolbar extras
-     ═══════════════════════════════════════════════════════════ */
-  (function buildSuspToggle() {
-    const extras = document.getElementById('toolbar-extras');
-    if (!extras) return;
-    const btn = document.createElement('button');
-    btn.id = 'btn-susp-toggle';
-    btn.type = 'button';
-    btn.className = 'suspended';
-    btn.textContent = 'SUSP';
-    btn.setAttribute('aria-label', 'Toggle suspension');
-    extras.insertBefore(btn, extras.firstChild);
-  })();
-
-  const btnSuspToggle = document.getElementById('btn-susp-toggle');
-  const btnSlow       = document.getElementById('btn-slowmo-susp');
 
   /* ═══════════════════════════════════════════════════════════
      STATE
@@ -1004,11 +958,7 @@ import { Parts } from './components.js';
     if (strokeDescEl) strokeDescEl.innerHTML = withSusp ? DESC_WITH : DESC_WITHOUT;
     labelsDirty = true;
 
-    if (btnSuspToggle) {
-      btnSuspToggle.classList.toggle('suspended', withSusp);
-      btnSuspToggle.classList.toggle('rigid', !withSusp);
-      btnSuspToggle.textContent = withSusp ? 'SUSP' : 'RIGID';
-    }
+    ui.controls.set('susp', withSusp ? 0 : 1);              /* keep the dock choice in step (bridge setSuspension) */
 
     ui.chip.setBig(withSusp ? 'With' : 'Rigid', withSusp ? ' susp' : ' link');
     ui.chip.setColor(withSusp ? '#38bdf8' : '#ef4444');
@@ -1046,20 +996,6 @@ import { Parts } from './components.js';
     leafSprings.forEach(la => { la.prevSy = 1; });
     dustData.forEach(p => { p.life = 0; });
     sparkData.forEach(s => { s.life = 0; });
-  }
-
-  if (btnSuspToggle) {
-    btnSuspToggle.addEventListener('click', () => {
-      withSusp = !withSusp;
-      applyMode();
-    });
-  }
-  if (btnSlow) {
-    btnSlow.addEventListener('click', () => {
-      slowMo = !slowMo;
-      btnSlow.classList.toggle('active', slowMo);
-      updateSpeedLabel();
-    });
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -1382,9 +1318,7 @@ import { Parts } from './components.js';
         case 'reset': resetSim(); break;
         case 'setSuspension': withSusp = !!d.value; applyMode(); break;
         case 'setSlowMo':
-          slowMo = !!d.value;
-          if (btnSlow) btnSlow.classList.toggle('active', slowMo);
-          updateSpeedLabel();
+          ui.controls.set('slowmo', !!d.value);              /* onChange sets slowMo + the label */
           break;
       }
     }

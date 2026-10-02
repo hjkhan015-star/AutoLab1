@@ -769,3 +769,99 @@ body.al-sheet-open .al-sheet-scrim { display: block; }
 }
 /* dock slots shrink-wrap their content: keep a lone dial from collapsing next to a slider */
 .al-dock[data-mode="portrait"] .ctl-dial { min-width: 96px; }
+
+/* ═══ Phase 6 — choice · toggle · action ═════════════════════════════════
+   Tokens only. Every target ≥ var(--ctl-tap) (44 px), text ≥ var(--ctl-text) (11 px). */
+.ctl-choice, .ctl-toggle, .ctl-action { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ctl-choice .ctl-label { font-size: var(--ctl-text); }
+
+/* segmented */
+.ctl-seg { display: inline-flex; border: 1px solid var(--ctl-border); border-radius: var(--ctl-radius); overflow: hidden; max-width: 100%; }
+.ctl-seg-btn {
+  flex: 1 1 auto; min-width: 48px; min-height: var(--ctl-tap); padding: 0 var(--ctl-gap);
+  border: 0; border-left: 1px solid var(--ctl-border);
+  background: var(--ctl-track); color: var(--text-mute);
+  font: inherit; font-size: var(--ctl-text); font-weight: 700; white-space: nowrap; cursor: pointer;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.ctl-seg-btn:first-child { border-left: 0; }
+.ctl-seg-btn[aria-checked="true"] { background: var(--ctl-accent); color: var(--bg); }
+.ctl-seg-btn[aria-checked="true"][data-tone="crit"] { background: var(--crit, var(--danger, var(--ctl-accent))); }
+.ctl-seg-btn:focus-visible { outline: 2px solid var(--ctl-focus); outline-offset: -2px; }
+
+/* select */
+.ctl-sel { position: relative; min-width: 120px; }
+.ctl-select {
+  width: 100%; min-height: var(--ctl-tap); padding: 0 var(--ctl-gap);
+  border: 1px solid var(--ctl-border); border-radius: var(--ctl-radius);
+  background: var(--ctl-track); color: var(--text);
+  font: inherit; font-size: max(var(--ctl-text), 12px); font-weight: 600; cursor: pointer;
+}
+.ctl-select:focus-visible { outline: 2px solid var(--ctl-focus); outline-offset: 1px; }
+
+/* gate (H-pattern stick) */
+.ctl-gate-pad {
+  width: 150px; height: 120px; touch-action: none; cursor: pointer; border-radius: var(--ctl-radius);
+  background: var(--ctl-track); border: 1px solid var(--ctl-border);
+  -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+}
+.ctl-gate-pad svg { display: block; width: 100%; height: 100%; }
+.ctl-gate-pad:focus { outline: none; }
+.ctl-gate-pad:focus-visible { outline: 2px solid var(--ctl-focus); outline-offset: 2px; }
+.ctl-gate-rail { fill: none; stroke: color-mix(in oklch, var(--text) 25%, transparent); stroke-width: 3; stroke-linejoin: round; }
+.ctl-gate-stop circle { fill: var(--ctl-track); stroke: color-mix(in oklch, var(--text) 40%, transparent); stroke-width: 1.5; }
+.ctl-gate-stop text { fill: var(--text-mute); font-size: 11px; font-weight: 800; pointer-events: none; }
+.ctl-gate-stop.is-on text { fill: var(--bg); }
+.ctl-gate-stop.is-on circle { fill: var(--ctl-accent); stroke: var(--ctl-accent); }
+.ctl-gate-knob { fill: none; stroke: var(--ctl-accent); stroke-width: 2; pointer-events: none; }
+@media (prefers-reduced-motion: no-preference) { .ctl-gate-knob { transition: transform .12s ease-out; } }
+
+/* toggle */
+.ctl-switch {
+  display: inline-flex; align-items: center; gap: var(--ctl-gap);
+  min-height: var(--ctl-tap); padding: 0 var(--ctl-gap);
+  border: 1px solid var(--ctl-border); border-radius: var(--ctl-radius);
+  background: var(--ctl-track); color: var(--text-mute);
+  font: inherit; font-size: var(--ctl-text); font-weight: 700; white-space: nowrap; cursor: pointer;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.ctl-switch-track { position: relative; width: 34px; height: 20px; border-radius: 10px; background: var(--surface-3, var(--ctl-track)); border: 1px solid var(--ctl-border); flex: none; }
+.ctl-switch-thumb { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--ctl-thumb); }
+.ctl-switch[aria-checked="true"] { color: var(--text); border-color: var(--ctl-accent); }
+.ctl-switch[aria-checked="true"] .ctl-switch-track { background: var(--ctl-accent); border-color: var(--ctl-accent); }
+.ctl-switch[aria-checked="true"] .ctl-switch-thumb { left: 16px; }
+.ctl-switch:focus-visible { outline: 2px solid var(--ctl-focus); outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) { .ctl-switch-thumb { transition: left .12s ease-out; } .ctl-switch-track { transition: background .12s; } }
+
+/* action */
+.ctl-action-btn {
+  min-height: var(--ctl-tap); min-width: var(--ctl-tap); padding: 0 calc(var(--ctl-gap) * 1.5);
+  border: 1px solid var(--ctl-border); border-radius: var(--ctl-radius);
+  background: var(--ctl-track); color: var(--text);
+  font: inherit; font-size: var(--ctl-text); font-weight: 700; white-space: nowrap; cursor: pointer;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.ctl-action-btn:active { background: var(--ctl-accent); color: var(--bg); }
+.ctl-action-btn[data-tone="crit"] { border-color: var(--crit, var(--danger, var(--ctl-border))); color: var(--crit, var(--danger, var(--text))); }
+.ctl-action-btn[data-tone="crit"]:active { background: var(--crit, var(--danger, var(--ctl-accent))); color: var(--bg); }
+.ctl-action-btn:focus-visible { outline: 2px solid var(--ctl-focus); outline-offset: 2px; }
+.ctl-choice.is-disabled, .ctl-toggle.is-disabled, .ctl-action.is-disabled { opacity: .5; }
+
+/* options row: ONE scrollable line of 40–44 px chips, fade edges (mask, tokens only) */
+.al-dock-options {
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, var(--text) var(--ctl-gap), var(--text) calc(100% - var(--ctl-gap) * 2), transparent 100%);
+          mask-image: linear-gradient(to right, transparent 0, var(--text) var(--ctl-gap), var(--text) calc(100% - var(--ctl-gap) * 2), transparent 100%);
+}
+.al-dock-options::-webkit-scrollbar { display: none; }
+.al-dock-options > *, .al-dock-flow > * { flex: none; }
+.al-dock-options .ctl { flex-direction: row; align-items: center; gap: var(--ctl-gap); }
+.al-dock-options .ctl-choice > .ctl-label { white-space: nowrap; }
+.al-dock[data-mode="portrait"] .al-dock-options .ctl-seg-btn,
+.al-dock[data-mode="portrait"] .al-dock-options .ctl-switch,
+.al-dock[data-mode="portrait"] .al-dock-options .ctl-action-btn,
+.al-dock[data-mode="portrait"] .al-dock-options .ctl-select { min-height: 40px; }
+.al-dock[data-mode="landscape"] .al-dock-options { -webkit-mask-image: none; mask-image: none; }
+.al-dock[data-mode="landscape"] .al-dock-options .ctl { flex-direction: column; align-items: stretch; }
+
+.ctl[hidden] { display: none; }

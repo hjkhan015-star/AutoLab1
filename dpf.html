@@ -25,27 +25,9 @@ html.light-theme { --al-accent: color-mix(in oklch, #94a3b8 68%, black); }
   color:var(--text-dim,#9aa4b2);
   max-height:calc(100dvh - 24px); overflow:auto;
 }
-#dpf-panel.folded .dpf-body{ display:none; }
 .dpf-h{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
 .dpf-h span{ font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--text-mute,#6b7280); font-weight:700; }
-.dpf-h button{ width:24px; height:24px; flex:0 0 24px; border:1px solid var(--border,#333); border-radius:6px;
-  background:transparent; color:var(--text-dim,#9aa4b2); cursor:pointer; font:inherit; line-height:1; }
-.dpf-h button:hover{ border-color:var(--al-accent); color:var(--text,#e5e7eb); }
-.dpf-w{ display:flex; flex-direction:column; gap:4px; margin-bottom:8px; }
-.dpf-w label{ display:flex; justify-content:space-between; gap:8px; font-size:10px; letter-spacing:.06em;
-  text-transform:uppercase; color:var(--text-mute,#6b7280); }
-.dpf-w b{ color:var(--text,#e5e7eb); font-weight:700; }
-#dpf-panel .al-sel{ min-height:32px; font-size:11px; }
-.dpf-btns{ display:flex; gap:6px; margin-bottom:8px; }
-.dpf-btns button{ flex:1 1 0; min-height:30px; padding:0 4px; border:1px solid var(--border,#333); border-radius:6px;
-  background:transparent; color:var(--text-dim,#9aa4b2); font:inherit; font-size:11px; cursor:pointer; }
-.dpf-btns button:hover{ border-color:var(--al-accent); color:var(--text,#e5e7eb); }
-.dpf-btns button.on{ border-color:var(--al-accent); color:var(--text,#e5e7eb); background:rgba(148,163,184,.14); }
 #dpf-force.on{ border-color:#f97316; color:#f97316; background:rgba(249,115,22,.12); }
-.dpf-warn{ display:none; margin:0 0 8px; padding:7px 8px; border-radius:6px;
-  border:1px solid var(--crit,#ef4444); background:rgba(239,68,68,.08);
-  font-size:10px; line-height:1.45; color:var(--crit,#ef4444); }
-.dpf-warn.show{ display:block; }
 #dpf-graph{ width:100%; height:auto; display:block; border:1px solid var(--border,#333);
   border-radius:6px; background:rgba(0,0,0,.28); }
 .dpf-key{ display:flex; flex-wrap:wrap; gap:10px; margin-top:5px; font-size:10px; color:var(--text-mute,#6b7280); }
@@ -238,58 +220,18 @@ for (const id in FAULT_INFO) {
   faultOptions += '<option value="' + id + '"' + (id === 'none' ? ' selected' : '') + '>' + FAULT_INFO[id].label + '</option>';
 }
 panel.innerHTML =
-  '<div class="dpf-h"><span>DPF simulation</span><button type="button" id="dpf-fold" aria-label="Collapse controls">&#8211;</button></div>' +
+  '<div class="dpf-h"><span>DPF simulation</span></div>' +
   '<div class="dpf-body">' +
-    '<div class="dpf-w"><label for="dpf-cyc">Drive cycle</label>' +
-      '<select id="dpf-cyc" class="al-sel" aria-label="Drive cycle">' +
-        '<option value="urban">Urban / short trips</option>' +
-        '<option value="mixed" selected>Mixed</option>' +
-        '<option value="motorway">Motorway</option>' +
-      '</select></div>' +
-    '<div class="dpf-w"><label for="dpf-fault">Fault injection</label>' +
-      '<select id="dpf-fault" class="al-sel" aria-label="Fault injection">' + faultOptions + '</select></div>' +
-    '<div class="dpf-w"><label>Simulation speed</label>' +
-      '<div class="dpf-btns" id="dpf-speed">' +
-        '<button type="button" data-sp="1" class="on">1&times;</button>' +
-        '<button type="button" data-sp="5">5&times;</button>' +
-        '<button type="button" data-sp="20">20&times;</button>' +
-      '</div></div>' +
-    '<div class="dpf-btns">' +
-      '<button type="button" id="dpf-force">Force regen</button>' +
-      '<button type="button" id="dpf-reset">Reset</button>' +
-    '</div>' +
     '<div class="dpf-warn" id="dpf-warn"></div>' +
     '<canvas id="dpf-graph" width="480" height="150" aria-label="Soot load and bed temperature history"></canvas>' +
     '<div class="dpf-key"><span><i style="background:#e2e8f0"></i>Soot g/L</span><span><i style="background:#f97316"></i>Bed &deg;C</span></div>' +
   '</div>';
+
 document.body.appendChild(panel);
 
-const elFold   = document.getElementById('dpf-fold');
-const elCyc    = document.getElementById('dpf-cyc');
-const elFault  = document.getElementById('dpf-fault');
-const elSpeed  = document.getElementById('dpf-speed');
-const elForce  = document.getElementById('dpf-force');
-const elReset  = document.getElementById('dpf-reset');
 const elWarn   = document.getElementById('dpf-warn');
 const gcv      = document.getElementById('dpf-graph');
 const gctx     = gcv.getContext('2d');
-
-elFold.addEventListener('click', () => {
-  panel.classList.toggle('folded');
-  elFold.innerHTML = panel.classList.contains('folded') ? '&#43;' : '&#8211;';
-});
-elCyc.addEventListener('change', () => { S.cycle = elCyc.value; });
-elFault.addEventListener('change', () => { S.fault = elFault.value; });
-elSpeed.addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-sp]');
-  if (!b) return;
-  S.speed = Number(b.dataset.sp) || 1;
-  elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o === b));
-});
-elForce.addEventListener('click', () => {
-  S.regenCmd = !S.regenCmd;
-  elForce.classList.toggle('on', S.regenCmd);
-});
 
 /* ── simulation state (module level so Reset can reach it) ───────── */
 const GRAPH_N = 150;
@@ -312,19 +254,16 @@ function resetModel() {
   sim.samples.length = 0;
   sim.lastSample = 0;
   S.regenCmd = false;
-  if (elForce) elForce.classList.remove('on');
 }
 function resetAll() {
   S.rpm = 1800;
   S.ambient = 20;
-  S.cycle = 'mixed'; elCyc.value = 'mixed';
-  S.fault = 'none'; elFault.value = 'none';
+  S.cycle = 'mixed';
+  S.fault = 'none';
   S.speed = 1;
-  elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o.dataset.sp === '1'));
   resetModel();
   controls.resetAll();                 /* every axis back to its default (store -> onChange -> S) */
 }
-elReset.addEventListener('click', resetAll);
 
 /* ── rolling graph ───────────────────────────────────────────────── */
 function drawGraph() {
@@ -473,7 +412,7 @@ function build(H){
    if (want && !sim.regenActive) sim.regenActive = true;
    if (sim.regenActive && sim.soot < REGEN_OFF) {
      sim.regenActive = false;
-     if (S.regenCmd) { S.regenCmd = false; if (elForce) elForce.classList.remove('on'); }
+     if (S.regenCmd) { controls.set('force', false); }
    }
 
    /* ── 4. bed temperature: post-injection target + thermal lag ─ */
@@ -599,6 +538,19 @@ function build(H){
  };
 }
 
+/* Phase 6: every option / action lives in the dock (controls.js), nothing interactive is left in the panel.
+   'Time scale' is the module's own physics time-compression (thermal warm-up); the menu's Sim speed is separate. */
+CFG.options = [
+  { id: "cycle", type: 'choice', layout: 'select', label: "Drive cycle", options: [{ id: "urban", label: "Urban / short trips" }, { id: "mixed", label: "Mixed" }, { id: "motorway", label: "Motorway" }], def: "mixed",
+    onChange: (id) => { S.cycle = id; } },
+  { id: "fault", type: 'choice', layout: 'select', label: "Fault injection", options: Object.keys(FAULT_INFO).map(id => ({ id, label: FAULT_INFO[id].label })), def: 'none',
+    onChange: (id) => { S.fault = id; } },
+  { id: 'timeScale', type: 'choice', layout: 'segmented', label: 'Time scale', options: [{ id: '1', label: '1×' }, { id: '5', label: '5×' }, { id: '20', label: '20×' }], def: '1',
+    onChange: (id) => { S.speed = Number(id) || 1; } },
+  { id: 'force', type: 'toggle', label: 'Force regen',
+    onChange: (on) => { S.regenCmd = on; } }
+];
+CFG.onReset = resetAll;      /* the dock Reset runs the module reset (model + every control) */
 runGuidedModule(CFG, build);
 </script>
 </body>
