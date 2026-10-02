@@ -1203,16 +1203,9 @@
              Drag the wheel on the right to steer; release it and it self-centres.`
     },
 
-    chip: {
-      label: 'Live steering',
-      value: 0,
-      unit:  '°',
-      bar:   true,
-      rows: [
-        { id: 'rack', label: 'Rack', value: '0.000' },
-        { id: 'road', label: 'Road', value: '0.0°' }
-      ],
-      status: { text: 'Centred' }
+    monitor: {
+      config: { label: 'Live steering', value: { label: 'Live steering', unit: '°', max: 100, bar: true }, rows: [['rack', 'Rack'], ['road', 'Road']], status: { text: 'Centred' } },
+      initial: { value: { text: '0', unit: '°' }, rows: { rack: '0.000', road: '0.0°' }, status: ['Centred', false] }
     },
 
     toolbar: {
@@ -1387,14 +1380,12 @@
     if (elRackTravel) elRackTravel.textContent = rOff;
     if (elRoadAngle)  elRoadAngle.textContent  = rDeg + '°';
 
-    ui.chip.setBig(wDeg, '°');
-    ui.chip.set('rack', rOff);
-    ui.chip.set('road', rDeg + '°');
-
     const isActive = Math.abs(steerAngle) > 0.01;
-    ui.chip.setBar(Math.min(100, Math.abs(steerAngle) / WHEEL_MAX_ANGLE * 100),
-      isActive ? '#a855f7' : '#38bdf8');
-    ui.chip.setStatus(isActive ? 'Steering' : 'Centred', !isActive);
+    ui.monitor.update({
+      value: { text: String(wDeg), unit: '°', bar: Math.min(100, Math.abs(steerAngle) / WHEEL_MAX_ANGLE * 100), barColor: isActive ? '#a855f7' : '#38bdf8' },
+      rows: { rack: rOff, road: rDeg + '°' },
+      status: [isActive ? 'Steering' : 'Centred', !isActive]
+    });
   }
 
   /* ═══════════════════════════════════════════════════════════

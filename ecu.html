@@ -75,7 +75,7 @@ const mat = (color, metal = .3, rough = .6, extra = {}) =>
 const MAT = {
   caseMat:  M.matMetalDark || mat(0x1f242e, .65, .42),
   pcb:      mat(0x135c35, .06, .82),
-  chip:     mat(0x11151a, .35, .52),
+  pcbChip:  mat(0x11151a, .35, .52),
   chipTop:  mat(0x0a0d12, .55, .40),
   pin:      mat(0xc8b270, .85, .30),
   cap:      mat(0x2a2f38, .30, .55),
@@ -162,7 +162,7 @@ pcbEdge.position.y = ECU_Y + 0.36;
 root.add(pcbEdge);
 
 /* ── Large ICs (the main processor & co-processor) ── */
-const mainChip = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.12, 0.52), MAT.chip);
+const mainChip = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.12, 0.52), MAT.pcbChip);
 mainChip.position.set(-0.72, ECU_Y + 0.48, 0);
 mainChip.castShadow = true;
 root.add(mainChip);
@@ -187,14 +187,14 @@ for (let i = 0; i < 10; i++) {
 }
 
 /* Co-processor */
-const copro = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.10, 0.36), MAT.chip);
+const copro = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.10, 0.36), MAT.pcbChip);
 copro.position.set(0.35, ECU_Y + 0.47, -0.42);
 copro.castShadow = true;
 root.add(copro);
 
 /* Two small memory chips */
 [[0.35, 0.42], [-0.15, 0.42]].forEach(([x, z]) => {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.09, 0.24), MAT.chip);
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.09, 0.24), MAT.pcbChip);
   m.position.set(x, ECU_Y + 0.465, z);
   m.castShadow = true;
   root.add(m);
@@ -565,16 +565,9 @@ const ui = Base.UI.create({
     badge: { text: 'Closed loop', color: CFG.accent },
     readout: readoutHTML()
   },
-  chip: {
-    label: 'Engine',
-    value: '—',
-    unit: ' rpm',
-    bar: true,
-    rows: [
-      { id: 'load', label: 'Load',    value: '—' },
-      { id: 'adv',  label: 'Advance', value: '—' }
-    ],
-    status: { text: 'Running' }
+  monitor: {
+    config: { label: 'Engine', value: { label: 'Engine', unit: ' rpm', max: 100, bar: true }, rows: [['load', 'Load'], ['adv', 'Advance']], status: { text: 'Running' } },
+    initial: { value: { text: '—', unit: ' rpm' }, rows: { load: '—', adv: '—' }, status: ['Running', false] }
   },
   toolbar: {
     play: true,
@@ -778,18 +771,15 @@ function updateReadouts() {
     ro.mil.className = 'v ' + (f === 'none' ? '' : 'warn');
   }
 
-  ui.chip.setBig(noStart ? '—' : rpm, ' rpm');
-  ui.chip.set('load', ui.controls.value('load') + ' %');
-  ui.chip.set('adv', noStart ? '—' : adv.toFixed(1) + '°');
-  ui.chip.setBar(ui.controls.value('load'), (dead || noStart) ? 'var(--crit)' : 'var(--al-accent)');
-  ui.chip.setStatus(
-    noStart ? 'No start' :
+  ui.monitor.update({
+    value: { text: String(noStart ? '—' : rpm), unit: ' rpm', bar: ui.controls.value('load'), barColor: (dead || noStart) ? 'var(--crit)' : 'var(--al-accent)' },
+    rows: { load: ui.controls.value('load') + ' %', adv: noStart ? '—' : adv.toFixed(1) + '°' },
+    status: [noStart ? 'No start' :
     f === 'o2' ? 'Limp home' :
     f === 'maf' ? 'Fallback' :
     f === 'knock' ? 'Knock' :
-    'Running',
-    !(dead || noStart)
-  );
+    'Running', !(dead || noStart)]
+  });
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

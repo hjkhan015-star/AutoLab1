@@ -387,16 +387,9 @@ const ui = Base.UI.create({
     badge: { text: 'No codes', color: CFG.accent },
     readout: readoutHTML()
   },
-  chip: {
-    label: 'Bus',
-    value: '—',
-    unit: ' kbit/s',
-    bar: true,
-    rows: [
-      { id: 'dtc',  label: 'DTCs',    value: '—' },
-      { id: 'mil',  label: 'MIL',     value: '—' }
-    ],
-    status: { text: 'Connected' }
+  monitor: {
+    config: { label: 'Bus', value: { label: 'Bus', unit: ' kbit/s', max: 100, bar: true }, rows: [['dtc', 'DTCs'], ['mil', 'MIL']], status: { text: 'Connected' } },
+    initial: { value: { text: '—', unit: ' kbit/s' }, rows: { dtc: '—', mil: '—' }, status: ['Connected', false] }
   },
   toolbar: {
     play: true,
@@ -503,11 +496,11 @@ function updateReadouts() {
     ro.mil.className = 'v ' + (dtc.mil ? 'warn' : 'ok');
   }
 
-  ui.chip.setBig(kbit, ' kbit/s');
-  ui.chip.set('dtc', dtc.mil ? '1' : '0');
-  ui.chip.set('mil', dtc.mil ? 'ON' : 'OFF');
-  ui.chip.setBar((state.speedMul / 2.5) * 100, dtc.mil ? 'var(--warn)' : 'var(--al-accent)');
-  ui.chip.setStatus(dtc.mil ? 'Fault stored' : 'All clear', !dtc.mil);
+  ui.monitor.update({
+    value: { text: String(kbit), unit: ' kbit/s', bar: (state.speedMul / 2.5) * 100, barColor: dtc.mil ? 'var(--warn)' : 'var(--al-accent)' },
+    rows: { dtc: dtc.mil ? '1' : '0', mil: dtc.mil ? 'ON' : 'OFF' },
+    status: [dtc.mil ? 'Fault stored' : 'All clear', !dtc.mil]
+  });
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

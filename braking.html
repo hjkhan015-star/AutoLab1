@@ -1297,14 +1297,9 @@ import { Parts } from './components.js';
       desc: CONFIG_DEFS[0].desc
     },
 
-    chip: {
-      label: 'Brake temperature',
-      value: 32, unit: '°C', bar: true,
-      rows: [
-        { id: 'front', label: 'Front', value: '32 °C' },
-        { id: 'rear',  label: 'Rear',  value: '32 °C' }
-      ],
-      status: { text: 'Cold' }
+    monitor: {
+      config: { label: 'Brake temperature', value: { label: 'Brake temperature', unit: '°C', max: 100, bar: true }, rows: [['front', 'Front'], ['rear', 'Rear']], status: { text: 'Cold' } },
+      initial: { value: { text: '32', unit: '°C' }, rows: { front: '32 °C', rear: '32 °C' }, status: ['Cold', false] }
     },
 
     toolbar: {
@@ -1473,9 +1468,10 @@ import { Parts } from './components.js';
     const t = Math.max(rotorTemp, drumTemp);
     const tRounded = Math.round(t);
 
-    ui.chip.setBig(tRounded, '°C');
-    ui.chip.set('front', Math.round(rotorTemp) + ' °C');
-    ui.chip.set('rear',  Math.round(drumTemp)  + ' °C');
+    ui.monitor.update({
+      value: { text: String(tRounded), unit: '°C' },
+      rows: { front: Math.round(rotorTemp) + ' °C', rear: Math.round(drumTemp)  + ' °C' }
+    });
 
     let c, status;
     if (t < 80)       { c = '#38bdf8'; status = 'Cold'; }
@@ -1484,9 +1480,7 @@ import { Parts } from './components.js';
     else if (t < 600) { c = '#f97316'; status = 'Very hot'; }
     else              { c = '#ef4444'; status = '⚠ Overheating'; }
 
-    ui.chip.setColor(c);
-    ui.chip.setBar(Math.min(100, (t / 700) * 100), c);
-    ui.chip.setStatus(status, t < 400);
+    ui.monitor.update({ value: { color: c || '', bar: Math.min(100, (t / 700) * 100), barColor: c }, status: [status, t < 400] });
   }
 
   /* ═══════════════════════════════════════════════════════════════════

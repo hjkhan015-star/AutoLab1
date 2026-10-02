@@ -532,18 +532,9 @@
       `
     },
 
-    chip: {
-      label: 'Converter Slip',
-      value: 0,
-      unit:  '%',
-      bar:   true,
-      rows: [
-        { id: 'eng',  label: 'Engine',     value: '0 rpm' },
-        { id: 'turb', label: 'Turbine',    value: '0 rpm' },
-        { id: 'mult', label: 'Multiplier', value: '1.0 ×' },
-        { id: 'speed', label: 'Vehicle speed', value: '—' }
-      ],
-      status: { text: 'Unlocked' }
+    monitor: {
+      config: { label: 'Converter Slip', value: { label: 'Converter Slip', unit: '%', max: 100, bar: true }, rows: [['eng', 'Engine'], ['turb', 'Turbine'], ['mult', 'Multiplier'], ['speed', 'Vehicle speed']], status: { text: 'Unlocked' } },
+      initial: { value: { text: '0', unit: '%' }, rows: { eng: '0 rpm', turb: '0 rpm', mult: '1.0 ×', speed: '—' }, status: ['Unlocked', false] }
     },
 
     toolbar: {
@@ -753,7 +744,7 @@
      ============================================================ */
   function updateReadouts() {
     /* Big value + bar = slip % */
-    ui.chip.setBig(Math.round(slipPct), '%');
+    ui.monitor.update({ value: { text: String(Math.round(slipPct)), unit: '%' } });
 
     let col;
     if (slipPct < 5)       col = '#22c55e';
@@ -761,14 +752,11 @@
     else if (slipPct < 75) col = '#f59e0b';
     else                   col = '#f87171';
 
-    ui.chip.setColor(col);
-    ui.chip.setBar(slipPct, col);
-
-    ui.chip.set('eng',  Math.round(engineRpm).toLocaleString() + ' rpm');
-    ui.chip.set('turb', Math.round(turbineRpm).toLocaleString() + ' rpm');
-    ui.chip.set('mult', torqueMult.toFixed(1) + ' ×');
-
-    ui.chip.setStatus(lockupEngaged ? 'Locked' : 'Unlocked', lockupEngaged);
+    ui.monitor.update({
+      value: { color: col || '', bar: slipPct, barColor: col },
+      rows: { eng: Math.round(engineRpm).toLocaleString() + ' rpm', turb: Math.round(turbineRpm).toLocaleString() + ' rpm', mult: torqueMult.toFixed(1) + ' ×' },
+      status: [lockupEngaged ? 'Locked' : 'Unlocked', !!(lockupEngaged)]
+    });
   }
 
   /* ============================================================

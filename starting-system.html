@@ -976,17 +976,9 @@ import { Parts } from './components.js';
              <strong>OFF → ACC</strong> wakes up the accessories. <strong>ACC → ON</strong> charges the ignition coils and injectors. <strong>ON → START</strong> closes the solenoid — the plunger shoves the pinion into the flywheel's ring gear <em>and</em> closes the motor contactor in one motion.`
     },
 
-    chip: {
-      label: 'Engine speed',
-      value: 0,
-      unit:  'rpm',
-      bar:   true,
-      rows: [
-        { id: 'key', label: 'Key',      value: 'OFF' },
-        { id: 'bat', label: 'Battery',  value: '12.6 V' },
-        { id: 'rpm', label: 'Engine speed', value: '—' }
-      ],
-      status: { text: 'Off', on: false }
+    monitor: {
+      config: { label: 'Engine speed', value: { label: 'Engine speed', unit: 'rpm', max: 100, bar: true }, rows: [['key', 'Key'], ['bat', 'Battery'], ['rpm', 'Engine speed']], status: { text: 'Off' } },
+      initial: { value: { text: '0', unit: 'rpm' }, rows: { key: 'OFF', bat: '12.6 V', rpm: '—' }, status: ['Off', false] }
     },
 
     toolbar: {
@@ -1498,12 +1490,11 @@ import { Parts } from './components.js';
       if (ssR1)  ssR1.textContent = KEY_NAMES[sys.key];
       if (ssR2)  ssR2.textContent = sys.batteryVolts.toFixed(1) + ' V';
       if (ssR3)  ssR3.textContent = Math.round(sys.starterRpm) + ' rpm';
-      ui.chip.setBig(Math.round(sys.currentDraw), 'A');
-      ui.chip.setColor('#ef4444');
-      ui.chip.setBar(Math.min(100, (sys.currentDraw / 300) * 100), '#ef4444');
-      ui.chip.set('key', KEY_NAMES[sys.key]);
-      ui.chip.set('bat', sys.batteryVolts.toFixed(1) + ' V');
-      ui.chip.setStatus(KEY_NAMES[sys.key], sys.key >= 2);
+      ui.monitor.update({
+        value: { text: String(Math.round(sys.currentDraw)), unit: 'A', color: '#ef4444', bar: Math.min(100, (sys.currentDraw / 300) * 100), barColor: '#ef4444' },
+        rows: { key: KEY_NAMES[sys.key], bat: sys.batteryVolts.toFixed(1) + ' V' },
+        status: [KEY_NAMES[sys.key], sys.key >= 2]
+      });
     } else if (mode === 'starter') {
       if (ssR1l) ssR1l.textContent = 'Key';
       if (ssR2l) ssR2l.textContent = 'Solenoid';
@@ -1511,12 +1502,11 @@ import { Parts } from './components.js';
       if (ssR1)  ssR1.textContent = KEY_NAMES[sys.key];
       if (ssR2)  ssR2.textContent = (sys.pinionExtend * 100).toFixed(0) + ' %';
       if (ssR3)  ssR3.textContent = sys.pinionExtend > 0.85 ? 'MESHED' : 'RETRACTED';
-      ui.chip.setBig(Math.round(sys.starterRpm), 'rpm');
-      ui.chip.setColor('#22c55e');
-      ui.chip.setBar(Math.min(100, (sys.starterRpm / TUNING.starterFreeRpm) * 100), '#22c55e');
-      ui.chip.set('key', KEY_NAMES[sys.key]);
-      ui.chip.set('bat', sys.batteryVolts.toFixed(1) + ' V');
-      ui.chip.setStatus(sys.pinionExtend > 0.85 ? 'Meshed' : 'Clear', sys.pinionExtend > 0.85);
+      ui.monitor.update({
+        value: { text: String(Math.round(sys.starterRpm)), unit: 'rpm', color: '#22c55e', bar: Math.min(100, (sys.starterRpm / TUNING.starterFreeRpm) * 100), barColor: '#22c55e' },
+        rows: { key: KEY_NAMES[sys.key], bat: sys.batteryVolts.toFixed(1) + ' V' },
+        status: [sys.pinionExtend > 0.85 ? 'Meshed' : 'Clear', sys.pinionExtend > 0.85]
+      });
     } else if (mode === 'mesh') {
       const ringRpm = sys.starterRpm / TUNING.gearRatio;
       if (ssR1l) ssR1l.textContent = 'Ratio';
@@ -1525,12 +1515,11 @@ import { Parts } from './components.js';
       if (ssR1)  ssR1.textContent = `${TUNING.ringTeeth}:${TUNING.pinionTeeth} → 12:1`;
       if (ssR2)  ssR2.textContent = Math.round(sys.starterRpm) + ' rpm';
       if (ssR3)  ssR3.textContent = sys.pinionExtend > 0.85 ? 'ENGAGED' : 'CLEAR';
-      ui.chip.setBig(Math.round(ringRpm), 'rpm');
-      ui.chip.setColor('#f59e0b');
-      ui.chip.setBar(Math.min(100, (ringRpm / 500) * 100), '#f59e0b');
-      ui.chip.set('key', KEY_NAMES[sys.key]);
-      ui.chip.set('bat', sys.batteryVolts.toFixed(1) + ' V');
-      ui.chip.setStatus(sys.pinionExtend > 0.85 ? 'Engaged' : 'Clear', sys.pinionExtend > 0.85);
+      ui.monitor.update({
+        value: { text: String(Math.round(ringRpm)), unit: 'rpm', color: '#f59e0b', bar: Math.min(100, (ringRpm / 500) * 100), barColor: '#f59e0b' },
+        rows: { key: KEY_NAMES[sys.key], bat: sys.batteryVolts.toFixed(1) + ' V' },
+        status: [sys.pinionExtend > 0.85 ? 'Engaged' : 'Clear', sys.pinionExtend > 0.85]
+      });
     } else {
       if (ssR1l) ssR1l.textContent = 'State';
       if (ssR2l) ssR2l.textContent = 'Combustion';
@@ -1538,12 +1527,11 @@ import { Parts } from './components.js';
       if (ssR1)  ssR1.textContent = sys.engineRunning ? 'RUNNING' : (sys.key === 3 ? 'CRANKING' : 'STOPPED');
       if (ssR2)  ssR2.textContent = Math.round(sys.combustion * 100) + ' %';
       if (ssR3)  ssR3.textContent = Math.round(sys.coolantTemp) + ' °C';
-      ui.chip.setBig(rpm, 'rpm');
-      ui.chip.setColor(sys.engineRunning ? '#22c55e' : '#38bdf8');
-      ui.chip.setBar(Math.min(100, (rpm / TUNING.redlineRpm) * 100), sys.engineRunning ? '#22c55e' : '#38bdf8');
-      ui.chip.set('key', KEY_NAMES[sys.key]);
-      ui.chip.set('bat', sys.batteryVolts.toFixed(1) + ' V');
-      ui.chip.setStatus(sys.engineRunning ? 'Running' : (sys.key === 3 ? 'Cranking' : 'Stopped'), sys.engineRunning);
+      ui.monitor.update({
+        value: { text: String(rpm), unit: 'rpm', color: (sys.engineRunning ? '#22c55e' : '#38bdf8') || '', bar: Math.min(100, (rpm / TUNING.redlineRpm) * 100), barColor: sys.engineRunning ? '#22c55e' : '#38bdf8' },
+        rows: { key: KEY_NAMES[sys.key], bat: sys.batteryVolts.toFixed(1) + ' V' },
+        status: [sys.engineRunning ? 'Running' : (sys.key === 3 ? 'Cranking' : 'Stopped'), !!(sys.engineRunning)]
+      });
     }
 
     if (mVoltsEl) mVoltsEl.innerHTML = sys.batteryVolts.toFixed(1) + '<span>V</span>';

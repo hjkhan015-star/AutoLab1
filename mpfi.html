@@ -1712,17 +1712,9 @@
         </div>
       `
     },
-    chip: {
-      label: 'Live mixture',
-      value: 14.7,
-      unit:  ':1',
-      bar:   true,
-      rows: [
-        { id: 'afr', label: 'AFR',   value: '14.7 : 1' },
-        { id: 'pw',  label: 'Pulse', value: '2.4 ms' },
-        { id: 'rpm', label: 'Engine speed', value: '—' }
-      ],
-      status: { text: 'Balanced · Stoich' }
+    monitor: {
+      config: { label: 'Live mixture', value: { label: 'Live mixture', unit: ':1', max: 100, bar: true }, rows: [['afr', 'AFR'], ['pw', 'Pulse'], ['rpm', 'Engine speed']], status: { text: 'Balanced · Stoich' } },
+      initial: { value: { text: '14.7', unit: ':1' }, rows: { afr: '14.7 : 1', pw: '2.4 ms', rpm: '—' }, status: ['Balanced · Stoich', false] }
     },
     toolbar: {
       play: true,
@@ -1984,9 +1976,10 @@
     }
 
     /* ── Chip ── */
-    ui.chip.set('afr', isCRDI ? afr.toFixed(0) + ' : 1' : afr.toFixed(1) + ' : 1');
-    ui.chip.set('pw',  pw.toFixed(2) + ' ms');
-    ui.chip.setBig(isCRDI ? afr.toFixed(0) : afr.toFixed(1), ':1');
+    ui.monitor.update({
+      value: { text: String(isCRDI ? afr.toFixed(0) : afr.toFixed(1)), unit: ':1' },
+      rows: { afr: isCRDI ? afr.toFixed(0) + ' : 1' : afr.toFixed(1) + ' : 1', pw: pw.toFixed(2) + ' ms' }
+    });
 
     let name, color;
     if (!isCRDI) {
@@ -2000,9 +1993,10 @@
       else if (afr < 35) { name = 'High Load';         color = '#8b5cf6'; }
       else               { name = 'Lean · Efficient';  color = '#3b82f6'; }
     }
-    ui.chip.setColor(color);
-    ui.chip.setBar(Math.min(100, Math.abs(afr - (isCRDI ? 30 : 14.7)) * 40 + 20), color);
-    ui.chip.setStatus(name, name.includes('Stoich') || name.includes('Efficient'));
+    ui.monitor.update({
+      value: { color: color || '', bar: Math.min(100, Math.abs(afr - (isCRDI ? 30 : 14.7)) * 40 + 20), barColor: color },
+      status: [name, !!(name.includes('Stoich') || name.includes('Efficient'))]
+    });
 
     /* ── Badge override for cold start or rich condition ── */
     if (elBadge) {

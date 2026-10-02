@@ -1013,16 +1013,9 @@ import { Parts } from './components.js';
              rise into the warning and critical bands as the engine destroys itself.`
     },
 
-    chip: {
-      label: 'Bearing temperature',
-      value: 95,
-      unit:  '°C',
-      bar:   true,
-      rows: [
-        { id: 'pres', label: 'Oil pressure', value: '3.50 bar' },
-        { id: 'fric', label: 'Friction',     value: '0.08 µ' }
-      ],
-      status: { text: 'Normal', on: true }
+    monitor: {
+      config: { label: 'Bearing temperature', value: { label: 'Bearing temperature', unit: '°C', max: 100, bar: true }, rows: [['pres', 'Oil pressure'], ['fric', 'Friction']], status: { text: 'Normal' } },
+      initial: { value: { text: '95', unit: '°C' }, rows: { pres: '3.50 bar', fric: '0.08 µ' }, status: ['Normal', true] }
     },
 
     toolbar: {
@@ -1318,11 +1311,10 @@ import { Parts } from './components.js';
 
     /* Chip */
     const bCol = sim.bearingTemp < 130 ? '#4ade80' : (sim.bearingTemp < 220 ? '#fbbf24' : '#f87171');
-    ui.chip.setBig(Math.round(sim.bearingTemp), '°C');
-    ui.chip.setColor(bCol);
-    ui.chip.setBar(Math.min(100, (sim.bearingTemp - 20) / 3.8), bCol);
-    ui.chip.set('pres', sim.oilPressure.toFixed(2) + ' bar');
-    ui.chip.set('fric', sim.friction.toFixed(2) + ' µ');
+    ui.monitor.update({
+      value: { text: String(Math.round(sim.bearingTemp)), unit: '°C', color: bCol || '', bar: Math.min(100, (sim.bearingTemp - 20) / 3.8), barColor: bCol },
+      rows: { pres: sim.oilPressure.toFixed(2) + ' bar', fric: sim.friction.toFixed(2) + ' µ' }
+    });
 
     let statusTxt, ok;
     if (sim.seized)                                    { statusTxt = 'Seized'; ok = false; }
@@ -1330,7 +1322,7 @@ import { Parts } from './components.js';
     else if (!sim.oilOn && sim.bearingTemp > 140)      { statusTxt = 'Warning'; ok = false; }
     else if (!sim.oilOn)                               { statusTxt = 'Warming'; ok = false; }
     else                                               { statusTxt = 'Normal'; ok = true; }
-    ui.chip.setStatus(statusTxt, ok);
+    ui.monitor.update({ status: [statusTxt, !!(ok)] });
   }
 
   function drawGraph() {

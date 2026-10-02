@@ -1450,17 +1450,9 @@
              the two side gears turn at different speeds.`
     },
 
-    chip: {
-      label: 'Vehicle speed',
-      value: 0,
-      unit:  'u/s',
-      bar:   true,
-      rows: [
-        { id: 'rpmL', label: 'Rear L', value: '0 rpm' },
-        { id: 'rpmR', label: 'Rear R', value: '0 rpm' },
-        { id: 'rpm', label: 'Input speed', value: '—' }
-      ],
-      status: { text: 'Open' }
+    monitor: {
+      config: { label: 'Vehicle speed', value: { label: 'Vehicle speed', unit: 'u/s', max: 100, bar: true }, rows: [['rpmL', 'Rear L'], ['rpmR', 'Rear R'], ['rpm', 'Input speed']], status: { text: 'Open' } },
+      initial: { value: { text: '0', unit: 'u/s' }, rows: { rpmL: '0 rpm', rpmR: '0 rpm', rpm: '—' }, status: ['Open', false] }
     },
 
     toolbar: {
@@ -1736,9 +1728,9 @@
     const rpmBase = 900 * (state.speedMul / 0.85);
     const rpmL = (omegaL / omega_c) * rpmBase;
     const rpmR = (omegaR / omega_c) * rpmBase;
-    ui.chip.set('rpmL', Math.round(rpmL) + (slip && tractionMode === 'left' ? ' ⚠' : '') + ' rpm');
-    ui.chip.set('rpmR', Math.round(rpmR) + (slip && tractionMode === 'right' ? ' ⚠' : '') + ' rpm');
-    ui.monitor.update({ rows: { rpm: `~${Math.round(rpmBase)} rpm` } });
+    ui.monitor.update({
+      rows: { rpmL: Math.round(rpmL) + (slip && tractionMode === 'left' ? ' ⚠' : '') + ' rpm', rpmR: Math.round(rpmR) + (slip && tractionMode === 'right' ? ' ⚠' : '') + ' rpm', rpm: `~${Math.round(rpmBase)} rpm` }
+    });
 
     if (elTurnR) {
       if (Math.abs(tanRoad) < 0.008) elTurnR.textContent = '∞ (straight)';
@@ -1746,8 +1738,7 @@
     }
 
     /* Chip big number + bar = vehicle speed */
-    ui.chip.setBig((v * 3.6).toFixed(1), 'u/s');
-    ui.chip.setBar(Math.min(100, Math.abs(v) * 25), '#38bdf8');
+    ui.monitor.update({ value: { text: String((v * 3.6).toFixed(1)), unit: 'u/s', bar: Math.min(100, Math.abs(v) * 25), barColor: '#38bdf8' } });
 
     if (elDiffMode) {
       if (diffLocked) elDiffMode.textContent = 'Locked 🔒';
@@ -1755,9 +1746,9 @@
       else            elDiffMode.textContent = 'Open';
     }
 
-    if (diffLocked) ui.chip.setStatus('Locked 🔒', true);
-    else if (slip)  ui.chip.setStatus('Open · SLIP ⚠', false);
-    else            ui.chip.setStatus('Open', true);
+    if (diffLocked) ui.monitor.update({ status: ['Locked 🔒', true] });
+    else if (slip)  ui.monitor.update({ status: ['Open · SLIP ⚠', false] });
+    else            ui.monitor.update({ status: ['Open', true] });
 
     if (slip && !diffLocked && flashTimer <= 0) setFlash('Wheel Slip — Torque Lost!');
   }

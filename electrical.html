@@ -986,16 +986,9 @@ import { Parts } from './components.js';
              and the charging circuit balances supply against every load on the vehicle.`
     },
 
-    chip: {
-      label: 'Electrical',
-      value: 85,
-      unit:  '% SOC',
-      bar:   true,
-      rows: [
-        { id: 'eng', label: 'Engine', value: '~900 rpm' },
-        { id: 'net', label: 'Load',   value: '0 A' }
-      ],
-      status: { text: 'Ready' }
+    monitor: {
+      config: { label: 'Electrical', value: { label: 'Electrical', unit: '% SOC', max: 100, bar: true }, rows: [['eng', 'Engine'], ['net', 'Load']], status: { text: 'Ready' } },
+      initial: { value: { text: '85', unit: '% SOC' }, rows: { eng: '~900 rpm', net: '0 A' }, status: ['Ready', false] }
     },
 
     toolbar: {
@@ -1283,45 +1276,38 @@ import { Parts } from './components.js';
     const socPct = Math.round(batterySOC * 100);
 
     if (mode === 'battery') {
-      ui.chip.setBig(socPct, '% SOC');
       const col = socPct > 60 ? '#22c55e' : socPct > 25 ? '#f59e0b' : '#ef4444';
-      ui.chip.setColor(col);
-      ui.chip.setBar(socPct, col);
+      ui.monitor.update({ value: { text: String(socPct), unit: '% SOC', color: col || '', bar: socPct, barColor: col } });
       if (elR1) elR1.textContent = batteryVoltage.toFixed(2) + ' V';
       if (elR2) elR2.textContent = batteryCurrent.toFixed(1) + ' A';
-      ui.chip.set('eng', Math.round(engineRPM) + ' rpm');
-      ui.chip.set('net', batteryCurrent.toFixed(1) + ' A');
-      ui.chip.setStatus(direction === 'charge' ? 'Charging' : 'Discharging',
-                        direction === 'charge');
+      ui.monitor.update({
+        rows: { eng: Math.round(engineRPM) + ' rpm', net: batteryCurrent.toFixed(1) + ' A' },
+        status: [direction === 'charge' ? 'Charging' : 'Discharging', direction === 'charge']
+      });
     } else if (mode === 'alternator') {
       const outA = Math.round(alternatorOutput);
-      ui.chip.setBig(outA, 'A out');
       const col = outA > 60 ? '#22c55e' : outA > 30 ? '#38bdf8' : '#f59e0b';
-      ui.chip.setColor(col);
-      ui.chip.setBar(Math.min(100, (outA / 90) * 100), col);
+      ui.monitor.update({ value: { text: String(outA), unit: 'A out', color: col || '', bar: Math.min(100, (outA / 90) * 100), barColor: col } });
       if (elR1) elR1.textContent = Math.round(engineRPM) + ' rpm';
       if (elR2) elR2.textContent = Math.round(engineRPM / 60 * 6) + ' Hz';
       if (elR3) elR3.textContent = (13.8 + alternatorOutput / 90 * 0.9).toFixed(2) + ' V';
-      ui.chip.set('eng', Math.round(engineRPM) + ' rpm');
-      ui.chip.set('net', outA + ' A');
-      ui.chip.setStatus('Generating', true);
+      ui.monitor.update({ rows: { eng: Math.round(engineRPM) + ' rpm', net: outA + ' A' }, status: ['Generating', true] });
     } else {
       const netA = batteryCurrent;
-      ui.chip.setBig((netA >= 0 ? '+' : '') + Math.round(netA), 'A');
       const col = netA > 2 ? '#22c55e' : netA > -2 ? '#38bdf8' : '#f59e0b';
-      ui.chip.setColor(col);
-      ui.chip.setBar(socPct, socPct > 60 ? '#22c55e' : socPct > 25 ? '#f59e0b' : '#ef4444');
+      ui.monitor.update({
+        value: { text: String((netA >= 0 ? '+' : '') + Math.round(netA)), unit: 'A', color: col || '', bar: socPct, barColor: socPct > 60 ? '#22c55e' : socPct > 25 ? '#f59e0b' : '#ef4444' }
+      });
       if (elR1) elR1.textContent = Math.round(loadAmps) + ' A';
       if (elR2) elR2.textContent = Math.round(alternatorOutput) + ' A';
       if (elR3) elR3.textContent = (netA > 0 ? 'charging ' : netA < 0 ? 'discharging ' : 'float ') + socPct + '%';
-      ui.chip.set('eng', Math.round(engineRPM) + ' rpm');
-      ui.chip.set('net', Math.round(loadAmps) + ' A');
-      if (keyState === 'off')       ui.chip.setStatus('Off', false);
-      else if (keyState === 'acc')  ui.chip.setStatus('ACC', false);
-      else if (keyState === 'start') ui.chip.setStatus('Cranking', false);
-      else if (netA > 2)             ui.chip.setStatus('Charging', true);
-      else if (netA < -2)            ui.chip.setStatus('Discharging', false);
-      else                           ui.chip.setStatus('Float', true);
+      ui.monitor.update({ rows: { eng: Math.round(engineRPM) + ' rpm', net: Math.round(loadAmps) + ' A' } });
+      if (keyState === 'off')       ui.monitor.update({ status: ['Off', false] });
+      else if (keyState === 'acc')  ui.monitor.update({ status: ['ACC', false] });
+      else if (keyState === 'start') ui.monitor.update({ status: ['Cranking', false] });
+      else if (netA > 2)             ui.monitor.update({ status: ['Charging', true] });
+      else if (netA < -2)            ui.monitor.update({ status: ['Discharging', false] });
+      else                           ui.monitor.update({ status: ['Float', true] });
     }
 
   }

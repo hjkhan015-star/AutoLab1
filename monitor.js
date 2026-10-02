@@ -49,7 +49,7 @@ export function createMonitor({ mount, doc = document, moduleId = 'module' } = {
   const rowNodes = {};                 /* id → { row, val }                       (cached nodes) */
   const traceNodes = {};               /* id → { wrap, canvas, ctx, bufs[], w, h, dirty, cfg } */
   let gaugeNodes = null;
-  const last = { value: null, unit: null, bar: null, barColor: null, color: null, rows: {}, status: null, gauge: null, tone: null };
+  const last = { label: null, value: null, unit: null, bar: null, barColor: null, color: null, rows: {}, status: null, gauge: null, tone: null };
   let pending = null;                  /* latest text-channel values waiting for the next ≤ 9 Hz flush */
   const limiter = createRateLimiter(TEXT_HZ);
   const traceLimiter = createRateLimiter(reduced ? TEXT_HZ : TRACE_HZ);
@@ -84,7 +84,7 @@ export function createMonitor({ mount, doc = document, moduleId = 'module' } = {
 
     rowsEl.textContent = ''; for (const k in rowNodes) delete rowNodes[k];
     cfg.rows.forEach((r) => {
-      const row = el('div', 'mon-row'); const k = el('span', 'mon-row-k', r.label); const val = el('b', 'mon-row-v');
+      const row = el('div', 'mon-row'); row.dataset.row = r.id; const k = el('span', 'mon-row-k', r.label); const val = el('b', 'mon-row-v');
       row.append(k, val); rowsEl.appendChild(row); rowNodes[r.id] = { row, val };
     });
     rowsEl.style.display = cfg.rows.length ? '' : 'none';
@@ -157,8 +157,9 @@ export function createMonitor({ mount, doc = document, moduleId = 'module' } = {
         t.dirty = true;
       }
     }
-    if (p.value !== undefined || p.rows || p.gauge !== undefined || p.status !== undefined) {
+    if (p.value !== undefined || p.rows || p.gauge !== undefined || p.status !== undefined || p.label !== undefined) {
       pending = pending || {};
+      if (p.label !== undefined) pending.label = p.label;
       if (p.value !== undefined) pending.value = mergeValue(pending.value, p.value);
       if (p.gauge !== undefined) pending.gauge = p.gauge;
       if (p.status !== undefined) pending.status = p.status;
@@ -172,6 +173,10 @@ export function createMonitor({ mount, doc = document, moduleId = 'module' } = {
   function flushText() {
     const p = pending; pending = null; if (!p) return;
     stats.flushes++;
+    if (p.label !== undefined) {                       /* the head label may change at runtime (exhaustsystem's four modes) */
+      const t = p.label == null ? '' : String(p.label);
+      if (t !== last.label) { label.textContent = t; label.style.display = t ? '' : 'none'; last.label = t; stats.textWrites++; }
+    }
     if (p.value !== undefined && cfg.value) {
       const o = mergeValue(null, p.value);
       if (o.text !== undefined) {

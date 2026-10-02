@@ -1270,16 +1270,9 @@
              no distributor.`
     },
 
-    chip: {
-      label: 'Live firing',
-      value: 'Idle',
-      unit:  '',
-      bar:   true,
-      rows: [
-        { id: 'adv', label: 'Advance', value: '10° BTDC' },
-        { id: 'rpm', label: 'RPM',     value: '800' }
-      ],
-      status: { text: 'Ready' }
+    monitor: {
+      config: { label: 'Live firing', value: { label: 'Live firing', unit: '', max: 100, bar: true }, rows: [['adv', 'Advance'], ['rpm', 'RPM']], status: { text: 'Ready' } },
+      initial: { value: { text: 'Idle', unit: '' }, rows: { adv: '10° BTDC', rpm: '800' }, status: ['Ready', false] }
     },
 
     toolbar: {
@@ -1516,7 +1509,7 @@
       wirePulseCyl.fill(0);
       wirePulseShared = 0;
       coilFlash = 0; rotorFlash = 0; ecuBlink = 0;
-      ui.chip.setStatus('Off', false);
+      ui.monitor.update({ status: ['Off', false] });
     }
   }
   canvasEl.addEventListener('pointerdown', e => { pdownX = e.clientX; pdownY = e.clientY; pdownT = performance.now(); });
@@ -1567,26 +1560,19 @@
     if (elAdv)   elAdv.textContent   = `${a}° BTDC`;
     if (elDwell) elDwell.textContent = `${dwellMs(currentRPM).toFixed(1)} ms`;
 
-    ui.chip.setBig(
-      ignitionOn ? `Cyl ${(lastFireCyl >= 0 ? lastFireCyl : nextFireCyl) + 1}` : 'OFF',
-      ''
-    );
-    ui.chip.setColor(ignitionOn ? '#f59e0b' : '#ff5566');
-    ui.chip.setBar(
-      ignitionOn ? Math.max(0, Math.min(100, chargeLevel * 100)) : 0,
-      '#f59e0b'
-    );
-    ui.chip.set('adv', `${a}° BTDC`);
-    ui.chip.set('rpm', String(shownRpm));
+    ui.monitor.update({
+      value: { text: String(ignitionOn ? `Cyl ${(lastFireCyl >= 0 ? lastFireCyl : nextFireCyl) + 1}` : 'OFF'), unit: '', color: (ignitionOn ? '#f59e0b' : '#ff5566') || '', bar: ignitionOn ? Math.max(0, Math.min(100, chargeLevel * 100)) : 0, barColor: '#f59e0b' },
+      rows: { adv: `${a}° BTDC`, rpm: String(shownRpm) }
+    });
 
     if (!ignitionOn) {
-      ui.chip.setStatus('Ignition OFF', false);
+      ui.monitor.update({ status: ['Ignition OFF', false] });
     } else if (performance.now() - lastFireAt < 340 && lastFireCyl >= 0) {
-      ui.chip.setStatus(`Cyl ${lastFireCyl + 1} spark`, true);
+      ui.monitor.update({ status: [`Cyl ${lastFireCyl + 1} spark`, true] });
     } else if (chargeLevel > 0.03) {
-      ui.chip.setStatus(`Cyl ${nextFireCyl + 1} charging…`, false);
+      ui.monitor.update({ status: [`Cyl ${nextFireCyl + 1} charging…`, false] });
     } else {
-      ui.chip.setStatus(`Next: Cyl ${nextFireCyl + 1}`, false);
+      ui.monitor.update({ status: [`Next: Cyl ${nextFireCyl + 1}`, false] });
     }
 
   }

@@ -96,3 +96,10 @@ In `runGuidedModule`, keep returning `{ big, unit, bar, rows, ro, status, ctl }`
 
 **Guided modules (7a-2):** declare `CFG.traces = [{ id:'hist', label, min:0, max:100, length:150, series:[{ id, label, color:'var(--accent)' }, …] }]` and return `traces: { hist: [a, b] }` (one sample, only when due; `null` clears on Reset) plus `status: [text, on, 'warn'|'crit'|'']` from `mod.update()`. A warning sentence is the status (`status: [warn || state, true, warn ? 'warn' : '']`). Keep one history: the Monitor's. Series colours are tokens (`var(--accent)`, `var(--warn)`, …), never hex.
 **Speed rows:** a module prints engine / vehicle speed as a Monitor row (`ui.monitor.update({ rows: { rpm: text } })`), never through `ui.toolbar.setRpmLabel`.
+
+
+### Monitor, Phase 7b1 additions
+- `ui.chip.*`, the `chip:` config and `ui.toolbar.setRpmLabel` no longer exist. Use `UI.create({ monitor: { config, initial } })` and `ui.monitor.update({ ... })`.
+- `ui.monitor.update({ label })` changes the head label at runtime (the one label channel). `status` is `[text, on, tone?]`, tone `'' | 'warn' | 'crit'`.
+- Every row has `data-row="<id>"`: a module may style one row from its own CSS (`#ui-monitor [data-row="phase"] .mon-row-v`). Do not query or append into the Monitor's DOM; if a module needs a graph, it is a trace.
+- Merge the writes of one function into ONE `ui.monitor.update({ label, value, rows, status })`; call `ui.monitor.flush()` only when a user action must show at once.

@@ -1218,17 +1218,9 @@ import { Parts } from './components.js';
              <strong>blow-off valve</strong> vents the charge pipe when you lift off.`
     },
 
-    chip: {
-      label: 'Boost pressure',
-      value: 0,
-      unit:  'bar',
-      bar:   true,
-      rows: [
-        { id: 'drive', label: 'Speed', value: '0 rpm' },
-        { id: 'egt',   label: 'EGT',   value: '20 °C' },
-        { id: 'rpm', label: 'Engine speed', value: '—' }
-      ],
-      status: { text: 'Idle' }
+    monitor: {
+      config: { label: 'Boost pressure', value: { label: 'Boost pressure', unit: 'bar', max: 100, bar: true }, rows: [['drive', 'Speed'], ['egt', 'EGT'], ['rpm', 'Engine speed']], status: { text: 'Idle' } },
+      initial: { value: { text: '0', unit: 'bar' }, rows: { drive: '0 rpm', egt: '20 °C', rpm: '—' }, status: ['Idle', false] }
     },
 
     toolbar: {
@@ -1664,10 +1656,10 @@ import { Parts } from './components.js';
   function updateReadouts() {
     if (currentMode === 'turbo') {
       if (elRpm) elRpm.textContent = Math.round(turbineRpm / 1000).toLocaleString() + ',000 rpm';
-      ui.chip.set('drive', Math.round(turbineRpm / 1000).toLocaleString() + 'k rpm');
+      ui.monitor.update({ rows: { drive: Math.round(turbineRpm / 1000).toLocaleString() + 'k rpm' } });
     } else {
       if (elRpm) elRpm.textContent = Math.round(scRpm).toLocaleString() + ' rpm';
-      ui.chip.set('drive', Math.round(scRpm / 100) / 10 + 'k rpm');
+      ui.monitor.update({ rows: { drive: Math.round(scRpm / 100) / 10 + 'k rpm' } });
     }
     if (elEgt) elEgt.textContent = Math.round(egt) + ' °C';
     if (elIat) elIat.textContent = Math.round(iatPostIc) + ' °C';
@@ -1678,10 +1670,10 @@ import { Parts } from './components.js';
     else if (boost < 1.1)  col = '#22c55e';
     else                   col = '#f59e0b';
 
-    ui.chip.setBig(boost.toFixed(2), 'bar');
-    ui.chip.setColor(col);
-    ui.chip.setBar((boost / 1.5) * 100, col);
-    ui.chip.set('egt', Math.round(egt) + ' °C');
+    ui.monitor.update({
+      value: { text: String(boost.toFixed(2)), unit: 'bar', color: col || '', bar: (boost / 1.5) * 100, barColor: col },
+      rows: { egt: Math.round(egt) + ' °C' }
+    });
 
     let statusTxt, ok;
     if (currentMode === 'turbo') {
@@ -1694,9 +1686,7 @@ import { Parts } from './components.js';
       else if (boost > 0.1)  { statusTxt = 'On boost';   ok = true; }
       else                   { statusTxt = 'Idle';       ok = false; }
     }
-    ui.chip.setStatus(statusTxt, ok);
-
-    ui.monitor.update({ rows: { rpm: '~' + Math.round(350 + state.speedMul * 850) + ' rpm' } });
+    ui.monitor.update({ rows: { rpm: '~' + Math.round(350 + state.speedMul * 850) + ' rpm' }, status: [statusTxt, !!(ok)] });
   }
 
   /* ═══════════════════════════════════════════════════════════

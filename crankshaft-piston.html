@@ -629,16 +629,9 @@ const ui = Base.UI.create({
     badge: { text: 'Inline-4 · 1-3-4-2', color: CFG.accent },
     readout: readoutHTML()
   },
-  chip: {
-    label: 'Engine',
-    value: '—',
-    unit: ' rpm',
-    bar: true,
-    rows: [
-      { id: 'rpm',  label: 'Speed',  value: '—' },
-      { id: 'fire', label: 'Firing', value: '—' }
-    ],
-    status: { text: 'Running' }
+  monitor: {
+    config: { label: 'Engine', value: { label: 'Engine', unit: ' rpm', max: 100, bar: true }, rows: [['rpm', 'Speed'], ['fire', 'Firing']], status: { text: 'Running' } },
+    initial: { value: { text: '—', unit: ' rpm' }, rows: { rpm: '—', fire: '—' }, status: ['Running', false] }
   },
   toolbar: {
     play: true,
@@ -817,11 +810,11 @@ function updateReadouts() {
     return phi < 180 && (best === null || phi < best.phi) ? { id: c.id, phi } : best;
   }, null);
   const fid = firing ? firing.id : '—';
-  ui.chip.setBig(rpm, ' rpm');
-  ui.chip.set('rpm', (rpm / 1000).toFixed(1) + ' k');
-  ui.chip.set('fire', 'Cyl ' + fid);
-  ui.chip.setBar(cyc / 720 * 100, 'var(--al-accent)');
-  ui.chip.setStatus('Power stroke: cylinder ' + fid, true);
+  ui.monitor.update({
+    value: { text: String(rpm), unit: ' rpm', bar: cyc / 720 * 100, barColor: 'var(--al-accent)' },
+    rows: { rpm: (rpm / 1000).toFixed(1) + ' k', fire: 'Cyl ' + fid },
+    status: ['Power stroke: cylinder ' + fid, true]
+  });
 
   if (currentTab === 'motion') drawGraph();
 }
