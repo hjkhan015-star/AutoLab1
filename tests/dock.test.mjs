@@ -340,7 +340,7 @@ t('legacy.css: exists, marked, loaded by sensors.html ONLY, precached', () => {
   const users = readdirSync(new URL('../', import.meta.url)).filter((f) => f.endsWith('.html') && /legacy\.css/.test(rd(f)));
   assert.deepEqual(users, ['sensors.html']);
   assert.ok(rd('sw.js').includes("'./legacy.css'") && rd('sw.js').includes("'./dock.js'"));
-  assert.match(rd('sw.js'), /const VERSION = 'autolab-v8\.5'/);
+  assert.match(rd('sw.js'), /const VERSION = 'autolab-v8\.6(\.\d+)?'/);
 });
 t('100vh replaced by 100dvh in wiring.html and 404.html', () => {
   for (const f of ['wiring.html', '404.html']) { assert.ok(!/100vh/.test(rd(f)), f); assert.match(rd(f), /100dvh/); }
@@ -354,9 +354,9 @@ t('double wiring removed: no module attaches its own click handler to #btn-play 
     const s = strip(rd(f + '.html'));
     assert.ok(!/playBtn|resetBtn|btn-play|btn-reset/.test(s), `${f}.html still touches the transport buttons`);
   }
-  assert.match(rd('braking.html'), /window\.__brakeSyncIcons = syncIcons/, '__*Sync* globals kept until Phase 8');
-  assert.match(rd('cooling.html'), /window\.__coolingSyncIcons = syncIcons/);
-  assert.match(rd('carburetor.html'), /window\.__carbSyncPlayIcons = syncPlayIcons/);
+  /* Phase 6 removed the __*SyncIcons globals from migrated modules */
+  assert.doesNotMatch(rd('braking.html'), /window\.__brakeSyncIcons/);
+  assert.doesNotMatch(rd('carburetor.html'), /window\.__carbSyncPlayIcons/);
 });
 t('fixed-position audit: no module page adds a fixed element beyond the documented exceptions', () => {
   /* dock / header / monitor strip / info sheet / 3D stage live in controls.css + app.css (checked above).

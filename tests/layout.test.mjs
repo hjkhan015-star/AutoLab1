@@ -65,4 +65,17 @@ t('chrome: phone sheet <= 50vh, popover on desktop, reduced motion respected', (
   for (const m of css.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/g)) assert.ok(+m[1] >= 11, `font-size ${m[1]}px < 11px`);
 });
 
+t('Phase 2: dock tokens (default 24vh, max 30vh) and the stage insets', () => {
+  assert.equal(vh('--dock-default'), 24); assert.equal(vh('--dock-max'), 30);
+  assert.ok(px('--dock-slim') === 56 && px('--dock-options') <= 44 && px('--dock-options') >= 40 && px('--dock-rail-w') === 140);
+  assert.match(css, /#canvas-wrap \{ inset: var\(--stage-top\) var\(--dock-rail\) var\(--dock-h\) var\(--dock-rail\); \}/);
+  assert.match(css, /body\.embedded \{ --stage-top: 0px; \}/, 'embedded: top inset is 0');
+  assert.match(css, /--stage-top: calc\(var\(--hdr-h\) \+ var\(--safe-t, 0px\)\)/, 'standalone: top inset is --hdr-h');
+});
+t('Phase 2: phone = max-width:720px or max-height:540px; the dock is <= 34vh in every mode', () => {
+  assert.match(css, /@media \(max-height: 540px\) and \(min-aspect-ratio: 1\/1\)/);
+  assert.match(css, /@media \(max-width: 720px\), \(max-height: 540px\)/);
+  assert.ok(vh('--dock-max') <= 34);
+});
+
 console.log(`\n${n} test groups passed`);

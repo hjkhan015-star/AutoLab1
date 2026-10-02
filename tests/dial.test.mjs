@@ -196,7 +196,7 @@ await t('steering / differential: no centre button, no duplicate wheel markup, R
 
 await t('controls.css dial: tokens only, 44 px minimum, ≤ 96 px on phones, focus ring', () => {
   const css = rd('controls.css');
-  const block = css.slice(css.indexOf('PHASE 5 — dial'));
+  const block = css.slice(css.indexOf('PHASE 5 — dial'), css.indexOf('Phase 6 — choice'));   /* Phase 6 has its own block */
   assert.ok(block.length > 500, 'dial block present');
   assert.ok(!/#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(/.test(block), 'no hex / rgba in the dial CSS');
   assert.match(block, /min-width: var\(--ctl-tap\)/); assert.match(block, /min-height: var\(--ctl-tap\)/);
