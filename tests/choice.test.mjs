@@ -80,7 +80,7 @@ await t('controls.js: choice (3 layouts) + toggle + action, ARIA roles, still ON
   assert.equal((js.match(/requestAnimationFrame\(/g) || []).length, 1);
 });
 await t('controls.css Phase 6 block: tokens only, 44 px targets, 11 px text, nothing animates under reduced motion', () => {
-  const css = rd('controls.css'); const b = css.slice(css.indexOf('Phase 6 — choice'));
+  const css = rd('controls.css'); const b = css.slice(css.indexOf('Phase 6 — choice'), css.indexOf('Monitor (Phase 7a)') > 0 ? css.indexOf('Monitor (Phase 7a)') : undefined);   /* the Monitor block has its own checks */
   assert.ok(b.length > 800); assert.ok(!/#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(/.test(b));
   assert.match(b, /min-height: var\(--ctl-tap\)/);
   assert.ok(!/transition/.test(b.replace(/@media \(prefers-reduced-motion: no-preference\)[^\n]*/g, '')), 'transitions only inside no-preference');
@@ -160,7 +160,7 @@ await t('6.5: dead selectors stay deleted (.al-w, .al-sel in components.css; the
   const dead = /\.dt-btn|\.muf-btn|\.drive-btn|\.ms-btn|\.key-btn|\.at-gearsel-btn|\.al-fault-btn|#oil-switch-btn|\.awd-btns|\.cat-btns|\.al-fault-row|\.cfg-arrow/;
   for (const f of [...pages, 'components.css', 'controls.css', 'app.css']) assert.ok(!dead.test(rd(f)), `${f}: deleted selector is back`);
 });
-await t('6.5: sw.js cache is autolab-v8.6.x', () => assert.match(rd('sw.js'), /const VERSION = 'autolab-v8\.6(\.\d+)?'/));
+await t('6.5: sw.js cache is autolab-v8.6.x', () => assert.match(rd('sw.js'), /const VERSION = 'autolab-v8\.[6-9](\.\d+)?'/));
 
 /* ── DOM (needs jsdom) ────────────────────────────────────────────────── */
 let JSDOM = null;

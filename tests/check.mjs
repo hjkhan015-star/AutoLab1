@@ -24,7 +24,7 @@ for (const f of html) {
     try { execFileSync('node', ['--check', p], { stdio: 'pipe' }); } catch (e) { fail(`${f}: syntax error in module script ${i}`); }
   });
 }
-for (const f of ['kit.js', 'labels.js', 'components.js', 'modules.js', 'guard.js', 'sw.js', 'controls-core.js', 'chrome.js', 'keys.js', 'dock.js']) {
+for (const f of ['kit.js', 'labels.js', 'components.js', 'modules.js', 'guard.js', 'sw.js', 'controls-core.js', 'chrome.js', 'keys.js', 'dock.js', 'monitor-core.js', 'monitor.js']) {
   try { execFileSync('node', ['--check', root + f], { stdio: 'pipe' }); } catch (e) { fail(`${f}: syntax error`); }
 }
 JSON.parse(readFileSync(root + 'manifest.webmanifest', 'utf8'));
