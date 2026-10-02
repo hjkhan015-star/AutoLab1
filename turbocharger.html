@@ -42,33 +42,7 @@
      TOOLBAR EXTRAS — forced-induction config switcher
      Same pattern as engine.html's engine-config switcher.
      ═══════════════════════════════════════════════════════════ */
-  .cfg-group {
-    display: flex; align-items: center; gap: 4px;
-    padding-left: 8px; margin-left: 4px;
-    border-left: 1px solid var(--border, rgba(255,255,255,.10));
-  }
-  .cfg-arrow {
-    width: 22px; height: 22px; border-radius: 50%;
-    border: none; background: rgba(255,255,255,.08);
-    color: var(--text, #e5e7eb); font-size: 14px; line-height: 1;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; font-family: inherit; padding: 0;
-    transition: background var(--dur-fast, .15s) var(--ease-out, ease),
-                color var(--dur-fast, .15s) var(--ease-out, ease);
-  }
-  .cfg-arrow:hover, .cfg-arrow:active { background: var(--accent, #38bdf8); color: #0b0e14; }
-  #cfg-label {
-    min-width: 96px; text-align: center; white-space: nowrap;
-    font-size: 10.5px; font-weight: 700; letter-spacing: .02em;
-    color: var(--text, #e5e7eb);
-    font-family: var(--font-mono);
-  }
-  html.light-theme .cfg-arrow { background: rgba(15,23,42,.08); color: #0a0d13; }
-  html.light-theme .cfg-arrow:hover { background: var(--accent, #38bdf8); color: #fff; }
-  html.light-theme #cfg-label { color: #0a0d13; }
-  @media (max-width: 600px) {
-    .cfg-arrow { width: 19px; height: 19px; font-size: 12px; }
-    #cfg-label { min-width: 76px; font-size: 10px; }
+  html.light-theme  html.light-theme  html.light-theme  @media (max-width: 600px) {
   }
 </style>
 </head>
@@ -1260,10 +1234,7 @@ import { Parts } from './components.js';
       play: true, reset: true,
       speed: { label: 'Engine load', min: 0.15, max: 2.5, step: 0.05, value: 0.85 },
       labels: true, gas: true,
-      extras: [
-        { id: 'btn-rotorslow', title: 'Rotor slow motion',
-          icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2h12v6l-4 4 4 4v6H6v-6l4-4-4-4V2zm10 12.5V20H8v-5.5l4-4 4 4zM8 4v3.5l4 4 4-4V4H8z"/></svg>' }
-      ]
+      extras: []
     },
 
     /* Phase 4: the accelerator is a controls.js pedal (id 'throttle'). k = -ln(0.88)·60. */
@@ -1286,43 +1257,16 @@ import { Parts } from './components.js';
   const moduleTitleEl  = document.getElementById('module-title');
   const moduleKickerEl = document.getElementById('module-kicker');
 
-  /* Rotor-slow button (from toolbar extras) */
-  const btnRotor = document.getElementById('btn-rotorslow');
-  if (btnRotor) {
-    btnRotor.addEventListener('click', () => {
-      rotorSlow = !rotorSlow;
-      btnRotor.classList.toggle('active', rotorSlow);
-    });
-  }
-
-  /* ═══════════════════════════════════════════════════════════
-     CONFIG SWITCHER — injected into #toolbar-extras
-     (same pattern as engine.html's engine-config switcher)
-     ═══════════════════════════════════════════════════════════ */
-  (function buildConfigSwitcher() {
-    const extras = document.getElementById('toolbar-extras');
-    if (!extras) return;
-    const cfgGroup = document.createElement('div');
-    cfgGroup.className = 'cfg-group';
-    cfgGroup.setAttribute('role', 'group');
-    cfgGroup.setAttribute('aria-label', 'Forced induction type');
-    cfgGroup.innerHTML = `
-      <button class="cfg-arrow" id="cfg-prev" type="button" aria-label="Previous induction type">‹</button>
-      <span id="cfg-label">Turbocharger</span>
-      <button class="cfg-arrow" id="cfg-next" type="button" aria-label="Next induction type">›</button>
-    `;
-    extras.appendChild(cfgGroup);
-  })();
-
-  const cfgLabelEl = document.getElementById('cfg-label');
-  const cfgPrevEl  = document.getElementById('cfg-prev');
-  const cfgNextEl  = document.getElementById('cfg-next');
-
+  /* Phase 6: rotor slow-motion is a dock toggle, the induction type a dock choice (replace the toolbar button + ‹ › arrows) */
   const CONFIG_ORDER  = ['turbo', 'supercharger'];
   const CONFIG_LABELS = {
     turbo:        'Turbocharger',
     supercharger: 'Supercharger'
   };
+  ui.addOptions([
+    { id: 'config', type: 'choice', layout: 'segmented', label: 'Induction', options: CONFIG_ORDER.map(id => ({ id, label: CONFIG_LABELS[id] })) },
+    { id: 'rotorslow', type: 'toggle', label: 'Slow rotor', ariaLabel: 'Rotor slow motion', onChange: (on) => { rotorSlow = on; } }
+  ]);
 
   const TURBO_INFO = {
     title:  'Turbocharger · Working Principle',
@@ -1355,7 +1299,7 @@ import { Parts } from './components.js';
     scGroup.visible    = (id === 'supercharger');
 
     /* Update the toolbar switcher label */
-    if (cfgLabelEl) cfgLabelEl.textContent = CONFIG_LABELS[id];
+    ui.controls.set('config', CONFIG_ORDER.indexOf(id));          /* keep the dock choice in step */
 
     /* Update panel chrome */
     const info = (id === 'turbo') ? TURBO_INFO : SC_INFO;
@@ -1390,14 +1334,7 @@ import { Parts } from './components.js';
     if (bridge) bridge.setStatus((id === 'turbo') ? 'Turbocharger' : 'Supercharger', info.badge.color);
   }
 
-  function stepConfig(dir) {
-    const i = CONFIG_ORDER.indexOf(currentMode);
-    const next = CONFIG_ORDER[(i + dir + CONFIG_ORDER.length) % CONFIG_ORDER.length];
-    applyConfig(next);
-  }
-
-  if (cfgPrevEl) cfgPrevEl.addEventListener('click', () => stepConfig(-1));
-  if (cfgNextEl) cfgNextEl.addEventListener('click', () => stepConfig(1));
+  ui.controls.on('config', (i) => { const id = CONFIG_ORDER[i]; if (id !== currentMode) applyConfig(id); });
 
   /* ═══════════════════════════════════════════════════════════
      BRIDGE
@@ -1409,8 +1346,7 @@ import { Parts } from './components.js';
       switch (d.action) {
         case 'reset': resetSim(); break;
         case 'setRotorSlow':
-          rotorSlow = !!d.value;
-          if (btnRotor) btnRotor.classList.toggle('active', rotorSlow);
+          ui.controls.set('rotorslow', !!d.value);        /* onChange sets rotorSlow */
           break;
         case 'setConfig':
           if (CONFIG_ORDER.indexOf(d.value) >= 0) applyConfig(d.value);

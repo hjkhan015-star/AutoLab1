@@ -16,67 +16,8 @@
      ═══════════════════════════════════════════════════════════════════ */
 
   /* ── Gear selector widget (br slot) ── */
-  .at-gearsel {
-    display: flex; flex-direction: column;
-    gap: 5px;
-    pointer-events: auto;
-  }
-  .at-gearsel-caption {
-    font-size: 10px; font-weight: 800;
-    letter-spacing: .16em; text-transform: uppercase;
-    color: var(--text-mute);
-    text-align: center;
-    padding: 4px 0 2px;
-  }
-  .at-gearsel-btn {
-    width: 52px; height: 52px;
-    border-radius: var(--r-sm);
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    font-family: var(--font-mono);
-    font-size: 15px; font-weight: 800;
-    display: grid; place-items: center;
-    cursor: pointer;
-    transition: color var(--dur-fast) var(--ease-out),
-                background var(--dur-fast) var(--ease-out),
-                border-color var(--dur-fast) var(--ease-out),
-                box-shadow var(--dur-fast) var(--ease-out),
-                transform var(--dur-fast) var(--ease-spring);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    box-shadow: var(--shadow-sm);
-  }
-  .at-gearsel-btn:hover {
-    color: var(--text);
-    border-color: var(--border-hi);
-  }
-  .at-gearsel-btn:active { transform: scale(.94); }
-  .at-gearsel-btn.active {
-    color: #06121a;
-    border-color: transparent;
-    background: linear-gradient(135deg, #0ea5e9, #38bdf8);
-    box-shadow: 0 0 16px color-mix(in oklch, #38bdf8 55%, transparent),
-                var(--shadow-sm);
-  }
-  .at-gearsel-btn.active[data-gear="R"] {
-    background: linear-gradient(135deg, #dc2626, #ef4444);
-    box-shadow: 0 0 16px color-mix(in oklch, #ef4444 55%, transparent),
-                var(--shadow-sm);
-  }
-  .at-gearsel-btn.active[data-gear="P"] {
-    background: linear-gradient(135deg, #475569, #64748b);
-    box-shadow: 0 0 16px color-mix(in oklch, #94a3b8 40%, transparent),
-                var(--shadow-sm);
-  }
-  .at-gearsel-btn.active[data-gear="N"] {
-    background: linear-gradient(135deg, #a855f7, #c084fc);
-    box-shadow: 0 0 16px color-mix(in oklch, #a855f7 55%, transparent),
-                var(--shadow-sm);
-  }
 
   @media (max-width: 600px) {
-    .at-gearsel-btn { width: 44px; height: 44px; font-size: 13px; }
   }
 </style>
 </head>
@@ -615,33 +556,13 @@
       { id: 'throttle', look: 'pedal', label: 'Throttle', preset: 'percent', spring: 'return', k: 9.05, keys: 'arrows', side: 'left' }
     ],
 
-    widgets: {
-      /* Bottom-right: P R N D gear selector */
-      br: {
-        html: `
-          <div class="at-gearsel">
-            <div class="at-gearsel-caption">Select</div>
-            <button class="at-gearsel-btn" data-gear="P">P</button>
-            <button class="at-gearsel-btn" data-gear="R">R</button>
-            <button class="at-gearsel-btn" data-gear="N">N</button>
-            <button class="at-gearsel-btn active" data-gear="D">D</button>
-          </div>
-        `,
-        onMount: (el) => wireGearSelector(el)
-      }
-    }
+    /* Phase 6: the P R N D selector is a controls.js choice in the primary zone (replaces the widget + .at-gearsel buttons) */
+    options: [
+      { id: 'gear', type: 'choice', layout: 'segmented', label: 'Select', ariaLabel: 'Gear selector',
+        options: [{ id: 'P', label: 'P' }, { id: 'R', label: 'R', tone: 'crit' }, { id: 'N', label: 'N' }, { id: 'D', label: 'D' }],
+        def: 'D', primary: true, side: 'right', onChange: (id) => { selectedGear = id; } }
+    ]
   });
-
-  /* ─── Gear selector widget ─────────────────────────────────── */
-  function wireGearSelector(root) {
-    const btns = root.querySelectorAll('.at-gearsel-btn');
-    btns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        selectedGear = btn.dataset.gear;
-        btns.forEach(b => b.classList.toggle('active', b === btn));
-      });
-    });
-  }
 
   /* ─── Wire local toolbar controls (play/reset/speed/labels/gas) ── */
   (function syncToolbarIcons() {   /* Phase 2: click wiring removed — the kit (dock.js/kit.js) owns btn-play / btn-reset; only icon sync stays */
@@ -855,10 +776,7 @@
   function resetSim() {
     ui.controls.resetAll();                 /* releases the throttle pedal */
 
-    selectedGear = 'D';
-    document.querySelectorAll('.at-gearsel-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.gear === 'D');
-    });
+    selectedGear = 'D';                     /* the gear choice itself is reset by controls.resetAll() above */
 
     engineRpm = 800; turbineRpm = 0; outputRpm = 0;
     slipPct = 100; torqueMult = 2.2;

@@ -24,28 +24,8 @@ html.light-theme { --al-accent: color-mix(in oklch, #a78bfa 68%, black); }
   color:var(--text-dim,#9aa4b2);
   max-height:calc(100dvh - 24px); overflow:auto;
 }
-#egr-panel.folded .egr-body{ display:none; }
 .egr-h{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
 .egr-h span{ font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--text-mute,#6b7280); font-weight:700; }
-.egr-h button{ width:24px; height:24px; flex:0 0 24px; border:1px solid var(--border,#333); border-radius:6px;
-  background:transparent; color:var(--text-dim,#9aa4b2); cursor:pointer; font:inherit; line-height:1; }
-.egr-h button:hover{ border-color:var(--al-accent); color:var(--text,#e5e7eb); }
-.egr-w{ display:flex; flex-direction:column; gap:4px; margin-bottom:8px; }
-.egr-w label{ display:flex; justify-content:space-between; gap:8px; font-size:10px; letter-spacing:.06em;
-  text-transform:uppercase; color:var(--text-mute,#6b7280); }
-.egr-w b{ color:var(--text,#e5e7eb); font-weight:700; }
-#egr-panel .al-sel{ min-height:32px; font-size:11px; }
-.egr-btns{ display:flex; gap:6px; margin-bottom:8px; }
-.egr-btns button{ flex:1 1 0; min-height:30px; padding:0 4px; border:1px solid var(--border,#333); border-radius:6px;
-  background:transparent; color:var(--text-dim,#9aa4b2); font:inherit; font-size:11px; cursor:pointer; }
-.egr-btns button:hover{ border-color:var(--al-accent); color:var(--text,#e5e7eb); }
-.egr-btns button.on{ border-color:var(--al-accent); color:var(--text,#e5e7eb); background:rgba(167,139,250,.14); }
-#egr-clean{ color:#38bdf8; border-color:rgba(56,189,248,.4); }
-#egr-clean:hover{ border-color:#38bdf8; }
-.egr-warn{ display:none; margin:0 0 8px; padding:7px 8px; border-radius:6px;
-  border:1px solid var(--crit,#ef4444); background:rgba(239,68,68,.08);
-  font-size:10px; line-height:1.45; color:var(--crit,#ef4444); }
-.egr-warn.show{ display:block; }
 #egr-graph{ width:100%; height:auto; display:block; border:1px solid var(--border,#333);
   border-radius:6px; background:rgba(0,0,0,.28); }
 .egr-key{ display:flex; flex-wrap:wrap; gap:10px; margin-top:5px; font-size:10px; color:var(--text-mute,#6b7280); }
@@ -236,47 +216,18 @@ for (const id in FAULT_INFO) {
   faultOptions += '<option value="' + id + '"' + (id === 'none' ? ' selected' : '') + '>' + FAULT_INFO[id].label + '</option>';
 }
 panel.innerHTML =
-  '<div class="egr-h"><span>EGR simulation</span><button type="button" id="egr-fold" aria-label="Collapse controls">&#8211;</button></div>' +
+  '<div class="egr-h"><span>EGR simulation</span></div>' +
   '<div class="egr-body">' +
-    '<div class="egr-w"><label for="egr-fault">Fault injection</label>' +
-      '<select id="egr-fault" class="al-sel" aria-label="Fault injection">' + faultOptions + '</select></div>' +
-    '<div class="egr-w"><label>Simulation speed</label>' +
-      '<div class="egr-btns" id="egr-speed">' +
-        '<button type="button" data-sp="1" class="on">1&times;</button>' +
-        '<button type="button" data-sp="5">5&times;</button>' +
-        '<button type="button" data-sp="20">20&times;</button>' +
-      '</div></div>' +
-    '<div class="egr-btns">' +
-      '<button type="button" id="egr-clean">Clean valve</button>' +
-      '<button type="button" id="egr-reset">Reset</button>' +
-    '</div>' +
     '<div class="egr-warn" id="egr-warn"></div>' +
     '<canvas id="egr-graph" width="480" height="150" aria-label="NOx and peak flame temperature history"></canvas>' +
     '<div class="egr-key"><span><i style="background:#a78bfa"></i>NOx ppm</span><span><i style="background:#f97316"></i>Peak &deg;C</span></div>' +
   '</div>';
+
 document.body.appendChild(panel);
 
-const elFold   = document.getElementById('egr-fold');
-const elFault  = document.getElementById('egr-fault');
-const elSpeed  = document.getElementById('egr-speed');
-const elClean  = document.getElementById('egr-clean');
-const elReset  = document.getElementById('egr-reset');
 const elWarn   = document.getElementById('egr-warn');
 const gcv      = document.getElementById('egr-graph');
 const gctx     = gcv.getContext('2d');
-
-elFold.addEventListener('click', () => {
-  panel.classList.toggle('folded');
-  elFold.innerHTML = panel.classList.contains('folded') ? '&#43;' : '&#8211;';
-});
-elFault.addEventListener('change', () => { S.fault = elFault.value; });
-elSpeed.addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-sp]');
-  if (!b) return;
-  S.speed = Number(b.dataset.sp) || 1;
-  elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o === b));
-});
-elClean.addEventListener('click', () => { sim.carbon = 0.0; });
 
 /* ── simulation state (module level so Reset can reach it) ───────── */
 const GRAPH_N = 150;
@@ -298,13 +249,11 @@ function resetModel() {
 function resetAll() {
   S.load = 0.45;
   S.rpm = 2200;
-  S.fault = 'none'; elFault.value = 'none';
+  S.fault = 'none';
   S.speed = 1;
-  elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o.dataset.sp === '1'));
   resetModel();
   controls.resetAll();                 /* every axis back to its default (store -> onChange -> S) */
 }
-elReset.addEventListener('click', resetAll);
 
 /* ── rolling graph ───────────────────────────────────────────────── */
 function drawGraph() {
@@ -587,6 +536,17 @@ function build(H){
  };
 }
 
+/* Phase 6: every option / action lives in the dock (controls.js), nothing interactive is left in the panel.
+   'Time scale' is the module's own physics time-compression (thermal warm-up); the menu's Sim speed is separate. */
+CFG.options = [
+  { id: "fault", type: 'choice', layout: 'select', label: "Fault injection", options: Object.keys(FAULT_INFO).map(id => ({ id, label: FAULT_INFO[id].label })), def: 'none',
+    onChange: (id) => { S.fault = id; } },
+  { id: 'timeScale', type: 'choice', layout: 'segmented', label: 'Time scale', options: [{ id: '1', label: '1×' }, { id: '5', label: '5×' }, { id: '20', label: '20×' }], def: '1',
+    onChange: (id) => { S.speed = Number(id) || 1; } },
+  { id: "clean", type: 'action', label: "Clean valve",
+    onAction: () => { sim.carbon = 0.0; } }
+];
+CFG.onReset = resetAll;      /* the dock Reset runs the module reset (model + every control) */
 runGuidedModule(CFG, build);
 </script>
 </body>

@@ -88,140 +88,8 @@
     margin-left: 4px;
   }
 
-  /* ═══════════════════════════════════════════════════════════
-     WIDGET INTERIOR — H-pattern gear shifter (bottom-right)
-     ═══════════════════════════════════════════════════════════ */
-  #gear-shifter-overlay {
-    display: flex; flex-direction: column; align-items: center; gap: 6px;
-  }
 
-  #gear-shifter {
-    width: clamp(108px, 26vw, 144px);
-    height: clamp(150px, 36vw, 200px);
-    pointer-events: auto;
-    cursor: grab;
-    touch-action: none;
-    user-select: none; -webkit-user-select: none;
-    filter: drop-shadow(0 10px 20px rgba(0,0,0,.62));
-    transition: filter .2s;
-  }
-  #gear-shifter.grabbing {
-    cursor: grabbing;
-    filter: drop-shadow(0 0 16px rgba(56,189,248,.48))
-            drop-shadow(0 10px 20px rgba(0,0,0,.65));
-  }
-
-  #gs-knob {
-    transition: transform .16s cubic-bezier(.32,.72,0,1);
-    will-change: transform;
-  }
-  #gear-shifter.grabbing #gs-knob { transition: none; }
-
-  .gs-bg {
-    fill: rgba(10,14,20,.86);
-    stroke: rgba(255,255,255,.10);
-    stroke-width: 1.5;
-  }
-  html.light-theme .gs-bg {
-    fill: rgba(255,255,255,.96);
-    stroke: rgba(15,23,42,.14);
-  }
-
-  .gs-groove {
-    fill: rgba(255,255,255,.045);
-    stroke: rgba(255,255,255,.08);
-    stroke-width: 1;
-  }
-  html.light-theme .gs-groove {
-    fill: rgba(15,23,42,.06);
-    stroke: rgba(15,23,42,.10);
-  }
-
-  .gs-title {
-    fill: #64748b; font-size: 10px; font-weight: 800;
-    letter-spacing: 1.6px;
-    font-family: var(--font-sans);
-  }
-  html.light-theme .gs-title { fill: #94a3b8; }
-
-  .gs-label {
-    fill: #94a3b8; font-size: 12px; font-weight: 800;
-    font-family: var(--font-mono);
-    transition: fill .2s;
-  }
-  .gs-label.active { fill: #38bdf8; }
-  html.light-theme .gs-label { fill: #475569; }
-  html.light-theme .gs-label.active { fill: #2563eb; }
-
-  .gs-gate { fill: rgba(148,163,184,.32); transition: fill .2s; }
-  .gs-gate.active { fill: #38bdf8; }
-  html.light-theme .gs-gate { fill: rgba(15,23,42,.22); }
-  html.light-theme .gs-gate.active { fill: #2563eb; }
-
-  .gs-knob-shadow { fill: rgba(0,0,0,.55); }
-  .gs-knob {
-    fill: #3b4656; stroke: #a8b4c4; stroke-width: 1.6;
-    transition: fill .15s, stroke .15s;
-  }
-  .gs-knob-hi { fill: rgba(255,255,255,.18); transition: fill .15s; }
-  #gear-shifter.grabbing .gs-knob { stroke: #38bdf8; fill: #4b5a72; }
-  #gear-shifter.grabbing .gs-knob-hi { fill: rgba(56,189,248,.28); }
-  html.light-theme .gs-knob { fill: #cbd5e1; stroke: #334155; }
-  html.light-theme .gs-knob-hi { fill: rgba(255,255,255,.7); }
-  html.light-theme .gs-knob-shadow { fill: rgba(15,23,42,.20); }
-
-  #gear-shifter-label {
-    margin-top: 2px;
-    color: var(--text-dim, #aab4c3);
-    font-size: 10px; font-weight: 700; letter-spacing: .55px;
-    text-transform: uppercase;
-    background: rgba(10,14,20,.78);
-    padding: 4px 10px; border-radius: 20px;
-    backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px);
-    border: 1px solid var(--border, rgba(255,255,255,.08));
-    pointer-events: none;
-    transition: color .15s, border-color .15s;
-    white-space: nowrap;
-  }
-  html.light-theme #gear-shifter-label {
-    background: rgba(255,255,255,.94);
-    border-color: rgba(15,23,42,.14);
-    color: #475569;
-  }
-  #gear-shifter-label.active {
-    color: #38bdf8; border-color: rgba(56,189,248,.38);
-  }
-
-  /* ═══════════════════════════════════════════════════════════
-     TOOLBAR EXTRAS — gearbox config switcher (prev / label / next)
-     ═══════════════════════════════════════════════════════════ */
-  .cfg-group {
-    display: flex; align-items: center; gap: 4px;
-    padding-left: 8px; margin-left: 4px;
-    border-left: 1px solid var(--border, rgba(255,255,255,.10));
-  }
-  .cfg-arrow {
-    width: 22px; height: 22px; border-radius: 50%;
-    border: none; background: rgba(255,255,255,.08);
-    color: var(--text, #e5e7eb); font-size: 14px; line-height: 1;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; font-family: inherit; padding: 0;
-    transition: background var(--dur-fast, .15s) var(--ease-out, ease),
-                color var(--dur-fast, .15s) var(--ease-out, ease);
-  }
-  .cfg-arrow:hover, .cfg-arrow:active { background: var(--accent, #22c55e); color: #0b0e14; }
-  #cfg-label {
-    min-width: 108px; text-align: center; white-space: nowrap;
-    font-size: 10.5px; font-weight: 700; letter-spacing: .02em;
-    color: var(--text, #e5e7eb);
-    font-family: var(--font-mono);
-  }
-  html.light-theme .cfg-arrow { background: rgba(15,23,42,.08); color: #0a0d13; }
-  html.light-theme .cfg-arrow:hover { background: var(--accent, #22c55e); color: #fff; }
-  html.light-theme #cfg-label { color: #0a0d13; }
-  @media (max-width: 600px) {
-    .cfg-arrow { width: 19px; height: 19px; font-size: 12px; }
-    #cfg-label { min-width: 84px; font-size: 10px; }
+  html.light-theme  html.light-theme  html.light-theme  @media (max-width: 600px) {
   }
 </style>
 </head>
@@ -934,7 +802,7 @@
   });
 
   /* ═══════════════════════════════════════════════════════════
-     UI — kit chrome + torque + shifter widgets
+     UI — kit chrome + torque widget + dock gate
      ═══════════════════════════════════════════════════════════ */
   const ui = UI.create({
     moduleId: 'gearbox',
@@ -999,55 +867,21 @@
             </div>
             <canvas class="tq-canvas" id="torque-canvas"></canvas>
           </div>
-        `,
-        onMount: (el) => {
-          /* Defer to the module-level wiring below */
-          if (typeof window.__wireTorqueWidget === 'function') {
-            window.__wireTorqueWidget(el);
-          }
-        }
-      },
-
-      br: {
-        caption: 'Gear stick',
-        html: `
-          <div id="gear-shifter-overlay">
-            <svg id="gear-shifter" viewBox="0 0 130 180" aria-label="Gear stick">
-              <rect class="gs-bg" x="2" y="2" width="126" height="176" rx="20"/>
-              <text class="gs-title" x="65" y="22" text-anchor="middle">GEAR STICK</text>
-              <rect class="gs-groove" x="20" y="80" width="90" height="20" rx="10"/>
-              <rect class="gs-groove" x="20" y="37" width="20" height="106" rx="10"/>
-              <rect class="gs-groove" x="55" y="37" width="20" height="106" rx="10"/>
-              <rect class="gs-groove" x="90" y="37" width="20" height="106" rx="10"/>
-              <circle class="gs-gate" data-gate="1" cx="30"  cy="48"  r="3"/>
-              <circle class="gs-gate" data-gate="N" cx="30"  cy="90"  r="3"/>
-              <circle class="gs-gate" data-gate="2" cx="30"  cy="132" r="3"/>
-              <circle class="gs-gate" data-gate="3" cx="65"  cy="48"  r="3"/>
-              <circle class="gs-gate" data-gate="N" cx="65"  cy="90"  r="3"/>
-              <circle class="gs-gate" data-gate="4" cx="65"  cy="132" r="3"/>
-              <circle class="gs-gate" data-gate="R" cx="100" cy="48"  r="3"/>
-              <circle class="gs-gate" data-gate="N" cx="100" cy="90"  r="3"/>
-              <text class="gs-label" data-label="1" x="30"  y="36" text-anchor="middle">1</text>
-              <text class="gs-label" data-label="2" x="30"  y="150" text-anchor="middle">2</text>
-              <text class="gs-label" data-label="3" x="65"  y="36" text-anchor="middle">3</text>
-              <text class="gs-label" data-label="4" x="65"  y="150" text-anchor="middle">4</text>
-              <text class="gs-label" data-label="R" x="100" y="36" text-anchor="middle">R</text>
-              <g id="gs-knob" transform="translate(65 90)">
-                <circle class="gs-knob-shadow" cx="0" cy="3" r="14"/>
-                <circle class="gs-knob" cx="0" cy="0" r="13"/>
-                <circle class="gs-knob-hi" cx="0" cy="-4" r="8"/>
-              </g>
-            </svg>
-            <div id="gear-shifter-label">Neutral · drag knob</div>
-          </div>
-        `,
-        onMount: (el) => {
-          if (typeof window.__wireShifterWidget === 'function') {
-            window.__wireShifterWidget(el);
-          }
-        }
+        `
       }
-    }
+    },
+
+    /* Phase 6: the H-pattern stick is a controls.js gate (primary zone) and the gearbox type a dock choice.
+       Gate order = gear number (0 N, 1-4, 5 R); stop positions draw the H. */
+    options: [
+      { id: 'gear', type: 'choice', layout: 'gate', label: 'Gear stick', ariaLabel: 'Gear stick', primary: true, side: 'right', neutral: 0,
+        options: [{ id: 'N', label: 'N', x: 60, y: 48 }, { id: '1', label: '1', x: 25, y: 16 }, { id: '2', label: '2', x: 25, y: 80 },
+                  { id: '3', label: '3', x: 60, y: 16 }, { id: '4', label: '4', x: 60, y: 80 }, { id: 'R', label: 'R', x: 95, y: 16, tone: 'crit' }],
+        rail: [[25, 16, 25, 80], [60, 16, 60, 80], [95, 16, 95, 48], [25, 48, 95, 48]],
+        onChange: (id, i) => { if (activeConfig !== 'manual') { ui.controls.set('gear', 0); return; } if (i !== gbCurrentGear) setGear(i); } },
+      { id: 'config', type: 'choice', layout: 'select', label: 'Gearbox', ariaLabel: 'Gearbox configuration',
+        options: [{ id: 'manual', label: 'Manual' }, { id: 'automatic', label: 'Automatic' }, { id: 'dct', label: 'Dual-Clutch' }, { id: 'cvt', label: 'CVT' }] }
+    ]
   });
 
   /* ═══════════════════════════════════════════════════════════
@@ -1070,25 +904,6 @@
              shaft to turn at that gear's ratio. Reverse uses an extra idler gear to flip the output
              direction. Drag the knob through the H-pattern to select a gear.`
   };
-
-  (function buildConfigSwitcher() {
-    const extras = document.getElementById('toolbar-extras');
-    if (!extras) return;
-    const cfgGroup = document.createElement('div');
-    cfgGroup.className = 'cfg-group';
-    cfgGroup.setAttribute('role', 'group');
-    cfgGroup.setAttribute('aria-label', 'Gearbox configuration');
-    cfgGroup.innerHTML = `
-      <button class="cfg-arrow" id="cfg-prev" type="button" aria-label="Previous gearbox">‹</button>
-      <span id="cfg-label">Manual</span>
-      <button class="cfg-arrow" id="cfg-next" type="button" aria-label="Next gearbox">›</button>
-    `;
-    extras.appendChild(cfgGroup);
-  })();
-
-  const cfgLabelEl = document.getElementById('cfg-label');
-  const cfgPrevEl  = document.getElementById('cfg-prev');
-  const cfgNextEl  = document.getElementById('cfg-next');
 
   /* Panel body refs (for readout labels that change per config) */
   const panelBody      = ui.panel.body;
@@ -1115,7 +930,7 @@
     });
 
     /* Update switcher label */
-    if (cfgLabelEl) cfgLabelEl.textContent = CONFIG_LABELS[id];
+    ui.controls.set('config', CONFIG_ORDER.indexOf(id));          /* keep the dock choice in step */
 
     /* Update panel chrome */
     const info = (id === 'manual') ? MANUAL_INFO : extraGearboxes[id];
@@ -1136,14 +951,7 @@
     labels.hideAll();
   }
 
-  function stepConfig(dir) {
-    const i = CONFIG_ORDER.indexOf(activeConfig);
-    const next = CONFIG_ORDER[(i + dir + CONFIG_ORDER.length) % CONFIG_ORDER.length];
-    applyConfig(next);
-  }
-
-  if (cfgPrevEl) cfgPrevEl.addEventListener('click', () => stepConfig(-1));
-  if (cfgNextEl) cfgNextEl.addEventListener('click', () => stepConfig(1));
+  ui.controls.on('config', (i) => { const id = CONFIG_ORDER[i]; if (id !== activeConfig) applyConfig(id); });
 
   /* ═══════════════════════════════════════════════════════════
      KINEMATICS (manual gearbox)
@@ -1460,209 +1268,6 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
-     H-PATTERN GEAR SHIFTER
-     ═══════════════════════════════════════════════════════════ */
-  const shifterEl       = document.getElementById('gear-shifter');
-  const knobEl          = document.getElementById('gs-knob');
-  const shifterLabelEl  = document.getElementById('gear-shifter-label');
-
-  const CH_XS = [30, 65, 100];
-  const Y_TOP = 48;
-  const Y_NEU = 90;
-  const Y_BOT = 132;
-  const NEUTRAL_BAND = 18;
-
-  const GATES = [
-    { x: CH_XS[0], y: Y_TOP, gear: 1, name: '1st' },
-    { x: CH_XS[0], y: Y_NEU, gear: 0, name: 'Neutral' },
-    { x: CH_XS[0], y: Y_BOT, gear: 2, name: '2nd' },
-    { x: CH_XS[1], y: Y_TOP, gear: 3, name: '3rd' },
-    { x: CH_XS[1], y: Y_NEU, gear: 0, name: 'Neutral' },
-    { x: CH_XS[1], y: Y_BOT, gear: 4, name: '4th' },
-    { x: CH_XS[2], y: Y_TOP, gear: 5, name: 'Reverse' },
-    { x: CH_XS[2], y: Y_NEU, gear: 0, name: 'Neutral' }
-  ];
-
-  let shifterPos = { x: CH_XS[1], y: Y_NEU };
-  let shifterDragging = false;
-  let shifterPointerId = null;
-  let shifterGrabOffset = { x: 0, y: 0 };
-  let shifterReturnRAF = 0;
-
-  function shifterApplyTransform(animate = true) {
-    if (!knobEl) return;
-    if (!animate) {
-      const prev = knobEl.style.transition;
-      knobEl.style.transition = 'none';
-      knobEl.setAttribute('transform', `translate(${shifterPos.x.toFixed(2)} ${shifterPos.y.toFixed(2)})`);
-      requestAnimationFrame(() => { knobEl.style.transition = prev || ''; });
-    } else {
-      knobEl.setAttribute('transform', `translate(${shifterPos.x.toFixed(2)} ${shifterPos.y.toFixed(2)})`);
-    }
-  }
-
-  function clientToSvg(clientX, clientY) {
-    const rect = shifterEl.getBoundingClientRect();
-    const sx = 130 / rect.width;
-    const sy = 180 / rect.height;
-    return {
-      x: (clientX - rect.left) * sx,
-      y: (clientY - rect.top) * sy
-    };
-  }
-
-  function constrainToGrooves(x, y) {
-    let nearestChX = CH_XS[0];
-    let bestDist = Math.abs(x - CH_XS[0]);
-    for (const cx of CH_XS) {
-      const d = Math.abs(x - cx);
-      if (d < bestDist) { bestDist = d; nearestChX = cx; }
-    }
-    if (Math.abs(y - Y_NEU) <= NEUTRAL_BAND) {
-      const clampedX = Math.max(CH_XS[0], Math.min(CH_XS[CH_XS.length - 1], x));
-      return { x: clampedX, y: Y_NEU };
-    }
-    const maxY = (nearestChX === CH_XS[2]) ? Y_NEU : Y_BOT;   /* R column has no lower gate */
-    const clampedY = Math.max(Y_TOP, Math.min(maxY, y));
-    return { x: nearestChX, y: clampedY };
-  }
-
-  function snapToNearestGate() {
-    let bestGate = GATES[0];
-    let bestDist = Math.hypot(shifterPos.x - GATES[0].x, shifterPos.y - GATES[0].y);
-    for (let i = 1; i < GATES.length; i++) {
-      const g = GATES[i];
-      const d = Math.hypot(shifterPos.x - g.x, shifterPos.y - g.y);
-      if (d < bestDist) { bestDist = d; bestGate = g; }
-    }
-    shifterPos.x = bestGate.x;
-    shifterPos.y = bestGate.y;
-    shifterApplyTransform(true);
-
-    if (bestGate.gear !== gbCurrentGear) setGear(bestGate.gear);
-
-    if (shifterLabelEl) {
-      shifterLabelEl.textContent = bestGate.name + ' · drag knob';
-      shifterLabelEl.classList.toggle('active', bestGate.gear !== 0);
-    }
-  }
-
-  function updateGateHighlights() {
-    document.querySelectorAll('.gs-gate').forEach(el => {
-      const g = parseInt(el.dataset.gate, 10);
-      const isN = el.dataset.gate === 'N';
-      const match = (isN && gbCurrentGear === 0) ||
-                    (!isN && g === gbCurrentGear) ||
-                    (el.dataset.gate === 'R' && gbCurrentGear === 5);
-      el.classList.toggle('active', match);
-    });
-    document.querySelectorAll('.gs-label').forEach(el => {
-      const lbl = el.dataset.label;
-      const match =
-        (lbl === '1' && gbCurrentGear === 1) ||
-        (lbl === '2' && gbCurrentGear === 2) ||
-        (lbl === '3' && gbCurrentGear === 3) ||
-        (lbl === '4' && gbCurrentGear === 4) ||
-        (lbl === 'R' && gbCurrentGear === 5);
-      el.classList.toggle('active', match);
-    });
-  }
-
-  function shifterSyncFromGear(n) {
-    let gate;
-    switch (n) {
-      case 1: gate = { x: CH_XS[0], y: Y_TOP }; break;
-      case 2: gate = { x: CH_XS[0], y: Y_BOT }; break;
-      case 3: gate = { x: CH_XS[1], y: Y_TOP }; break;
-      case 4: gate = { x: CH_XS[1], y: Y_BOT }; break;
-      case 5: gate = { x: CH_XS[2], y: Y_TOP }; break;
-      default: gate = { x: CH_XS[1], y: Y_NEU }; break;
-    }
-    shifterPos.x = gate.x;
-    shifterPos.y = gate.y;
-    if (!shifterDragging) shifterApplyTransform(true);
-    updateGateHighlights();
-
-    if (shifterLabelEl) {
-      const name = GEAR_NAMES[n] || 'Neutral';
-      shifterLabelEl.textContent = name + ' · drag knob';
-      shifterLabelEl.classList.toggle('active', n !== 0);
-    }
-  }
-
-  /* Widget wiring callbacks (deferred from UI.create onMount) */
-  window.__wireTorqueWidget = function(el) {
-    /* Torque panel is already wired — nothing more needed here */
-  };
-  window.__wireShifterWidget = function(el) {
-    if (!shifterEl) return;
-
-    shifterEl.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      cancelAnimationFrame(shifterReturnRAF);
-      shifterDragging = true;
-      shifterPointerId = e.pointerId;
-      try { shifterEl.setPointerCapture(e.pointerId); } catch (_) {}
-      shifterEl.classList.add('grabbing');
-      if (shifterLabelEl) shifterLabelEl.classList.add('active');
-
-      const p = clientToSvg(e.clientX, e.clientY);
-      const dx = p.x - shifterPos.x;
-      const dy = p.y - shifterPos.y;
-      if (Math.hypot(dx, dy) < 26) {
-        shifterGrabOffset.x = dx;
-        shifterGrabOffset.y = dy;
-      } else {
-        shifterGrabOffset.x = 0;
-        shifterGrabOffset.y = 0;
-      }
-    });
-
-    shifterEl.addEventListener('pointermove', (e) => {
-      if (!shifterDragging || e.pointerId !== shifterPointerId) return;
-      e.preventDefault();
-      const p = clientToSvg(e.clientX, e.clientY);
-      const targetX = p.x - shifterGrabOffset.x;
-      const targetY = p.y - shifterGrabOffset.y;
-      const c = constrainToGrooves(targetX, targetY);
-      shifterPos.x = c.x;
-      shifterPos.y = c.y;
-      shifterApplyTransform(false);
-    });
-
-    function endShifterDrag() {
-      if (!shifterDragging) return;
-      shifterDragging = false;
-      shifterPointerId = null;
-      shifterEl.classList.remove('grabbing');
-      if (shifterLabelEl) shifterLabelEl.classList.remove('active');
-      snapToNearestGate();
-    }
-    shifterEl.addEventListener('pointerup', endShifterDrag);
-    shifterEl.addEventListener('pointercancel', endShifterDrag);
-    shifterEl.addEventListener('lostpointercapture', endShifterDrag);
-
-    shifterEl.tabIndex = 0;
-    shifterEl.addEventListener('keydown', (e) => {
-      let handled = true;
-      switch (gbCurrentGear) {
-        case 0:
-          if (e.key === 'ArrowUp')   { setGear(1); }
-          else if (e.key === 'ArrowDown') { setGear(2); }
-          else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { handled = false; }
-          else handled = false;
-          break;
-        default:
-          if (e.key === 'Escape' || e.key === 'Home' || e.key === 'n' || e.key === 'N') { setGear(0); }
-          else if (e.key === 'ArrowUp' && (gbCurrentGear === 2 || gbCurrentGear === 4)) { setGear(0); }
-          else if (e.key === 'ArrowDown' && (gbCurrentGear === 1 || gbCurrentGear === 3 || gbCurrentGear === 5)) { setGear(0); }
-          else handled = false;
-      }
-      if (handled) e.preventDefault();
-    });
-  };
-
-  /* ═══════════════════════════════════════════════════════════
      GEAR SELECTION
      ═══════════════════════════════════════════════════════════ */
   function setGear(n) {
@@ -1681,7 +1286,7 @@
     }
 
     syncReadout();
-    shifterSyncFromGear(n);
+    ui.controls.set('gear', n);                          /* the dock gate follows the gear */
     if (bridge) bridge.setStatus(GEAR_NAMES[n], n === 0 ? '#22c55e' : '#38bdf8');
   }
 
@@ -1749,11 +1354,7 @@
   }
 
   syncReadout();
-  shifterApplyTransform(false);
-  updateGateHighlights();
   setGear(0);
-  /* onMount fires inside UI.create(), before __wireShifterWidget exists — wire it now. */
-  if (!shifterEl.__wired) { shifterEl.__wired = true; window.__wireShifterWidget(shifterEl); }
   animate();
   </script>
 </body>

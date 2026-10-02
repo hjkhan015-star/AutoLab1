@@ -70,83 +70,10 @@
   /* ═══════════════════════════════════════════════════════════
      WIDGET INTERIOR — direction toggle (battery mode)
      ═══════════════════════════════════════════════════════════ */
-  #direction-toggle {
-    display: flex; flex-direction: column; gap: 4px;
-  }
-  #direction-toggle .dt-btn {
-    width: 92px; height: 44px; border-radius: 11px;
-    background: rgba(10,14,20,.82);
-    border: 1px solid var(--border, rgba(255,255,255,.10));
-    color: var(--text-dim, #94a3b8);
-    font-size: 11px; font-weight: 800; letter-spacing: .06em;
-    text-transform: uppercase; cursor: pointer;
-    transition: all var(--dur-fast, .18s) var(--ease-out, ease);
-    font-family: var(--font-mono);
-    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-    box-shadow: 0 6px 16px rgba(0,0,0,.5);
-    display: flex; align-items: center; justify-content: center; gap: 5px;
-  }
-  #direction-toggle .dt-btn:hover {
-    color: var(--text, #e5e7eb);
-    border-color: rgba(255,255,255,.25);
-  }
-  #direction-toggle .dt-btn.active.discharge {
-    background: linear-gradient(135deg,#dc2626,#ef4444); color: #fff;
-    border-color: transparent;
-    box-shadow: 0 0 14px rgba(239,68,68,.5), 0 6px 16px rgba(0,0,0,.5);
-  }
-  #direction-toggle .dt-btn.active.charge {
-    background: linear-gradient(135deg,#22c55e,#4ade80); color: #0a1a0e;
-    border-color: transparent;
-    box-shadow: 0 0 14px rgba(34,197,94,.5), 0 6px 16px rgba(0,0,0,.5);
-  }
-  html.light-theme #direction-toggle .dt-btn {
-    background: rgba(255,255,255,.94);
-    border-color: rgba(15,23,42,.14);
-    color: #475569;
-  }
 
   /* ═══════════════════════════════════════════════════════════
      WIDGET INTERIOR — ignition key selector (charging mode)
      ═══════════════════════════════════════════════════════════ */
-  #key-selector {
-    display: flex; flex-direction: column; gap: 4px;
-  }
-  #key-selector .ks-caption {
-    font-size: 10px; font-weight: 800; letter-spacing: .16em;
-    text-transform: uppercase; color: #64748b;
-    text-align: center; padding: 4px 0 2px;
-  }
-  #key-selector .ks-item {
-    width: 64px; height: 42px; border-radius: 11px;
-    background: rgba(10,14,20,.82);
-    border: 1px solid var(--border, rgba(255,255,255,.10));
-    color: var(--text-dim, #94a3b8);
-    font-size: 10.5px; font-weight: 800; letter-spacing: .06em;
-    text-transform: uppercase; cursor: pointer;
-    transition: all var(--dur-fast, .18s) var(--ease-out, ease);
-    font-family: var(--font-mono);
-    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-    box-shadow: 0 6px 16px rgba(0,0,0,.5);
-  }
-  #key-selector .ks-item:hover {
-    color: var(--text, #e5e7eb);
-    border-color: rgba(255,255,255,.25);
-  }
-  #key-selector .ks-item.active {
-    background: linear-gradient(135deg,#22c55e,#4ade80);
-    color: #06121a; border-color: transparent;
-    box-shadow: 0 0 14px rgba(34,197,94,.55), 0 6px 16px rgba(0,0,0,.5);
-  }
-  #key-selector .ks-item.active.start {
-    background: linear-gradient(135deg,#f59e0b,#fbbf24);
-    box-shadow: 0 0 14px rgba(245,158,11,.55), 0 6px 16px rgba(0,0,0,.5);
-  }
-  html.light-theme #key-selector .ks-item {
-    background: rgba(255,255,255,.94);
-    border-color: rgba(15,23,42,.14);
-    color: #475569;
-  }
 
   /* ═══════════════════════════════════════════════════════════
      WIDGET INTERIOR — 3-phase waveform canvas (alternator mode)
@@ -1081,16 +1008,6 @@ import { Parts } from './components.js';
       bl: {
         caption: '',
         html: `
-          <div id="direction-toggle" style="display:none">
-            <button class="dt-btn discharge active" data-dir="discharge">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-              Discharge
-            </button>
-            <button class="dt-btn charge" data-dir="charge">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
-              Charge
-            </button>
-          </div>
           <div id="waveform-panel" style="display:none">
             <div class="wf-label">3-phase AC → rectified DC</div>
             <canvas id="waveform-canvas" width="480" height="160"></canvas>
@@ -1101,47 +1018,22 @@ import { Parts } from './components.js';
               <span><i style="background:#f59e0b"></i>DC out</span>
             </div>
           </div>
-        `,
-        onMount: (el) => {
-          el.querySelectorAll('#direction-toggle .dt-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-              direction = btn.dataset.dir;
-              el.querySelectorAll('#direction-toggle .dt-btn').forEach(b =>
-                b.classList.toggle('active', b === btn));
-              if (elChemArrow) elChemArrow.textContent = direction === 'discharge' ? '→' : '←';
-            });
-          });
-        }
-      },
-      br: {
-        caption: '',
-        html: `
-          <div id="key-selector" style="display:none">
-            <div class="ks-caption">Ignition</div>
-            <button class="ks-item" data-key="off">Off</button>
-            <button class="ks-item" data-key="acc">ACC</button>
-            <button class="ks-item active" data-key="on">On</button>
-            <button class="ks-item start" data-key="start">Start</button>
-          </div>
-        `,
-        onMount: (el) => {
-          el.querySelectorAll('#key-selector .ks-item').forEach(btn => {
-            btn.addEventListener('click', () => {
-              keyState = btn.dataset.key;
-              el.querySelectorAll('#key-selector .ks-item').forEach(b =>
-                b.classList.toggle('active', b === btn));
-              if (keyState === 'start') {
-                setTimeout(() => {
-                  keyState = 'on';
-                  el.querySelectorAll('#key-selector .ks-item').forEach(b =>
-                    b.classList.toggle('active', b.dataset.key === 'on'));
-                }, 1600);
-              }
-            });
-          });
-        }
+        `
       }
-    }
+    },
+
+    /* Phase 6: charge / discharge and the ignition switch are controls.js choices (shown per mode) */
+    options: [
+      { id: 'direction', type: 'choice', layout: 'segmented', label: 'Battery', ariaLabel: 'Battery direction',
+        options: [{ id: 'discharge', label: 'Discharge' }, { id: 'charge', label: 'Charge' }],
+        onChange: (id) => { direction = id; if (elChemArrow) elChemArrow.textContent = direction === 'discharge' ? '\u2192' : '\u2190'; } },
+      { id: 'key', type: 'choice', layout: 'segmented', label: 'Ignition', ariaLabel: 'Ignition switch',
+        options: [{ id: 'off', label: 'Off' }, { id: 'acc', label: 'ACC' }, { id: 'on', label: 'On' }, { id: 'start', label: 'Start', tone: 'crit' }], def: 'on',
+        onChange: (id) => {
+          keyState = id;
+          if (id === 'start') setTimeout(() => { if (keyState === 'start') { keyState = 'on'; ui.controls.set('key', 2); } }, 1600);
+        } }
+    ]
   });
 
   /* ── panel readout refs ── */
@@ -1197,12 +1089,10 @@ import { Parts } from './components.js';
       if (elR3Label) elR3Label.textContent = 'Battery';
     }
 
-    const dirWrap  = document.getElementById('direction-toggle');
     const waveWrap = document.getElementById('waveform-panel');
-    const keyWrap  = document.getElementById('key-selector');
-    if (dirWrap)  dirWrap.style.display  = m === 'battery'    ? 'flex' : 'none';
+    ui.controls.setHidden('direction', m !== 'battery');
+    ui.controls.setHidden('key', m !== 'charging');
     if (waveWrap) waveWrap.style.display = m === 'alternator' ? 'flex' : 'none';
-    if (keyWrap)  keyWrap.style.display  = m === 'charging'   ? 'flex' : 'none';
 
     labels.hideAll();
   }
@@ -1505,10 +1395,7 @@ import { Parts } from './components.js';
     electronicsTime = 0;
     direction = 'discharge';
     keyState = 'on';
-    document.querySelectorAll('#direction-toggle .dt-btn').forEach(b =>
-      b.classList.toggle('active', b.dataset.dir === 'discharge'));
-    document.querySelectorAll('#key-selector .ks-item').forEach(b =>
-      b.classList.toggle('active', b.dataset.key === 'on'));
+    ui.controls.resetAll();                  /* direction -> discharge, key -> On */
     if (elChemArrow) elChemArrow.textContent = '→';
   }
 

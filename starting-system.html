@@ -96,30 +96,6 @@
   #key-blade.turn-2 { transform: rotate(45deg); }
   #key-blade.turn-3 { transform: rotate(135deg); }
 
-  #key-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 4px; }
-  .key-btn {
-    padding: 8px 2px; border-radius: 8px;
-    border: 1px solid var(--border, rgba(255,255,255,.10));
-    background: rgba(255,255,255,.04); color: var(--text-dim, #94a3b8);
-    font-size: 10px; font-weight: 800; letter-spacing: .05em;
-    text-transform: uppercase; cursor: pointer;
-    transition: all .18s; font-family: inherit; line-height: 1;
-  }
-  .key-btn:hover { color: var(--text, #e5e7eb); border-color: rgba(255,255,255,.25); }
-  .key-btn.active[data-key="0"]{ background:#475569; color:#fff; border-color:transparent; }
-  .key-btn.active[data-key="1"]{ background:#f59e0b; color:#0a0d13; border-color:transparent; box-shadow:0 3px 12px rgba(245,158,11,.35); }
-  .key-btn.active[data-key="2"]{ background:#22c55e; color:#0a1a0e; border-color:transparent; box-shadow:0 3px 12px rgba(34,197,94,.35); }
-  .key-btn.active[data-key="3"]{
-    background: linear-gradient(135deg,#ef4444,#f87171);
-    color: #fff; border-color: transparent;
-    box-shadow: 0 0 16px rgba(239,68,68,.7);
-    animation: crank-pulse .5s ease-in-out infinite alternate;
-  }
-  @keyframes crank-pulse {
-    from { box-shadow: 0 0 12px rgba(239,68,68,.55); }
-    to   { box-shadow: 0 0 22px rgba(239,68,68,.9); }
-  }
-  html.light-theme .key-btn { background: rgba(15,23,42,.05); border-color: rgba(15,23,42,.12); color: #475569; }
 
   #key-meters { display: flex; gap: 6px; }
   #key-meters .meter {
@@ -151,39 +127,13 @@
   }
 
   /* ═══════ Toolbar extras config switcher ═══════ */
-  .cfg-group {
-    display: flex; align-items: center; gap: 4px;
-    padding-left: 8px; margin-left: 4px;
-    border-left: 1px solid var(--border, rgba(255,255,255,.10));
-  }
-  .cfg-arrow {
-    width: 22px; height: 22px; border-radius: 50%;
-    border: none; background: rgba(255,255,255,.08);
-    color: var(--text, #e5e7eb); font-size: 14px; line-height: 1;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; font-family: inherit; padding: 0;
-    transition: background .15s, color .15s;
-  }
-  .cfg-arrow:hover, .cfg-arrow:active {
-    background: var(--accent, #38bdf8); color: #0b0e14;
-  }
-  #cfg-label {
-    min-width: 80px; text-align: center; white-space: nowrap;
-    font-size: 10.5px; font-weight: 700; letter-spacing: .02em;
-    color: var(--text, #e5e7eb);
-    font-family: var(--font-mono);
-  }
-  html.light-theme .cfg-arrow { background: rgba(15,23,42,.08); color: #0a0d13; }
-  html.light-theme #cfg-label { color: #0a0d13; }
-  @media (max-width: 640px) {
+  html.light-theme  html.light-theme  @media (max-width: 640px) {
     #key-panel { min-width: 200px; padding: 8px 10px; gap: 6px; }
     #key-panel #key-visual { height: 52px; }
     #key-blade { width: 32px; height: 32px; }
     #key-blade::after { height: 13px; transform: translateY(-7px); }
     #key-meters .meter .val { font-size: 12px; }
     #rpm-strip { height: 40px; }
-    .cfg-arrow { width: 19px; height: 19px; font-size: 12px; }
-    #cfg-label { min-width: 66px; font-size: 10px; }
   }
 </style>
 </head>
@@ -204,6 +154,7 @@
   import * as Base from './kit.js';
 import { Parts } from './components.js';
   import { UI } from './kit.js';
+  import { controls as ctl } from './controls.js';        /* the shared control registry (usable before `ui` is assigned) */
 
   const TAU = Base.TAU;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -994,7 +945,7 @@ import { Parts } from './components.js';
      (which runs synchronously) can safely assign them.
      ═══════════════════════════════════════════════════════════ */
   let keyBladeUI = null, kpLedEl = null;
-  let keyButtons = [], dialDots = [];
+  let dialDots = [];
   let mVoltsEl = null, mAmpsEl = null;
   let rpmStripEl = null, rpmStripCtx = null, stripNoteEl = null;
 
@@ -1061,12 +1012,6 @@ import { Parts } from './components.js';
               </div>
               <div id="key-blade" class="turn-0"></div>
             </div>
-            <div id="key-buttons" role="radiogroup" aria-label="Ignition switch">
-              <button class="key-btn active" data-key="0" aria-pressed="true">Off</button>
-              <button class="key-btn" data-key="1" aria-pressed="false">Acc</button>
-              <button class="key-btn" data-key="2" aria-pressed="false">On</button>
-              <button class="key-btn" data-key="3" aria-pressed="false">Start</button>
-            </div>
             <div id="key-meters">
               <div class="meter">
                 <span class="lbl">Battery</span>
@@ -1085,7 +1030,16 @@ import { Parts } from './components.js';
         `,
         onMount: (el) => wireKeyWidget(el)
       }
-    }
+    },
+
+    /* Phase 6: the ignition switch and the view are controls.js choices in the dock options row */
+    options: [
+      { id: 'key', type: 'choice', layout: 'segmented', label: 'Ignition', ariaLabel: 'Ignition switch',
+        options: [{ id: 'off', label: 'Off' }, { id: 'acc', label: 'Acc' }, { id: 'on', label: 'On' }, { id: 'start', label: 'Start', tone: 'crit' }],
+        onChange: (id, i) => { setKey(i); try { ensureAudio(); } catch (_) {} } },
+      { id: 'config', type: 'choice', layout: 'select', label: 'View', ariaLabel: 'Starting system view',
+        options: [{ id: 'circuit', label: 'Circuit' }, { id: 'starter', label: 'Starter' }, { id: 'mesh', label: 'Mesh' }, { id: 'crank', label: 'Crank' }] }
+    ]
   });
 
   /* Panel readout refs */
@@ -1106,7 +1060,6 @@ import { Parts } from './components.js';
   function wireKeyWidget(root) {
     keyBladeUI = root.querySelector('#key-blade');
     kpLedEl    = root.querySelector('#kp-led');
-    keyButtons = Array.from(root.querySelectorAll('.key-btn'));
     dialDots   = Array.from(root.querySelectorAll('.dial-dot'));
     mVoltsEl   = root.querySelector('#m-volts');
     mAmpsEl    = root.querySelector('#m-amps');
@@ -1114,39 +1067,10 @@ import { Parts } from './components.js';
     stripNoteEl= root.querySelector('#strip-note');
     rpmStripCtx = rpmStripEl ? rpmStripEl.getContext('2d') : null;
 
-    keyButtons.forEach(b => {
-      b.addEventListener('click', () => {
-        setKey(+b.dataset.key);
-        try { ensureAudio(); } catch(_) {}
-      });
-    });
-
     if (rpmStripEl && window.ResizeObserver) new ResizeObserver(sizeStrip).observe(rpmStripEl);
     sizeStrip();
     updateKeyUI();
   }
-
-  /* ═══════════════════════════════════════════════════════════
-     Config switcher — toolbar extras
-     ═══════════════════════════════════════════════════════════ */
-  (function buildConfigSwitcher() {
-    const extras = document.getElementById('toolbar-extras');
-    if (!extras) return;
-    const cfgGroup = document.createElement('div');
-    cfgGroup.className = 'cfg-group';
-    cfgGroup.setAttribute('role', 'group');
-    cfgGroup.setAttribute('aria-label', 'Starting system view');
-    cfgGroup.innerHTML = `
-      <button class="cfg-arrow" id="cfg-prev" type="button" aria-label="Previous view">‹</button>
-      <span id="cfg-label">Circuit</span>
-      <button class="cfg-arrow" id="cfg-next" type="button" aria-label="Next view">›</button>
-    `;
-    extras.appendChild(cfgGroup);
-  })();
-
-  const cfgLabelEl = document.getElementById('cfg-label');
-  const cfgPrevEl  = document.getElementById('cfg-prev');
-  const cfgNextEl  = document.getElementById('cfg-next');
 
   const CONFIG_ORDER = ['circuit', 'starter', 'mesh', 'crank'];
   const CONFIG_LABELS = {
@@ -1211,7 +1135,7 @@ import { Parts } from './components.js';
     meshView.visible    = (m === 'mesh');
     crankView.visible   = (m === 'crank');
 
-    if (cfgLabelEl) cfgLabelEl.textContent = CONFIG_LABELS[m];
+    ui.controls.set('config', CONFIG_ORDER.indexOf(m));          /* keep the dock choice in step */
 
     const info = MODE_INFO[m];
     if (badgeTextEl) badgeTextEl.textContent = info.badge;
@@ -1234,22 +1158,13 @@ import { Parts } from './components.js';
     else                      animateCamera([4.5, 2.5, 6.5], [0.2, 0.3, 0]);
   }
 
-  function stepConfig(dir) {
-    const i = CONFIG_ORDER.indexOf(mode);
-    applyMode(CONFIG_ORDER[(i + dir + CONFIG_ORDER.length) % CONFIG_ORDER.length]);
-  }
-  if (cfgPrevEl) cfgPrevEl.addEventListener('click', () => stepConfig(-1));
-  if (cfgNextEl) cfgNextEl.addEventListener('click', () => stepConfig(1));
+  ui.controls.on('config', (i) => { const m = CONFIG_ORDER[i]; if (m !== mode) applyMode(m); });
 
   /* ═══════════════════════════════════════════════════════════
      KEY UI
      ═══════════════════════════════════════════════════════════ */
   function updateKeyUI() {
-    keyButtons.forEach(b => {
-      const active = +b.dataset.key === sys.key;
-      b.classList.toggle('active', active);
-      b.setAttribute('aria-pressed', active ? 'true' : 'false');
-    });
+    ctl.set('key', sys.key);                           /* the dock choice follows the simulation (auto-return Start -> On) */
     dialDots.forEach(d => d.classList.toggle('active', +d.dataset.i === sys.key));
     if (keyBladeUI) {
       keyBladeUI.classList.remove('turn-0','turn-1','turn-2','turn-3');

@@ -16,7 +16,7 @@ import { createLabelSystem as _createLabelSystem, KINDS as LABEL_KINDS, DENSITY_
 import { createKeyRouter, installKeys } from './keys.js';
 import { nextDensity, isPhone, createHeader, createMenu, clampSpeed } from './chrome.js';
 import { createDock, modelShiftPx } from './dock.js';
-import { controls, createAxis, createMomentary, createDial } from './controls.js';
+import { controls, createAxis, createMomentary, createDial, createChoice, createToggle, createAction } from './controls.js';
 export { controls };
 
 /* controls.css holds the header, ⋯ menu, dock and phone-sheet styles. Module pages link it; this is the
@@ -598,6 +598,7 @@ class UIKit {
     if (cfg.chip)    this._buildChip(cfg.chip);
     if (cfg.toolbar) this._buildToolbar(cfg.toolbar);
     if (cfg.axes)    this._buildAxes(cfg.axes);      /* Phase 3: axis controls first, so legend widgets come last */
+    if (cfg.options) this._buildOptions(cfg.options);   /* Phase 6: choice / toggle / action (options row, or primary when primary:true) */
     if (cfg.widgets) this._buildWidgets(cfg.widgets);
 
     this._wirePanelToggle();
@@ -923,6 +924,30 @@ class UIKit {
       this._dock.addPrimary({ id: 'ax-' + spec.id, side: spec.side || (i % 2 ? 'right' : 'left'), node: wrap });
     });
   }
+  /* Phase 6 — `options: [spec]`: choice / toggle / action. They go to the dock options row; `primary:true`
+     puts one in the primary zone instead. spec = controls.js spec + { primary, side }. Read them with
+     ui.controls.get / .value (option id | boolean) / .on. */
+  _buildOptions(list) {
+    list.forEach((spec, i) => {
+      const make = spec.type === 'toggle' ? createToggle : spec.type === 'action' ? createAction : createChoice;
+      const c = make(spec);
+      this._axes[spec.id] = c;
+      if (spec.primary) {
+        const wrap = document.createElement('div');
+        wrap.className = 'ui-widget ui-widget-axis';
+        wrap.id = 'ui-widget-ax-' + spec.id;
+        const frame = document.createElement('div');
+        frame.className = 'ui-widget-frame';
+        frame.appendChild(c.el);
+        wrap.appendChild(frame);
+        this._dock.addPrimary({ id: 'ax-' + spec.id, side: spec.side || (i % 2 ? 'right' : 'left'), node: wrap });
+      } else {
+        this._dock.addOption(c.el);
+      }
+    });
+  }
+  /* options whose definitions only exist after UI.create (a config list built later): same specs as `options` */
+  addOptions(list) { this._buildOptions(list); return this; }
   get controls() { return controls; }
   axis(id) { return this._axes[id] || null; }
 

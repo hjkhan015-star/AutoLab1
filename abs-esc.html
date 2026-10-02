@@ -10,7 +10,6 @@
 <style>
 :root { --al-accent: #f43f5e; }
 html.light-theme { --al-accent: #be123c; }
-.al-w{display:flex;flex-direction:column;gap:6px;min-width:160px;}
 .ui-tb-btn.active{outline:2px solid var(--al-accent);color:var(--al-accent);}
 </style>
 </head>
@@ -315,10 +314,7 @@ const ui = Base.UI.create({
   toolbar: {
     play: true,
     reset: true,
-    labels: true,
-    extras: [
-      { id: 'btn-wss', label: 'WSS FAULT', title: 'Toggle front-left wheel-speed sensor fault', onClick: toggleWss }
-    ]
+    labels: true
   },
   axes: [
     { id: 'speed', preset: 'vehicle-speed', max: 140, def: 60, label: 'Vehicle speed', side: 'left',   onChange: () => updateReadouts() },
@@ -326,20 +322,14 @@ const ui = Base.UI.create({
        resting default of 40 % is gone: press the pedal to brake. k = -ln(0.88)·60. */
     { id: 'brake', look: 'pedal', preset: 'percent', label: 'Brake', ariaLabel: 'Brake pedal', spring: 'return', k: 7.67, keys: 'arrows', side: 'right', color: 'var(--crit)', onChange: () => updateReadouts() }
   ],
-  widgets: {
-    br: {
-      html: `<div class="al-w">
-        <label for="surf-sel">Surface</label>
-        <select id="surf-sel" class="al-sel" aria-label="Road surface">
-          <option value="dry">Dry asphalt · µ ≈ 0.90</option>
-          <option value="wet">Wet road · µ ≈ 0.55</option>
-          <option value="ice">Ice / snow · µ ≈ 0.18</option>
-        </select>
-      </div>`,
-      caption: 'Friction',
-      onMount: mountSurfaceWidget
-    }
-  }
+  /* Phase 6: road surface (choice) and the wheel-speed-sensor fault (toggle) are controls.js controls in the dock options row */
+  options: [
+    { id: 'surface', type: 'choice', layout: 'segmented', label: 'Surface', ariaLabel: 'Road surface',
+      options: [{ id: 'dry', label: 'Dry 0.90' }, { id: 'wet', label: 'Wet 0.55' }, { id: 'ice', label: 'Ice 0.18' }],
+      onChange: (id) => { state.surface = id; updateReadouts(); } },
+    { id: 'wss', type: 'toggle', label: 'WSS fault', ariaLabel: 'Front-left wheel-speed sensor fault',
+      onChange: (on) => { if (on !== state.wssFault) toggleWss(); } }
+  ]
 });
 
 ui.toolbar.setRpmLabel('km/h');
@@ -356,20 +346,9 @@ function renderTab(id) {
 }
 renderTab('overview');
 
-function mountSurfaceWidget(el) {
-  const sel = el.querySelector('#surf-sel');
-  if (!sel) return;
-  sel.value = state.surface;
-  sel.addEventListener('change', () => {
-    state.surface = sel.value;
-    updateReadouts();
-  });
-}
-
 function toggleWss() {
   state.wssFault = !state.wssFault;
-  const b = document.getElementById('btn-wss');
-  if (b) b.classList.toggle('active', state.wssFault);
+  ui.controls.set('wss', state.wssFault ? 1 : 0);          /* keep the dock toggle in step */
 
   const fl = WHEELS.find(w => w.id === 'fl');
   if (fl) fl.sensorMat.color.setHex(state.wssFault ? 0xef4444 : 0x94a3b8);
@@ -486,11 +465,6 @@ const bridge = ui.wireBridge({
       ui.controls.resetAll();
       state.surface  = 'dry';
       state.wssFault = false;
-
-      const ss = document.getElementById('surf-sel');
-      if (ss) ss.value = 'dry';
-      const b = document.getElementById('btn-wss');
-      if (b) b.classList.remove('active');
 
       const fl = WHEELS.find(w => w.id === 'fl');
       if (fl) fl.sensorMat.color.setHex(0x94a3b8);

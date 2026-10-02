@@ -25,28 +25,8 @@ html.light-theme { --al-accent: color-mix(in oklch, #f97316 68%, black); }
   color:var(--text-dim,#9aa4b2);
   max-height:calc(100dvh - 24px); overflow:auto;
 }
-#cr-panel.folded .cr-body{ display:none; }
 .cr-h{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
 .cr-h span{ font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--text-mute,#6b7280); font-weight:700; }
-.cr-h button{ width:24px; height:24px; flex:0 0 24px; border:1px solid var(--border,#333); border-radius:6px;
-  background:transparent; color:var(--text-dim,#9aa4b2); cursor:pointer; font:inherit; line-height:1; }
-.cr-h button:hover{ border-color:var(--al-accent); color:var(--text,#e5e7eb); }
-.cr-w{ display:flex; flex-direction:column; gap:4px; margin-bottom:8px; }
-.cr-w label{ display:flex; justify-content:space-between; gap:8px; font-size:10px; letter-spacing:.06em;
-  text-transform:uppercase; color:var(--text-mute,#6b7280); }
-.cr-w b{ color:var(--text,#e5e7eb); font-weight:700; }
-#cr-panel .al-sel{ min-height:32px; font-size:11px; }
-.cr-btns{ display:flex; gap:6px; margin-bottom:8px; }
-.cr-btns button{ flex:1 1 0; min-height:30px; padding:0 4px; border:1px solid var(--border,#333); border-radius:6px;
-  background:transparent; color:var(--text-dim,#9aa4b2); font:inherit; font-size:11px; cursor:pointer; }
-.cr-btns button:hover{ border-color:var(--al-accent); color:var(--text,#e5e7eb); }
-.cr-btns button.on{ border-color:var(--al-accent); color:var(--text,#e5e7eb); background:rgba(249,115,22,.14); }
-#cr-cold{ color:#22d3ee; border-color:rgba(34,211,238,.4); }
-#cr-cold:hover{ border-color:#22d3ee; }
-.cr-warn{ display:none; margin:0 0 8px; padding:7px 8px; border-radius:6px;
-  border:1px solid var(--crit,#ef4444); background:rgba(239,68,68,.08);
-  font-size:10px; line-height:1.45; color:var(--crit,#ef4444); }
-.cr-warn.show{ display:block; }
 #cr-graph{ width:100%; height:auto; display:block; border:1px solid var(--border,#333);
   border-radius:6px; background:rgba(0,0,0,.28); }
 .cr-key{ display:flex; flex-wrap:wrap; gap:10px; margin-top:5px; font-size:10px; color:var(--text-mute,#6b7280); }
@@ -229,58 +209,18 @@ for (const id in FAULT_INFO) {
   faultOptions += '<option value="' + id + '"' + (id === 'none' ? ' selected' : '') + '>' + FAULT_INFO[id].label + '</option>';
 }
 panel.innerHTML =
-  '<div class="cr-h"><span>Common rail simulation</span><button type="button" id="cr-fold" aria-label="Collapse controls">&#8211;</button></div>' +
+  '<div class="cr-h"><span>Common rail simulation</span></div>' +
   '<div class="cr-body">' +
-    '<div class="cr-w"><label for="cr-strat">Injection strategy</label>' +
-      '<select id="cr-strat" class="al-sel" aria-label="Injection strategy">' +
-        '<option value="normal">Main only</option>' +
-        '<option value="pilot" selected>Pilot + Main</option>' +
-        '<option value="post">Pilot + Main + Post (DPF)</option>' +
-      '</select></div>' +
-    '<div class="cr-w"><label for="cr-fault">Fault injection</label>' +
-      '<select id="cr-fault" class="al-sel" aria-label="Fault injection">' + faultOptions + '</select></div>' +
-    '<div class="cr-w"><label>Simulation speed</label>' +
-      '<div class="cr-btns" id="cr-speed">' +
-        '<button type="button" data-sp="1" class="on">1&times;</button>' +
-        '<button type="button" data-sp="5">5&times;</button>' +
-        '<button type="button" data-sp="20">20&times;</button>' +
-      '</div></div>' +
-    '<div class="cr-btns">' +
-      '<button type="button" id="cr-cold">Bleed fuel</button>' +
-      '<button type="button" id="cr-reset">Reset</button>' +
-    '</div>' +
     '<div class="cr-warn" id="cr-warn"></div>' +
     '<canvas id="cr-graph" width="480" height="150" aria-label="Rail pressure history"></canvas>' +
     '<div class="cr-key"><span><i style="background:#f97316"></i>Rail bar</span><span><i style="background:#fde68a"></i>Target bar</span></div>' +
   '</div>';
+
 document.body.appendChild(panel);
 
-const elFold   = document.getElementById('cr-fold');
-const elStrat  = document.getElementById('cr-strat');
-const elFault  = document.getElementById('cr-fault');
-const elSpeed  = document.getElementById('cr-speed');
-const elCold   = document.getElementById('cr-cold');
-const elReset  = document.getElementById('cr-reset');
 const elWarn   = document.getElementById('cr-warn');
 const gcv      = document.getElementById('cr-graph');
 const gctx     = gcv.getContext('2d');
-
-elFold.addEventListener('click', () => {
-  panel.classList.toggle('folded');
-  elFold.innerHTML = panel.classList.contains('folded') ? '&#43;' : '&#8211;';
-});
-elStrat.addEventListener('change', () => { S.strategy = elStrat.value; });
-elFault.addEventListener('change', () => { S.fault = elFault.value; });
-elSpeed.addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-sp]');
-  if (!b) return;
-  S.speed = Number(b.dataset.sp) || 1;
-  elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o === b));
-});
-elCold.addEventListener('click', () => {
-  sim.P_rail = 150;
-  sim.fuelNoise = 0;
-});
 
 /* ── simulation state (module level so Reset can reach it) ───────── */
 const GRAPH_N = 150;
@@ -302,14 +242,12 @@ function resetModel() {
 function resetAll() {
   S.rpm = 1800;
   S.fuelTemp = 20;
-  S.strategy = 'pilot'; elStrat.value = 'pilot';
-  S.fault = 'none';   elFault.value = 'none';
+  S.strategy = 'pilot';
+  S.fault = 'none';
   S.speed = 1;
-  elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o.dataset.sp === '1'));
   resetModel();
   controls.resetAll();                 /* every axis back to its default (store -> onChange -> S) */
 }
-elReset.addEventListener('click', resetAll);
 
 /* ── rolling graph ───────────────────────────────────────────────── */
 function drawGraph() {
@@ -684,6 +622,19 @@ function build(H){
  };
 }
 
+/* Phase 6: every option / action lives in the dock (controls.js), nothing interactive is left in the panel.
+   'Time scale' is the module's own physics time-compression (thermal warm-up); the menu's Sim speed is separate. */
+CFG.options = [
+  { id: "strategy", type: 'choice', layout: 'select', label: "Injection strategy", options: [{ id: "normal", label: "Main only" }, { id: "pilot", label: "Pilot + Main" }, { id: "post", label: "Pilot + Main + Post (DPF)" }], def: "pilot",
+    onChange: (id) => { S.strategy = id; } },
+  { id: "fault", type: 'choice', layout: 'select', label: "Fault injection", options: Object.keys(FAULT_INFO).map(id => ({ id, label: FAULT_INFO[id].label })), def: 'none',
+    onChange: (id) => { S.fault = id; } },
+  { id: 'timeScale', type: 'choice', layout: 'segmented', label: 'Time scale', options: [{ id: '1', label: '1×' }, { id: '5', label: '5×' }, { id: '20', label: '20×' }], def: '1',
+    onChange: (id) => { S.speed = Number(id) || 1; } },
+  { id: "cold", type: 'action', label: "Bleed fuel",
+    onAction: () => { sim.P_rail = 150; sim.fuelNoise = 0; } }
+];
+CFG.onReset = resetAll;      /* the dock Reset runs the module reset (model + every control) */
 runGuidedModule(CFG, build);
 </script>
 </body>

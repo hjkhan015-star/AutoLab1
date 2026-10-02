@@ -81,76 +81,10 @@
   /* ═══════════════════════════════════════════════════════════
      WIDGET INTERIOR — traction / display controls (bottom-left)
      ═══════════════════════════════════════════════════════════ */
-  .diff-controls {
-    display: flex; flex-direction: column; gap: 8px;
-    padding: 10px 12px;
-    background: rgba(10,14,20,.82);
-    border: 1px solid var(--border, rgba(255,255,255,.10));
-    border-radius: var(--r-sm, 12px);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    font-size: 11px;
-    color: var(--text-dim, #94a3b8);
-    box-shadow: 0 6px 20px rgba(0,0,0,.45);
-    min-width: 178px;
-  }
-  .diff-controls .select-group {
-    display: flex; align-items: center; gap: 8px;
-    font-size: 10.5px; letter-spacing: .04em;
-    text-transform: uppercase; font-weight: 700;
-  }
-  .diff-controls select {
-    flex: 1;
-    background: rgba(255,255,255,.06);
-    border: 1px solid rgba(255,255,255,.12);
-    color: var(--text, #e5e7eb);
-    padding: 6px 24px 6px 10px;
-    border-radius: 8px;
-    font-family: inherit;
-    font-size: 11px; font-weight: 700; letter-spacing: .03em;
-    cursor: pointer; outline: none;
-    appearance: none; -webkit-appearance: none;
-    transition: background var(--dur-fast, .15s) var(--ease-out, ease);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 9px center;
-  }
-  .diff-controls select:hover { background-color: rgba(255,255,255,.12); }
-  .diff-controls select option { background: #161b22; color: #e5e7eb; }
-  .diff-controls .toggle {
-    display: flex; align-items: center; gap: 6px;
-    font-weight: 600; letter-spacing: .02em; cursor: pointer;
-  }
-  .diff-controls .toggle input[type=checkbox] { accent-color: var(--accent, #38bdf8); }
 
   /* ═══════════════════════════════════════════════════════════
      OVERLAY — camera presets (top-right)
      ═══════════════════════════════════════════════════════════ */
-  #cam-presets {
-    position: fixed; top: calc(16px + var(--safe-t, 0px)); right: calc(16px + var(--safe-r, 0px));
-    z-index: 40;
-    display: flex; gap: 4px;
-    background: rgba(10,14,20,.82); padding: 6px;
-    border-radius: 12px;
-    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--border, rgba(255,255,255,.08));
-    box-shadow: 0 4px 14px rgba(0,0,0,.4);
-  }
-  .cam-btn {
-    background: transparent; border: 1px solid transparent;
-    color: var(--text-dim, #94a3b8); padding: 7px 13px;
-    border-radius: var(--r-sm, 8px); cursor: pointer;
-    font-size: 11px; font-weight: 700; letter-spacing: 0.05em;
-    text-transform: uppercase;
-    transition: all var(--dur-fast, .15s) var(--ease-out, ease);
-    font-family: inherit;
-  }
-  .cam-btn:hover { background: rgba(255,255,255,.06); color: var(--text, #e5e7eb); }
-  .cam-btn.active {
-    background: var(--accent, #38bdf8); color: #0d1117;
-    border-color: var(--accent, #38bdf8);
-    box-shadow: 0 0 14px rgba(56,189,248,.4);
-  }
 
   /* ═══════════════════════════════════════════════════════════
      OVERLAY — wheel-slip flash
@@ -220,25 +154,7 @@
   html.light-theme #diff-eq,
   html.light-theme #wheel-speed-extra { border-color: rgba(15,23,42,.12); }
 
-  html.light-theme .diff-controls {
-    background: rgba(255,255,255,.94);
-    border-color: rgba(15,23,42,.14);
-    color: #475569;
-  }
-  html.light-theme .diff-controls select {
-    background-color: rgba(15,23,42,.05);
-    border-color: rgba(15,23,42,.14);
-    color: #0a0d13;
-  }
-  html.light-theme .diff-controls select option { background: #fff; color: #0a0d13; }
-
-  html.light-theme #cam-presets {
-    background: rgba(255,255,255,.94);
-    border-color: rgba(15,23,42,.14);
-  }
-  html.light-theme .cam-btn { color: #475569; }
-  html.light-theme .cam-btn:hover { background: rgba(15,23,42,.06); color: #0a0d13; }
-  html.light-theme .cam-btn.active { color: #ffffff; }
+  html.light-theme  html.light-theme  html.light-theme
 
   html.light-theme .tyre-speed-chip {
     background: rgba(255,255,255,.94);
@@ -256,12 +172,6 @@
   }
 
   @media (max-width: 720px) {
-    #cam-presets {
-      top: calc(env(safe-area-inset-top, 0px) + 70px);
-      right: 10px;
-      padding: 4px;
-    }
-    .cam-btn { padding: 6px 9px; font-size: 10px; }
     .tyre-speed-chip { padding: 4px 8px; }
     .tyre-speed-chip .tsc-label { font-size: 10px; }
     .tyre-speed-chip .tsc-val { font-size: 10.5px; }
@@ -270,14 +180,6 @@
 </head>
 <body>
   <div id="canvas-wrap"></div>
-
-  <div id="cam-presets">
-    <button class="cam-btn active" data-mode="orbit">Orbit</button>
-    <button class="cam-btn" data-mode="chase">Chase</button>
-    <button class="cam-btn" data-mode="top">Top</button>
-    <button class="cam-btn" data-mode="side">Side</button>
-    <button class="cam-btn" data-mode="diff">Diff</button>
-  </div>
 
   <div id="status-flash"></div>
 
@@ -1464,9 +1366,8 @@
      AUTO DRIVE
      ═══════════════════════════════════════════════════════════ */
   let autoDrive = true;
-  let chkAutoDrive = null; /* assigned by widget onMount */
-  function disengageAutoDrive() {
-    if (autoDrive) { autoDrive = false; if (chkAutoDrive) chkAutoDrive.checked = false; }
+    function disengageAutoDrive() {
+    if (autoDrive) { autoDrive = false; ui.controls.set('autodrive', false); }
   }
 
   const AUTO_LOOKAHEAD   = 5.5;
@@ -1510,10 +1411,6 @@
   let camMode = 'orbit';
 
   /* Widget DOM refs (assigned in onMount) */
-  let selTraction = null;
-  let chkLocked = null;
-  let chkSection = null;
-  let chkExplode = null;
 
   const ui = UI.create({
     moduleId: 'differential',
@@ -1571,40 +1468,19 @@
       labels: true, gas: true
     },
 
-    widgets: {
-      bl: {
-        caption: 'Traction & display',
-        html: `
-          <div class="diff-controls">
-            <div class="select-group">
-              <span>Traction</span>
-              <select id="traction-mode" aria-label="Traction mode">
-                <option value="none">Full grip</option>
-                <option value="left">Left wheel slip</option>
-                <option value="right">Right wheel slip</option>
-              </select>
-            </div>
-            <label class="toggle"><input type="checkbox" id="chk-locked"> Locked</label>
-            <label class="toggle"><input type="checkbox" id="chk-autodrive" checked> Auto Drive</label>
-            <label class="toggle"><input type="checkbox" id="chk-section"> Section</label>
-            <label class="toggle"><input type="checkbox" id="chk-explode"> Explode</label>
-          </div>
-        `,
-        onMount: (el) => {
-          selTraction  = el.querySelector('#traction-mode');
-          chkLocked    = el.querySelector('#chk-locked');
-          chkAutoDrive = el.querySelector('#chk-autodrive');
-          chkSection   = el.querySelector('#chk-section');
-          chkExplode   = el.querySelector('#chk-explode');
-
-          if (chkLocked) chkLocked.addEventListener('change', () => { diffLocked = chkLocked.checked; });
-          if (selTraction) selTraction.addEventListener('change', () => { tractionMode = selTraction.value; });
-          if (chkSection) chkSection.addEventListener('change', () => { applySection(chkSection.checked); });
-          if (chkExplode) chkExplode.addEventListener('change', () => { explodeTarget = chkExplode.checked ? 1 : 0; });
-          if (chkAutoDrive) chkAutoDrive.addEventListener('change', () => { autoDrive = chkAutoDrive.checked; });
-        }
-      }
-    },
+    /* Phase 6: traction, the four display toggles and the camera preset are controls.js controls in the dock options row */
+    options: [
+      { id: 'traction', type: 'choice', layout: 'select', label: 'Traction', ariaLabel: 'Traction mode',
+        options: [{ id: 'none', label: 'Full grip' }, { id: 'left', label: 'Left wheel slip' }, { id: 'right', label: 'Right wheel slip' }],
+        onChange: (id) => { tractionMode = id; } },
+      { id: 'locked', type: 'toggle', label: 'Locked', ariaLabel: 'Locked differential', onChange: (on) => { diffLocked = on; } },
+      { id: 'autodrive', type: 'toggle', label: 'Auto drive', def: true, onChange: (on) => { autoDrive = on; } },
+      { id: 'section', type: 'toggle', label: 'Section', onChange: (on) => { applySection(on); } },
+      { id: 'explode', type: 'toggle', label: 'Explode', onChange: (on) => { explodeTarget = on ? 1 : 0; } },
+      { id: 'camera', type: 'choice', layout: 'select', label: 'Camera', ariaLabel: 'Camera preset',
+        options: [{ id: 'orbit', label: 'Orbit' }, { id: 'chase', label: 'Chase' }, { id: 'top', label: 'Top' }, { id: 'side', label: 'Side' }, { id: 'diff', label: 'Diff' }],
+        onChange: (id) => { const prev = camMode; camMode = id; if ((prev === 'diff') !== (camMode === 'diff')) setIsolation(camMode === 'diff'); } }
+    ],
 
     /* Phase 5: the steering wheel is a controls.js dial (id 'wheel'). Range = ±MAX_STEER_ANGLE (±129.6°), clockwise =
        right = positive, exactly the old steerAngle sign (steerInput = dial). It springs back to centre unless Auto
@@ -1629,31 +1505,20 @@
   /* ═══════════════════════════════════════════════════════════
      CAMERA PRESETS
      ═══════════════════════════════════════════════════════════ */
-  document.querySelectorAll('.cam-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const prev = camMode;
-      camMode = btn.dataset.mode;
-      document.querySelectorAll('.cam-btn').forEach(b => b.classList.toggle('active', b === btn));
-      if ((prev === 'diff') !== (camMode === 'diff')) setIsolation(camMode === 'diff');
-    });
-  });
-
   function resetAll() {
     ui.controls.resetAll();                       /* wheel back to centre */
     steerAngle = 0; steerInput = 0;
-    autoDrive = true; if (chkAutoDrive) chkAutoDrive.checked = true;
+    autoDrive = true;                              /* the toggles themselves are reset by controls.resetAll() above */
     vehiclePos.set(0, 0, 0); vehicleHeading = 0;
     vehicleGroup.position.copy(vehiclePos);
     vehicleGroup.rotation.set(0, 0, 0);
     trailRearL.clear(); trailRearR.clear();
     trailFrontL.clear(); trailFrontR.clear();
-    if (chkSection) { chkSection.checked = false; applySection(false); }
-    if (chkExplode) { chkExplode.checked = false; explodeTarget = 0; explodeAmount = 0; }
+    explodeTarget = 0; explodeAmount = 0;
     flowArrows.forEach(a => { a.visible = true; });
     if (controls && controls.target) controls.target.set(0, 0.5, 0.5);
     bodyRoll = 0; bodyPitch = 0; lastV = 0;
     camMode = 'orbit';
-    document.querySelectorAll('.cam-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === 'orbit'));
     setIsolation(false);
   }
 

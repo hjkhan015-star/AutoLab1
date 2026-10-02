@@ -76,3 +76,9 @@ One rotary primitive (`type:'dial'`), built by `controls.js` (`createDial`, `con
 - **awd mapping:** `S.steering = |dial|` (0..1) — centre = 0 %, 90° either way = 50 %, full lock either way = 100 %; no spring.
 - **Do not** hand-build a wheel / crank, keep a `steerAngle` drag state, or add ←/→/Enter handlers for it in a module.
 
+## Options: choice, toggle, action (Phase 6)
+`controls.js` exports `createChoice`, `createToggle`, `createAction` (also `controls.choice / toggle / action`). A choice registers its selected index, a toggle 0 / 1; `controls.value(id)` returns the option id or a boolean, an action has no value.
+- `choice` layouts: `segmented` (radiogroup, ←/→), `select` (native, tokens), `gate` (SVG stick: ↑/↓, `N` / `Esc` / `Home` = neutral; options may carry `x,y`, spec may carry `rail:[[x1,y1,x2,y2],…]`).
+- `toggle`: `role="switch"`; `action`: `onAction()`, `inst.trigger()`.
+- Host: `UI.create({options:[…]})`, `ui.addOptions([…])`, `CFG.options` (guided); `primary:true` + `side` for the primary zone. `controls.setDisabled / setHidden(id, bool)`.
+- Pure helpers in `controls-core.js`: `normalizeOptions`, `choiceIndex`, `stepChoice`, `gateKeyToIntent`, `toggleFlip`, …

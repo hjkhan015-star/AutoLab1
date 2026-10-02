@@ -25,28 +25,8 @@ html.light-theme { --al-accent: color-mix(in oklch, #38bdf8 68%, black); }
   color:var(--text-dim,#9aa4b2);
   max-height:calc(100dvh - 24px); overflow:auto;
 }
-#ds-panel.folded .ds-body{ display:none; }
 .ds-h{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
 .ds-h span{ font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--text-mute,#6b7280); font-weight:700; }
-.ds-h button{ width:24px; height:24px; flex:0 0 24px; border:1px solid var(--border,#333); border-radius:6px;
-  background:transparent; color:var(--text-dim,#9aa4b2); cursor:pointer; font:inherit; line-height:1; }
-.ds-h button:hover{ border-color:var(--al-accent); color:var(--text,#e5e7eb); }
-.ds-w{ display:flex; flex-direction:column; gap:4px; margin-bottom:8px; }
-.ds-w label{ display:flex; justify-content:space-between; gap:8px; font-size:10px; letter-spacing:.06em;
-  text-transform:uppercase; color:var(--text-mute,#6b7280); }
-.ds-w b{ color:var(--text,#e5e7eb); font-weight:700; }
-#ds-panel .al-sel{ min-height:32px; font-size:11px; }
-.ds-btns{ display:flex; gap:6px; margin-bottom:8px; }
-.ds-btns button{ flex:1 1 0; min-height:30px; padding:0 4px; border:1px solid var(--border,#333); border-radius:6px;
-  background:transparent; color:var(--text-dim,#9aa4b2); font:inherit; font-size:11px; cursor:pointer; }
-.ds-btns button:hover{ border-color:var(--al-accent); color:var(--text,#e5e7eb); }
-.ds-btns button.on{ border-color:var(--al-accent); color:var(--text,#e5e7eb); background:rgba(56,189,248,.14); }
-#ds-zero{ color:#22d3ee; border-color:rgba(34,211,238,.4); }
-#ds-zero:hover{ border-color:#22d3ee; }
-.ds-warn{ display:none; margin:0 0 8px; padding:7px 8px; border-radius:6px;
-  border:1px solid var(--crit,#ef4444); background:rgba(239,68,68,.08);
-  font-size:10px; line-height:1.45; color:var(--crit,#ef4444); }
-.ds-warn.show{ display:block; }
 #ds-graph{ width:100%; height:auto; display:block; border:1px solid var(--border,#333);
   border-radius:6px; background:rgba(0,0,0,.28); }
 .ds-key{ display:flex; flex-wrap:wrap; gap:10px; margin-top:5px; font-size:10px; color:var(--text-mute,#6b7280); }
@@ -228,61 +208,18 @@ for (const id in FAULT_INFO) {
   faultOptions += '<option value="' + id + '"' + (id === 'none' ? ' selected' : '') + '>' + FAULT_INFO[id].label + '</option>';
 }
 panel.innerHTML =
-  '<div class="ds-h"><span>Driveshaft simulation</span><button type="button" id="ds-fold" aria-label="Collapse controls">&#8211;</button></div>' +
+  '<div class="ds-h"><span>Driveshaft simulation</span></div>' +
   '<div class="ds-body">' +
-    '<div class="ds-w"><label for="ds-type">Joint type</label>' +
-      '<select id="ds-type" class="al-sel" aria-label="Joint type">' +
-        '<option value="ujoint" selected>Cardan (U-joint)</option>' +
-        '<option value="cv">Constant velocity (CV)</option>' +
-      '</select></div>' +
-    '<div class="ds-w"><label for="ds-fault">Fault injection</label>' +
-      '<select id="ds-fault" class="al-sel" aria-label="Fault injection">' + faultOptions + '</select></div>' +
-    '<div class="ds-w"><label>Simulation speed</label>' +
-      '<div class="ds-btns" id="ds-speed">' +
-        '<button type="button" data-sp="1" class="on">1&times;</button>' +
-        '<button type="button" data-sp="5">5&times;</button>' +
-        '<button type="button" data-sp="20">20&times;</button>' +
-      '</div></div>' +
-    '<div class="ds-btns">' +
-      '<button type="button" id="ds-zero">Zero angle</button>' +
-      '<button type="button" id="ds-reset">Reset</button>' +
-    '</div>' +
     '<div class="ds-warn" id="ds-warn"></div>' +
     '<canvas id="ds-graph" width="480" height="150" aria-label="Speed swing and vibration history"></canvas>' +
     '<div class="ds-key"><span><i style="background:#38bdf8"></i>Swing %</span><span><i style="background:#fb923c"></i>Vib mm/s</span></div>' +
   '</div>';
+
 document.body.appendChild(panel);
 
-const elFold  = document.getElementById('ds-fold');
-const elType  = document.getElementById('ds-type');
-const elFault = document.getElementById('ds-fault');
-const elSpeed = document.getElementById('ds-speed');
-const elZero  = document.getElementById('ds-zero');
-const elReset = document.getElementById('ds-reset');
 const elWarn  = document.getElementById('ds-warn');
 const gcv     = document.getElementById('ds-graph');
 const gctx    = gcv.getContext('2d');
-
-elFold.addEventListener('click', () => {
-  panel.classList.toggle('folded');
-  elFold.innerHTML = panel.classList.contains('folded') ? '&#43;' : '&#8211;';
-});
-elType.addEventListener('change', () => {
-  S.jointType = elType.value;
-  /* grey out the phase slider when a CV joint is selected */
-  const dim = (S.jointType === 'cv');
-  controls.setDisabled('phase', dim);
-});
-elFault.addEventListener('change', () => { S.fault = elFault.value; });
-elSpeed.addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-sp]');
-  if (!b) return;
-  S.speed = Number(b.dataset.sp) || 1;
-  elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o === b));
-});
-elZero.addEventListener('click', () => {
-  controls.set('ctl', 0);
-});
 
 /* ── simulation state (module level so Reset can reach it) ───────── */
 const GRAPH_N = 150;
@@ -304,14 +241,12 @@ function resetAll() {
   S.length = 1.5;
   S.phase = 0;
   controls.setDisabled('phase', false);
-  S.jointType = 'ujoint'; elType.value = 'ujoint';
-  S.fault = 'none';   elFault.value = 'none';
+  S.jointType = 'ujoint';
+  S.fault = 'none';
   S.speed = 1;
-  elSpeed.querySelectorAll('button').forEach(o => o.classList.toggle('on', o.dataset.sp === '1'));
   resetModel();
   controls.resetAll();                 /* every axis back to its default (store -> onChange -> S) */
 }
-elReset.addEventListener('click', resetAll);
 
 /* ── rolling graph ───────────────────────────────────────────────── */
 function drawGraph() {
@@ -663,6 +598,21 @@ function build(H){
  };
 }
 
+/* Phase 6: every option / action lives in the dock (controls.js), nothing interactive is left in the panel.
+   'Time scale' is the module's own physics time-compression (thermal warm-up); the menu's Sim speed is separate. */
+CFG.options = [
+  { id: "type", type: 'choice', layout: 'select', label: "Joint type", options: [{ id: "ujoint", label: "Cardan (U-joint)" }, { id: "cv", label: "Constant velocity (CV)" }], def: "ujoint",
+    onChange: (id) => { S.jointType = id; /* grey out the phase slider when a CV joint is selected */
+  const dim = (S.jointType === 'cv');
+  controls.setDisabled('phase', dim); } },
+  { id: "fault", type: 'choice', layout: 'select', label: "Fault injection", options: Object.keys(FAULT_INFO).map(id => ({ id, label: FAULT_INFO[id].label })), def: 'none',
+    onChange: (id) => { S.fault = id; } },
+  { id: 'timeScale', type: 'choice', layout: 'segmented', label: 'Time scale', options: [{ id: '1', label: '1×' }, { id: '5', label: '5×' }, { id: '20', label: '20×' }], def: '1',
+    onChange: (id) => { S.speed = Number(id) || 1; } },
+  { id: "zero", type: 'action', label: "Zero angle",
+    onAction: () => { controls.set('ctl', 0); } }
+];
+CFG.onReset = resetAll;      /* the dock Reset runs the module reset (model + every control) */
 runGuidedModule(CFG, build);
 </script>
 </body>

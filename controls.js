@@ -3,7 +3,7 @@
 
    PHASE 3: `axis` (look: 'slider').  PHASE 4: `axis` look:'pedal' (spring release,
    Shift-hold) and `momentary` (clutch).  PHASE 5: `dial` (wheel / crank / knob).
-   Later phases add toggle, choice, action here. All logic that can be pure lives in
+   PHASE 6: `choice`, `toggle`, `action`. All logic that can be pure lives in
    controls-core.js (unit-tested); this file is thin DOM on top of it.
 
    One-place rule (R1): one node per control. Values live in the shared
@@ -25,13 +25,19 @@
        step:1 (degrees, for value()), spring:'return', k (s^-1), side, color,
        onGrab(active) }                       // registry -1..1 (clamped, ±range/2) or 0..1 (wrap, 0..range);
                                               // positive = clockwise = right turn; controls.value(id) = degrees
+     { id, type:'choice', layout:'segmented'|'select'|'gate', label, ariaLabel, options:['A','B']|[{id,label,tone}],
+       def (id or index), wrap, primary, side, onChange(id, index), neutral (gate) }   registry = selected INDEX; value(id) = option id
+     { id, type:'toggle', label, ariaLabel, def:false, onChange(bool) }   registry 0 / 1; value(id) = boolean
+     { id, type:'action', label, ariaLabel, tone:'normal'|'crit', onAction() }   no stored value; clicking calls onAction
    ═══════════════════════════════════════════════════════════════════════ */
 import {
   registry, resolveSpec, defaultNormalized, keyToIntent, axisValueText,
   realValue, rawValue, fromReal, snapNormalized, stepCount, format as fmt, clamp,
   createPedalModel, pedalIntent, pedalUpIntent, DEFAULT_PEDAL_K,
   isDial, dialToDeg, degToDial, dialDefault, dialRange, dialWraps, dialValueText, dialAddDelta,
-  dialSpringStep, angleFromPointer, unwrapDelta
+  dialSpringStep, angleFromPointer, unwrapDelta,
+  normalizeOptions, choiceIndex, choiceId, choiceDefault, choiceText, clampChoice, stepChoice, gateKeyToIntent,
+  toggleDefault, toggleFlip, isChoice, isToggle
 } from './controls-core.js';
 
 const instances = new Map();          /* id -> axis instance (for resetAll) */
@@ -60,17 +66,25 @@ export const controls = {
   },
   /** set a real value in display units */
   setValue(id, v) { return controls.set(id, fromReal(v, registry.spec(id))); },
-  on: (id, fn) => registry.on(id, fn),
+  on(id, fn) { const i = instances.get(id); return i && i.spec && i.spec.type === 'action' ? i.on(fn) : registry.on(id, fn); },
   /** enable / disable a control */
   setDisabled(id, b) { const i = instances.get(id); if (i) i.setDisabled(b); },
+  /** show / hide a control (mode-dependent options); a hidden control keeps its value */
+  setHidden(id, b) { const i = instances.get(id); if (i && i.el) i.el.hidden = !!b; },
   /** back to every control's default (module Reset) */
-  resetAll() { instances.forEach((inst, id) => { if (registry.has(id)) inst.reset(); else instances.delete(id); }); },
+  resetAll() { instances.forEach((inst, id) => { if (registry.has(id)) inst.reset(); else if (inst.spec && inst.spec.type !== 'action') instances.delete(id); }); },
   /** build an axis control (registers its id; throws on duplicates, R9) */
   axis: (spec, opts) => createAxis(spec, opts),
   /** build a momentary (hold) control, e.g. the clutch pedal */
   momentary: (spec, opts) => createMomentary(spec, opts),
   /** build a dial (steering wheel / crank / knob) */
   dial: (spec, opts) => createDial(spec, opts),
+  /** build a choice (segmented / select / gate): value(id) = the selected option id */
+  choice: (spec, opts) => createChoice(spec, opts),
+  /** build a toggle (switch): value(id) = boolean */
+  toggle: (spec, opts) => createToggle(spec, opts),
+  /** build an action (momentary click, no stored value) */
+  action: (spec, opts) => createAction(spec, opts),
   /** true while the user is dragging / keying a dial or pedal (module logic can stand back) */
   dragging(id) { const i = instances.get(id); return !!(i && i.dragging); },
   /** true while the shared pedal animation loop is running (tests / debugging) */
@@ -673,6 +687,241 @@ export function createDial(rawSpec, opts = {}) {
   };
   instances.set(id, inst);
   paint();
+  return inst;
+}
+
+
+/* ── choice (Phase 6) — segmented · select · gate ───────────────────────────
+   Registry stores the selected INDEX. Segmented = ARIA radiogroup/radio with roving tabindex (←/→ step).
+   select = a native <select> styled with tokens (the dock hides itself while its soft keyboard is open).
+   gate = the H-pattern gearbox stick: draws an SVG gate with one stop per option; ↑/↓/N/Esc/Home.
+   Gate options may carry a position {x,y} (0..100) for the H layout; without it the stops go on a line. */
+const GATE_W = 120, GATE_H = 96;
+function gatePositions(list) {
+  /* explicit positions win; otherwise a 2-row H: first option = neutral in the middle, the rest on two columns */
+  if (list.every((o) => o.x != null && o.y != null)) return list.map((o) => ({ x: o.x, y: o.y }));
+  const n = list.length;
+  return list.map((o, i) => {
+    if (i === 0) return { x: GATE_W / 2, y: GATE_H / 2 };
+    const j = i - 1, cols = Math.max(1, Math.ceil((n - 1) / 2));
+    const col = Math.floor(j / 2), row = j % 2;
+    return { x: 18 + (cols > 1 ? col * ((GATE_W - 36) / (cols - 1)) : (GATE_W - 36) / 2), y: row ? GATE_H - 16 : 16 };
+  });
+}
+
+export function createChoice(rawSpec, opts = {}) {
+  const doc = opts.doc || document;
+  const spec = Object.assign({ type: 'choice', layout: 'segmented' }, rawSpec);
+  spec.type = 'choice';
+  if (!spec.id) throw new Error('controls: choice needs an id');
+  const list = normalizeOptions(spec.options);
+  if (rawSpec && rawSpec.options) spec.options = rawSpec.options;
+  if (!['segmented', 'select', 'gate'].includes(spec.layout)) throw new Error(`controls: unknown choice layout "${spec.layout}"`);
+  const id = spec.id;
+  const label = spec.label || id;
+  registry.register(id, spec);                                  /* throws on duplicates (R9) */
+  const n = list.length;
+  const domId = 'ctl-' + id + '-' + (++uid);
+
+  const el = doc.createElement('div');
+  el.className = 'ctl ctl-choice ctl-choice-' + spec.layout;
+  el.dataset.ctl = id;
+  el.style.setProperty('--ctl-accent', spec.color || 'var(--ctl-fill)');
+  const head = spec.label === '' ? '' : `<span class="ctl-label"><span class="ctl-name" id="${domId}-l">${esc(label)}</span></span>`;
+  let body = '';
+  if (spec.layout === 'segmented') {
+    body = `<div class="ctl-seg" role="radiogroup" aria-label="${esc(spec.ariaLabel || label)}">` +
+      list.map((o) => `<button type="button" class="ctl-seg-btn" role="radio" aria-checked="false" tabindex="-1" data-i="${o.index}" data-tone="${o.tone}">${esc(o.label)}</button>`).join('') + `</div>`;
+  } else if (spec.layout === 'select') {
+    body = `<div class="ctl-sel"><select class="ctl-select" id="${domId}" aria-label="${esc(spec.ariaLabel || label)}">` +
+      list.map((o) => `<option value="${o.index}">${esc(o.label)}</option>`).join('') + `</select></div>`;
+  } else {
+    const pos = gatePositions(list);
+    const stops = list.map((o, i) => `<g class="ctl-gate-stop" data-i="${i}" data-tone="${o.tone}" transform="translate(${pos[i].x} ${pos[i].y})"><circle r="9.5"/><text y="3.8" text-anchor="middle">${esc(o.label)}</text></g>`).join('');
+    const rail = pos.map((p) => `${p.x},${p.y}`).join(' ');
+    const railEl = Array.isArray(spec.rail)
+      ? spec.rail.map((r) => `<line class="ctl-gate-rail" x1="${r[0]}" y1="${r[1]}" x2="${r[2]}" y2="${r[3]}"/>`).join('')
+      : `<polyline class="ctl-gate-rail" points="${rail}"/>`;
+    body = `<div class="ctl-gate-pad" role="radiogroup" tabindex="0" aria-label="${esc(spec.ariaLabel || label)}">` +
+      `<svg viewBox="0 0 ${GATE_W} ${GATE_H}" aria-hidden="true" focusable="false">${railEl}${stops}<circle class="ctl-gate-knob" r="6"/></svg></div>`;
+  }
+  el.innerHTML = head + body;
+  const segBtns = [...el.querySelectorAll('.ctl-seg-btn')];
+  const sel = el.querySelector('.ctl-select');
+  const gatePad = el.querySelector('.ctl-gate-pad');
+  const stops = [...el.querySelectorAll('.ctl-gate-stop')];
+  const knob = el.querySelector('.ctl-gate-knob');
+  const gpos = spec.layout === 'gate' ? gatePositions(list) : null;
+
+  let lastIdx = -1;
+  function paint() {
+    const i = registry.get(id);
+    if (i === lastIdx) return;
+    lastIdx = i;
+    segBtns.forEach((b, k) => {
+      const on = k === i;
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+      b.tabIndex = on ? 0 : -1;
+      b.classList.toggle('is-on', on);
+    });
+    if (sel && String(i) !== sel.value) sel.value = String(i);
+    stops.forEach((g, k) => g.classList.toggle('is-on', k === i));
+    if (knob && gpos) knob.setAttribute('transform', `translate(${gpos[i].x} ${gpos[i].y})`);
+    if (gatePad) gatePad.setAttribute('aria-activedescendant', '');
+    el.dataset.value = list[i].id;
+    el.dataset.tone = list[i].tone;
+  }
+  function set(i) {
+    const prev = registry.get(id);
+    const v = registry.set(id, clampChoice(i, n));            /* fires listeners only on change */
+    paint();
+    return v === prev ? v : v;
+  }
+
+  segBtns.forEach((b) => {
+    b.addEventListener('click', () => { set(Number(b.dataset.i)); });
+    b.addEventListener('keydown', (e) => {
+      const intent = keyToIntent('choice', e, spec);
+      if (!intent) return;
+      e.preventDefault(); e.stopPropagation();
+      const next = stepChoice(registry.get(id), intent.step, n, !!spec.wrap);
+      set(next);
+      const tgt = segBtns[next]; if (tgt) tgt.focus();
+    });
+  });
+  if (sel) {
+    sel.addEventListener('change', () => set(Number(sel.value)));
+    sel.addEventListener('keydown', (e) => { if (e.key.startsWith('Arrow') || e.key === 'Home' || e.key === 'End') e.stopPropagation(); });
+  }
+  if (gatePad) {
+    stops.forEach((g) => g.addEventListener('click', () => { set(Number(g.dataset.i)); gatePad.focus(); }));
+    gatePad.addEventListener('pointerdown', (e) => {                       /* tap the nearest stop */
+      const r = gatePad.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      const x = (e.clientX - r.left) / r.width * GATE_W, y = (e.clientY - r.top) / r.height * GATE_H;
+      let best = 0, bd = Infinity;
+      gpos.forEach((p, k) => { const d = (p.x - x) ** 2 + (p.y - y) ** 2; if (d < bd) { bd = d; best = k; } });
+      set(best); gatePad.focus();
+    });
+    gatePad.addEventListener('keydown', (e) => {
+      const intent = gateKeyToIntent(e, spec);
+      if (!intent) return;
+      e.preventDefault(); e.stopPropagation();
+      if (intent.to != null) set(intent.to);
+      else set(stepChoice(registry.get(id), intent.step, n, !!spec.wrap));
+    });
+  }
+
+  if (typeof spec.onChange === 'function') registry.on(id, (i) => spec.onChange(list[i].id, i));
+
+  const inst = {
+    id, el, spec, options: list, input: sel || gatePad || segBtns[0],
+    get: () => registry.get(id),
+    value: () => list[registry.get(id)].id,
+    raw: () => registry.get(id),
+    set(i) { return set(typeof i === 'number' ? i : choiceIndex(i, spec.options)); },
+    setValue(v) { const i = choiceIndex(v, spec.options); if (i >= 0) set(i); return registry.get(id); },
+    reset: () => set(choiceDefault(spec)),
+    on: (fn) => registry.on(id, fn),
+    setText() {},
+    setDisabled(b) {
+      segBtns.forEach((x) => { x.disabled = !!b; });
+      if (sel) sel.disabled = !!b;
+      if (gatePad) { gatePad.setAttribute('aria-disabled', b ? 'true' : 'false'); gatePad.tabIndex = b ? -1 : 0; }
+      el.classList.toggle('is-disabled', !!b);
+    },
+    destroy() { instances.delete(id); registry.unregister(id); el.remove(); }
+  };
+  instances.set(id, inst);
+  paint();
+  return inst;
+}
+
+/* ── toggle (Phase 6) — role="switch", Enter / Space on the FOCUSED element only ── */
+export function createToggle(rawSpec, opts = {}) {
+  const doc = opts.doc || document;
+  const spec = Object.assign({ type: 'toggle' }, rawSpec);
+  spec.type = 'toggle';
+  if (!spec.id) throw new Error('controls: toggle needs an id');
+  const id = spec.id;
+  const label = spec.label || id;
+  registry.register(id, spec);
+
+  const el = doc.createElement('div');
+  el.className = 'ctl ctl-toggle';
+  el.dataset.ctl = id;
+  el.style.setProperty('--ctl-accent', spec.color || 'var(--ctl-fill)');
+  el.innerHTML = `<button type="button" class="ctl-switch" role="switch" aria-checked="false" aria-label="${esc(spec.ariaLabel || label)}">` +
+    `<span class="ctl-switch-track" aria-hidden="true"><span class="ctl-switch-thumb"></span></span><span class="ctl-switch-text">${esc(label)}</span></button>`;
+  const btn = el.querySelector('.ctl-switch');
+  const txt = el.querySelector('.ctl-switch-text');
+
+  function paint() {
+    const on = registry.get(id) === 1;
+    btn.setAttribute('aria-checked', on ? 'true' : 'false');
+    el.classList.toggle('is-on', on);
+  }
+  function set(v) { const out = registry.set(id, v ? 1 : 0); paint(); return out; }
+  btn.addEventListener('click', () => set(toggleFlip(registry.get(id))));
+  /* a <button> already turns Enter / Space into a click, on the focused element only — nothing global */
+  btn.addEventListener('keydown', (e) => {
+    if (keyToIntent('toggle', e, spec)) e.stopPropagation();       /* Space must not reach the global play/pause */
+  });
+  if (typeof spec.onChange === 'function') registry.on(id, (v) => spec.onChange(v === 1));
+
+  const inst = {
+    id, el, spec, input: btn,
+    get: () => registry.get(id),
+    value: () => registry.get(id) === 1,
+    raw: () => registry.get(id),
+    set(v) { return set(v); },
+    setValue(v) { return set(v); },
+    reset: () => set(toggleDefault(spec)),
+    on: (fn) => registry.on(id, fn),
+    setText(t) { if (t != null) txt.textContent = String(t); },
+    setDisabled(b) { btn.disabled = !!b; el.classList.toggle('is-disabled', !!b); },
+    destroy() { instances.delete(id); registry.unregister(id); el.remove(); }
+  };
+  instances.set(id, inst);
+  paint();
+  return inst;
+}
+
+/* ── action (Phase 6) — a momentary click. No stored value, no registry entry. ── */
+const actionIds = new Set();
+export function createAction(rawSpec, opts = {}) {
+  const doc = opts.doc || document;
+  const spec = Object.assign({ type: 'action', tone: 'normal' }, rawSpec);
+  spec.type = 'action';
+  if (!spec.id) throw new Error('controls: action needs an id');
+  const id = spec.id;
+  if (actionIds.has(id) || registry.has(id)) throw new Error(`controls-core: duplicate control id "${id}"`);   /* R9 */
+  actionIds.add(id);
+  const label = spec.label || id;
+  const tone = spec.tone === 'crit' ? 'crit' : 'normal';
+
+  const el = doc.createElement('div');
+  el.className = 'ctl ctl-action';
+  el.dataset.ctl = id;
+  el.style.setProperty('--ctl-accent', spec.color || 'var(--ctl-fill)');
+  el.innerHTML = `<button type="button" class="ctl-action-btn" data-tone="${tone}" aria-label="${esc(spec.ariaLabel || label)}">${esc(label)}</button>`;
+  const btn = el.querySelector('.ctl-action-btn');
+  const listeners = new Set();
+  const fire = () => { if (typeof spec.onAction === 'function') spec.onAction(); listeners.forEach((fn) => fn(id)); };
+  btn.addEventListener('click', fire);
+  btn.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Spacebar' || e.key === 'Enter') e.stopPropagation(); });
+
+  const inst = {
+    id, el, spec, input: btn,
+    get: () => undefined, value: () => undefined, raw: () => undefined,
+    set() {}, setValue() {}, reset() {},
+    trigger: fire,
+    on: (fn) => { listeners.add(fn); return () => listeners.delete(fn); },
+    setText(t) { if (t != null) btn.textContent = String(t); },
+    setDisabled(b) { btn.disabled = !!b; el.classList.toggle('is-disabled', !!b); },
+    destroy() { actionIds.delete(id); instances.delete(id); el.remove(); }
+  };
+  instances.set(id, inst);
   return inst;
 }
 

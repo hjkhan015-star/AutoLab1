@@ -21,30 +21,7 @@
     color: var(--text-dim, #8b96a5);
     margin-bottom: 2px;
   }
-  .drive-toggle {
-    display: flex; gap: 4px;
-    background: rgba(255,255,255,.04);
-    padding: 4px; border-radius: 10px;
-    border: 1px solid var(--border, rgba(255,255,255,.08));
-  }
-  html.light-theme .drive-toggle {
-    background: rgba(15,23,42,.05);
-    border-color: rgba(15,23,42,.10);
-  }
-  .drive-btn {
-    flex: 1; border: none; background: transparent;
-    color: var(--text-dim, #8b96a5);
-    font-size: 11.5px; font-weight: 700;
-    padding: 8px 10px; border-radius: 7px; cursor: pointer;
-    font-family: inherit; transition: all .2s;
-  }
-  .drive-btn:hover { color: var(--text, #e5e7eb); }
-  .drive-btn.active {
-    background: var(--accent, #3b82f6); color: #0b0e14;
-    box-shadow: 0 2px 8px rgba(59,130,246,.3);
-  }
-  html.light-theme .drive-btn.active { color: #fff; }
-
+  html.light-theme
   #trans-desc-title {
     display: block;
     color: var(--text, #e5e7eb);
@@ -775,11 +752,6 @@
       badge:  { text: 'Power Flow', color: '#3b82f6' },
       readout: `
         <div id="trans-readout">
-          <div class="extra-label">Configuration</div>
-          <div class="drive-toggle">
-            <button class="drive-btn active" data-mode="4W">4-Wheeler</button>
-            <button class="drive-btn" data-mode="2W">2-Wheeler</button>
-          </div>
         </div>
       `,
       desc: `<strong id="trans-desc-title">4-Wheeler Drive (Propeller Shaft)</strong>
@@ -806,7 +778,14 @@
       play: true, reset: true,
       speed: { label: 'Speed', min: 0.15, max: 2.5, step: 0.05, value: 0.85 },
       labels: true, gas: true
-    }
+    },
+
+    /* Phase 6: the drivetrain configuration is a controls.js choice in the dock options row */
+    options: [
+      { id: 'drive', type: 'choice', layout: 'segmented', label: 'Drivetrain', ariaLabel: 'Drivetrain configuration',
+        options: [{ id: '4W', label: '4-Wheeler' }, { id: '2W', label: '2-Wheeler' }],
+        onChange: (id) => { if (id !== state.mode) setMode(id); } }
+    ]
   });
 
   /* Panel body readout refs */
@@ -838,10 +817,7 @@
     group4W.visible = (mode === '4W');
     group2W.visible = (mode === '2W');
 
-    const btns = panelBody ? panelBody.querySelectorAll('.drive-btn') : [];
-    btns.forEach(b => {
-      b.classList.toggle('active', b.dataset.mode === mode);
-    });
+    ui.controls.set('drive', mode === '2W' ? 1 : 0);          /* keep the dock choice in step (reset, bridge) */
 
     if (mode === '4W') {
       if (descTitleEl) descTitleEl.textContent = '4-Wheeler Drive (Propeller Shaft)';
@@ -863,13 +839,6 @@
       if (bridge) bridge.setStatus('2-Wheeler Drive', '#a855f7');
     }
     camGoal = CAM_PRESETS[mode];
-  }
-
-  /* Wire the toggle buttons now that the kit has rendered the panel body */
-  if (panelBody) {
-    panelBody.querySelectorAll('.drive-btn').forEach(btn => {
-      btn.addEventListener('click', () => setMode(btn.dataset.mode));
-    });
   }
 
   /* ═══════════════════════════════════════════════════════════

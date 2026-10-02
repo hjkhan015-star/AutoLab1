@@ -234,43 +234,8 @@
     body.embedded #legend { display: none; }
   }
 
-  /* ── Toolbar extras: mode switcher segmented control ── */
-  #mode-switcher {
-    display: flex;
-    gap: 2px;
-    padding: 3px;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: var(--r-sm);
-  }
-  #mode-switcher .ms-btn {
-    padding: 6px 12px;
-    border-radius: 7px;
-    border: 0;
-    background: transparent;
-    color: var(--text-dim);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: .02em;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all var(--dur-fast) var(--ease-out);
-  }
-  #mode-switcher .ms-btn:hover { color: var(--text); }
-  #mode-switcher .ms-btn.active {
-    background: var(--accent);
-    color: #0b0e14;
-    box-shadow: 0 2px 8px -2px var(--accent);
-  }
-
-  /* ── Toolbar extras: fins button warning state ── */
-  #btn-fins.fins-off {
-    border-color: color-mix(in oklch, var(--crit) 55%, transparent);
-    background: color-mix(in oklch, var(--crit) 18%, transparent);
-    color: var(--crit);
-    animation: finWarn 2.4s infinite;
-  }
-  @keyframes finWarn {
+  
+    @keyframes finWarn {
     50% { box-shadow: 0 0 16px color-mix(in oklch, var(--crit) 45%, transparent); }
   }
 
@@ -287,7 +252,6 @@
   /* ── Mobile ── */
   @media (max-width: 520px) {
     #temp-graph { height: 22px; }
-    #mode-switcher .ms-btn { padding: 5px 9px; font-size: 10px; }
   }
 </style>
 </head>
@@ -1175,7 +1139,16 @@ const ui = UI.create({
     labels: true,
     gas: false
   },
-  axes: [{ id: 'rpm', preset: 'rpm', max: 6000, def: 2800, label: 'Engine speed', side: 'left', onChange: () => updateReadout() }]
+  axes: [{ id: 'rpm', preset: 'rpm', max: 6000, def: 2800, label: 'Engine speed', side: 'left', onChange: () => updateReadout() }],
+
+  /* Phase 6: air / liquid and the fins are controls.js controls in the dock options row (replace the toolbar extras) */
+  options: [
+    { id: 'mode', type: 'choice', layout: 'segmented', label: 'Cooling', ariaLabel: 'Cooling system type',
+      options: [{ id: 'air', label: 'Air' }, { id: 'radiator', label: 'Liquid' }],
+      onChange: (id) => { if (id !== state.mode) { state.mode = id; rebuildMode(); } } },
+    { id: 'fins', type: 'toggle', label: 'Fins', ariaLabel: 'Cooling fins', def: true,
+      onChange: (on) => { if (on !== state.fins) { state.fins = on; updateFinsUI(); } } }
+  ]
 });
 
 /* Engine level (was state.speedMul, which the ⋯ menu's Sim speed also wrote — D8): 1.0 = 2800 rpm, same scale as before. */
@@ -1205,58 +1178,6 @@ surfaceRowEl.innerHTML = `
 ui.chip.root.appendChild(surfaceRowEl);
 
 /* ═══════════════════════════════════════════════════════════════════════
-   ★ DEFENSIVE TOOLBAR WIRING
-   ═══════════════════════════════════════════════════════════════════════ */
-(function syncToolbarIcons() {   /* Phase 2: click wiring removed — the kit (dock.js/kit.js) owns btn-play / btn-reset; only icon sync stays */
-
-  function syncIcons() {
-    const ip  = document.getElementById('icon-play');
-    const ipa = document.getElementById('icon-pause');
-    if (ip)  ip.style.display  = state.playing ? 'none'  : 'block';
-    if (ipa) ipa.style.display = state.playing ? 'block' : 'none';
-  }
-  syncIcons();
-
-
-  setInterval(syncIcons, 500);
-  window.__coolingSyncIcons = syncIcons;
-})();
-
-/* ═══════════════════════════════════════════════════════════════════════
-   TOOLBAR EXTRAS — mode switcher + fins toggle
-   ═══════════════════════════════════════════════════════════════════════ */
-(function buildToolbarExtras() {
-  const extras = document.getElementById('toolbar-extras');
-  if (!extras) return;
-
-  /* Mode switcher (Air / Liquid) */
-  const switcher = document.createElement('div');
-  switcher.id = 'mode-switcher';
-  switcher.innerHTML = `
-    <button class="ms-btn active" id="btn-air" type="button">Air</button>
-    <button class="ms-btn" id="btn-radiator" type="button">Liquid</button>
-  `;
-  extras.appendChild(switcher);
-
-  /* Fins toggle */
-  const finsBtn = document.createElement('button');
-  finsBtn.className = 'ui-tb-btn keep-in-embed';
-  finsBtn.id = 'btn-fins';
-  finsBtn.title = 'Toggle cooling fins';
-  finsBtn.setAttribute('aria-pressed', 'true');
-  finsBtn.innerHTML = `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-         stroke-linecap="round" style="width:18px;height:18px">
-      <line x1="3" y1="6"  x2="21" y2="6"/>
-      <line x1="3" y1="10" x2="21" y2="10"/>
-      <line x1="3" y1="14" x2="21" y2="14"/>
-      <line x1="3" y1="18" x2="21" y2="18"/>
-    </svg>
-  `;
-  extras.appendChild(finsBtn);
-})();
-
-/* ═══════════════════════════════════════════════════════════════════════
    DOM REFS (post-kit)
    ═══════════════════════════════════════════════════════════════════════ */
 const panelBody       = ui.panel.body;
@@ -1273,7 +1194,6 @@ const tempArea        = document.getElementById('temp-area');
 const chipStatusEl    = ui.chip.root.querySelector('#chip-status');
 const overheat        = document.getElementById('overheat-overlay');
 const alertChip       = document.getElementById('alert-chip');
-const btnFins         = document.getElementById('btn-fins');
 
 function updateReadout() {
   const rpm = Math.round((700 + 2100 * engLevel()) / 50) * 50;
@@ -1281,10 +1201,7 @@ function updateReadout() {
 }
 
 function updateFinsUI() {
-  if (btnFins) {
-    btnFins.classList.toggle('fins-off', !state.fins);
-    btnFins.setAttribute('aria-pressed', String(state.fins));
-  }
+  ui.controls.set('fins', state.fins ? 1 : 0);              /* keep the dock toggle in step */
   fins.visible = state.fins;
   if (state.mode !== 'air') return;
 
@@ -1308,10 +1225,8 @@ function rebuildMode() {
   radSys.visible = !air;
   streakGroup.visible = air;
 
-  if (btnFins) btnFins.style.display = air ? 'grid' : 'none';
-
-  document.getElementById('btn-air').classList.toggle('active', air);
-  document.getElementById('btn-radiator').classList.toggle('active', !air);
+  ui.controls.setHidden('fins', !air);
+  ui.controls.set('mode', air ? 0 : 1);                      /* keep the dock choice in step */
 
   const info = modeInfo[state.mode];
   badgeTextEl.textContent = info.name;
@@ -1337,10 +1252,6 @@ function rebuildMode() {
   camGoal = CAM[state.mode];
   updateSim(0);
 }
-
-document.getElementById('btn-air').onclick       = () => { state.mode = 'air'; rebuildMode(); };
-document.getElementById('btn-radiator').onclick  = () => { state.mode = 'radiator'; rebuildMode(); };
-btnFins.onclick                                  = () => { state.fins = !state.fins; updateFinsUI(); };
 
 /* ═══════════════════════════════════════════════════════════════════════
    PHYSICS
@@ -1638,7 +1549,6 @@ const bridge = ui.wireBridge({
     switch (d.action) {
       case 'setPlaying':
         state.playing = !!d.value;
-        if (window.__coolingSyncIcons) window.__coolingSyncIcons();
         break;
       case 'setSpeed':
         state.speedMul = +d.value;            /* sim speed only; engine rpm is the 'rpm' axis */

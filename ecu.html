@@ -10,20 +10,8 @@
 <style>
 :root { --al-accent: #a855f7; }
 html.light-theme { --al-accent: #7c3aed; }
-.al-w { display: flex; flex-direction: column; gap: 6px; min-width: 150px; }
 .ui-tb-btn.active { outline: 2px solid var(--al-accent); color: var(--al-accent); }
 
-.al-fault-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-.al-fault-btn {
-  cursor: pointer; border: 1px solid rgba(148,163,184,.32);
-  background: rgba(15,23,42,.72); color: #cbd5e1;
-  border-radius: 999px; padding: 4px 9px;
-  font: 600 11px/1.2 ui-sans-serif, system-ui, sans-serif;
-  letter-spacing: .04em; transition: background .15s, border-color .15s, color .15s;
-}
-.al-fault-btn:hover { background: rgba(148,163,184,.18); color: #e2e8f0; }
-.al-fault-btn.on { background: var(--al-accent); color: #fff; border-color: transparent; }
-.al-fault-btn.crit.on { background: #ef4444; }
 </style>
 </head>
 <body>
@@ -592,33 +580,18 @@ const ui = Base.UI.create({
     play: true,
     reset: true,
     speed: { label: 'Sim speed', min: 0.15, max: 2.5, step: 0.05, value: 0.85 },
-    labels: true,
-    extras: [
-      { id: 'btn-fault', label: 'O₂ FAULT', title: 'Toggle upstream oxygen sensor fault', onClick: () => setFault(state.fault === 'o2' ? 'none' : 'o2') }
-    ]
+    labels: true
   },
-  axes: [{ id: 'load', preset: 'load', def: 35, label: 'Engine load', side: 'left', onChange: () => updateReadouts() }]
+  axes: [{ id: 'load', preset: 'load', def: 35, label: 'Engine load', side: 'left', onChange: () => updateReadouts() }],
+
+  /* Phase 6: the injected fault is a controls.js choice in the dock options row (replaces the panel buttons + toolbar extra) */
+  options: [
+    { id: 'fault', type: 'choice', layout: 'select', label: 'Injected fault', ariaLabel: 'Injected fault',
+      options: [{ id: 'none', label: 'None' }, { id: 'o2', label: 'O\u2082 open' }, { id: 'maf', label: 'MAF open' },
+                { id: 'ckp', label: 'Crank no-signal', tone: 'crit' }, { id: 'knock', label: 'Knock event', tone: 'crit' }],
+      onChange: (id) => { if (id !== state.fault) setFault(id); } }
+  ]
 });
-
-/* ── fault widget ─────────────────────────────────────────────────── */
-(function addFaultWidget() {
-  const host = document.createElement('div');
-  host.className = 'al-w';
-  host.innerHTML = `
-    <label style="font:600 11px/1.3 ui-sans-serif,system-ui;color:#94a3b8;letter-spacing:.05em;text-transform:uppercase">Injected fault</label>
-    <div class="al-fault-row" id="fault-row">
-      <button class="al-fault-btn on" data-f="none">None</button>
-      <button class="al-fault-btn" data-f="o2">O₂ open</button>
-      <button class="al-fault-btn" data-f="maf">MAF open</button>
-      <button class="al-fault-btn crit" data-f="ckp">Crank no-signal</button>
-      <button class="al-fault-btn crit" data-f="knock">Knock event</button>
-    </div>`;
-  ui.panel.body.appendChild(host);
-
-  host.querySelectorAll('.al-fault-btn').forEach(b => {
-    b.addEventListener('click', () => setFault(b.dataset.f));
-  });
-})();
 
 /* ── tab host ─────────────────────────────────────────────────────── */
 const tabHost = document.createElement('div');
@@ -637,11 +610,7 @@ renderTab('overview');
 /* ── fault switching ──────────────────────────────────────────────── */
 function setFault(f) {
   state.fault = f;
-  document.querySelectorAll('.al-fault-btn').forEach(b => {
-    b.classList.toggle('on', b.dataset.f === f);
-  });
-  const tb = document.getElementById('btn-fault');
-  if (tb) tb.classList.toggle('active', f === 'o2');
+  ui.controls.setValue('fault', f);                       /* keep the dock choice in step (no-op when it already matches) */
   applyFaultVisuals();
   updateReadouts();
 }
