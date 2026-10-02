@@ -11,26 +11,6 @@
 :root { --al-accent: #10b981; }
 html.light-theme { --al-accent: color-mix(in oklch, #10b981 68%, black); }
 
-#fp-panel{
-  position:fixed; left:12px; top:12px; z-index:30;
-  width:264px; max-width:46vw;
-  padding:10px 12px 12px;
-  border:1px solid var(--border,#333);
-  border-radius:10px;
-  background:color-mix(in oklab, var(--surface-2,#14181d) 88%, transparent);
-  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
-  box-shadow:0 8px 28px rgba(0,0,0,.38);
-  font:500 11px/1.35 var(--font-mono, ui-monospace, monospace);
-  color:var(--text-dim,#9aa4b2);
-  max-height:calc(100dvh - 24px); overflow:auto;
-}
-.fp-h{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
-.fp-h span{ font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--text-mute,#6b7280); font-weight:700; }
-#fp-graph{ width:100%; height:auto; display:block; border:1px solid var(--border,#333);
-  border-radius:6px; background:rgba(0,0,0,.28); }
-.fp-key{ display:flex; flex-wrap:wrap; gap:10px; margin-top:5px; font-size:10px; color:var(--text-mute,#6b7280); }
-.fp-key i{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; vertical-align:middle; }
-@media (max-width:700px){ #fp-panel{ width:208px; padding:8px 9px 10px; } }
 </style>
 </head>
 <body>
@@ -206,40 +186,24 @@ const S = {
   speed: 1
 };
 
-const panel = document.createElement('div');
-panel.id = 'fp-panel';
-let faultOptions = '';
-for (const id in FAULT_INFO) {
-  faultOptions += '<option value="' + id + '"' + (id === 'none' ? ' selected' : '') + '>' + FAULT_INFO[id].label + '</option>';
-}
-panel.innerHTML =
-  '<div class="fp-h"><span>Fuel pump simulation</span></div>' +
-  '<div class="fp-body">' +
-    '<div class="fp-warn" id="fp-warn"></div>' +
-    '<canvas id="fp-graph" width="480" height="150" aria-label="Rail pressure and fuel temperature history"></canvas>' +
-    '<div class="fp-key"><span><i style="background:#10b981"></i>Rail bar</span><span><i style="background:#fb923c"></i>Fuel &deg;C</span></div>' +
-  '</div>';
 
-document.body.appendChild(panel);
-
-const elWarn   = document.getElementById('fp-warn');
-const gcv      = document.getElementById('fp-graph');
-const gctx     = gcv.getContext('2d');
 
 /* ── simulation state (module level so Reset can reach it) ───────── */
-const GRAPH_N = 150;
+/* Phase 7a: the history lives in the Monitor (CFG.traces); the module only hands over one normalised sample
+   per ~140 ms while the sim runs (0..100 % of each old axis range) and the current warning sentence. */
+let traceSample = null, traceClear = false, warnText = '';
+const traceN = (v, lo, hi) => Math.round(clampN((v - lo) / (hi - lo), 0, 1) * 1000) / 10;
 const sim = {
   level: 0.85,
   Tfuel: 30,
-  lastT: -1,
-  samples: []
+  lastT: -1
 };
 
 function resetModel() {
   sim.level = 0.85;
   sim.Tfuel = 30;
   sim.lastT = -1;
-  sim.samples.length = 0;
+  traceClear = true;                  /* Monitor trace is cleared on the next update */
 }
 function resetAll() {
   S.volts = 13.5;
@@ -248,45 +212,6 @@ function resetAll() {
   S.speed = 1;
   resetModel();
   controls.resetAll();                 /* every axis back to its default (store -> onChange -> S) */
-}
-
-/* ── rolling graph ───────────────────────────────────────────────── */
-function drawGraph() {
-  const W = gcv.width, Hh = gcv.height;
-  gctx.clearRect(0, 0, W, Hh);
-  gctx.strokeStyle = 'rgba(148,163,184,0.16)';
-  gctx.lineWidth = 1;
-  for (let i = 1; i < 4; i++) {
-    const y = Math.round(Hh * i / 4) + 0.5;
-    gctx.beginPath(); gctx.moveTo(0, y); gctx.lineTo(W, y); gctx.stroke();
-  }
-  const n = sim.samples.length;
-  if (n < 2) return;
-  const xAt = (i) => ((i + (GRAPH_N - n)) / (GRAPH_N - 1)) * W;
-  const yP  = (v) => Hh - clampN(v / 6, 0, 1) * (Hh - 6) - 3;
-  const yT  = (v) => Hh - clampN(v / 110, 0, 1) * (Hh - 6) - 3;
-
-  gctx.beginPath();
-  gctx.moveTo(xAt(0), Hh);
-  for (let i = 0; i < n; i++) gctx.lineTo(xAt(i), yP(sim.samples[i].P));
-  gctx.lineTo(xAt(n - 1), Hh);
-  gctx.closePath();
-  gctx.fillStyle = 'rgba(16,185,129,0.16)';
-  gctx.fill();
-
-  gctx.beginPath();
-  for (let i = 0; i < n; i++) {
-    const x = xAt(i), y = yP(sim.samples[i].P);
-    if (i) gctx.lineTo(x, y); else gctx.moveTo(x, y);
-  }
-  gctx.strokeStyle = '#10b981'; gctx.lineWidth = 1.6; gctx.stroke();
-
-  gctx.beginPath();
-  for (let i = 0; i < n; i++) {
-    const x = xAt(i), y = yT(sim.samples[i].T);
-    if (i) gctx.lineTo(x, y); else gctx.moveTo(x, y);
-  }
-  gctx.strokeStyle = '#fb923c'; gctx.lineWidth = 1.4; gctx.stroke();
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -465,11 +390,7 @@ function build(H){
    const now = performance.now();
    if (now - domLast > 140) {
      domLast = now;
-     if (dt > 0) {
-       sim.samples.push({ P: press, T: sim.Tfuel });
-       if (sim.samples.length > GRAPH_N) sim.samples.shift();
-       drawGraph();
-     }
+     if (dt > 0) traceSample = [traceN(press, 0, 6), traceN(sim.Tfuel, 0, 110)];
      let warn = FAULT_INFO[fault] ? FAULT_INFO[fault].warn : '';
      if (!warn) {
        if (supply < 0.5) {
@@ -484,8 +405,7 @@ function build(H){
          warn = 'Tank level at ' + (sim.level * 100).toFixed(0) + ' % - the pump relies on fuel for cooling. Refuel before it runs dry.';
        }
      }
-     elWarn.textContent = warn;
-     elWarn.classList.toggle('show', !!warn);
+     warnText = warn;
    }
 
    /* ── 9. readouts ──────────────────────────────────────────── */
@@ -498,6 +418,10 @@ function build(H){
    const stState  = (press < 1.8 || supply < 0.5) ? 'crit'
                   : (press > 4.6 || vapouring || sim.level < 0.15) ? 'warn'
                   : 'ok';
+
+   let tr;
+   if (traceClear) { traceClear = false; traceSample = null; tr = { hist: null }; }
+   else if (traceSample) { tr = { hist: traceSample }; traceSample = null; }
 
    return {
      big: press.toFixed(2),
@@ -517,7 +441,8 @@ function build(H){
        filt:   ['-' + (filt * 100).toFixed(0) + ' % flow', fState],
        state:  [stateTxt, stState]
      },
-     status: [stateTxt, true],
+     status: [warnText || stateTxt, true, warnText ? 'warn' : ''],
+      traces: tr,
      ctl: Math.round(k * 100) + ' % load'
    };
   }
@@ -535,6 +460,12 @@ CFG.options = [
     onAction: () => { sim.level = 1.0; } }
 ];
 CFG.onReset = resetAll;      /* the dock Reset runs the module reset (model + every control) */
+/* Phase 7a: the old history canvas is a Monitor trace. Both series are drawn as 0..100 % of their old axis ranges. */
+CFG.traces = [{ id: 'hist', label: 'Rail pressure and fuel temperature history (% of full scale)', min: 0, max: 100, length: 150,
+  series: [
+    { id: 'a', label: 'Rail bar', color: 'var(--accent)' },
+    { id: 'b', label: 'Fuel \u00B0C', color: 'var(--warn)' }
+  ] }];
 runGuidedModule(CFG, build);
 </script>
 </body>

@@ -11,28 +11,6 @@
 :root { --al-accent: #94a3b8; }
 html.light-theme { --al-accent: color-mix(in oklch, #94a3b8 68%, black); }
 
-/* ── module-local UI: extra controls + rolling graph ─────────────── */
-#dpf-panel{
-  position:fixed; left:12px; top:12px; z-index:30;
-  width:252px; max-width:46vw;
-  padding:10px 12px 12px;
-  border:1px solid var(--border,#333);
-  border-radius:10px;
-  background:color-mix(in oklab, var(--surface-2,#14181d) 88%, transparent);
-  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
-  box-shadow:0 8px 28px rgba(0,0,0,.38);
-  font:500 11px/1.35 var(--font-mono, ui-monospace, monospace);
-  color:var(--text-dim,#9aa4b2);
-  max-height:calc(100dvh - 24px); overflow:auto;
-}
-.dpf-h{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
-.dpf-h span{ font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--text-mute,#6b7280); font-weight:700; }
-#dpf-force.on{ border-color:#f97316; color:#f97316; background:rgba(249,115,22,.12); }
-#dpf-graph{ width:100%; height:auto; display:block; border:1px solid var(--border,#333);
-  border-radius:6px; background:rgba(0,0,0,.28); }
-.dpf-key{ display:flex; flex-wrap:wrap; gap:10px; margin-top:5px; font-size:10px; color:var(--text-mute,#6b7280); }
-.dpf-key i{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; vertical-align:middle; }
-@media (max-width:700px){ #dpf-panel{ width:200px; padding:8px 9px 10px; } }
 </style>
 </head>
 <body>
@@ -213,35 +191,19 @@ const S = {
   speed: 1
 };
 
-const panel = document.createElement('div');
-panel.id = 'dpf-panel';
-let faultOptions = '';
-for (const id in FAULT_INFO) {
-  faultOptions += '<option value="' + id + '"' + (id === 'none' ? ' selected' : '') + '>' + FAULT_INFO[id].label + '</option>';
-}
-panel.innerHTML =
-  '<div class="dpf-h"><span>DPF simulation</span></div>' +
-  '<div class="dpf-body">' +
-    '<div class="dpf-warn" id="dpf-warn"></div>' +
-    '<canvas id="dpf-graph" width="480" height="150" aria-label="Soot load and bed temperature history"></canvas>' +
-    '<div class="dpf-key"><span><i style="background:#e2e8f0"></i>Soot g/L</span><span><i style="background:#f97316"></i>Bed &deg;C</span></div>' +
-  '</div>';
 
-document.body.appendChild(panel);
-
-const elWarn   = document.getElementById('dpf-warn');
-const gcv      = document.getElementById('dpf-graph');
-const gctx     = gcv.getContext('2d');
 
 /* ── simulation state (module level so Reset can reach it) ───────── */
-const GRAPH_N = 150;
+/* Phase 7a: the history lives in the Monitor (CFG.traces); the module only hands over one normalised sample
+   per ~140 ms while the sim runs (0..100 % of each old axis range) and the current warning sentence. */
+let traceSample = null, traceClear = false, warnText = '';
+const traceN = (v, lo, hi) => Math.round(clampN((v - lo) / (hi - lo), 0, 1) * 1000) / 10;
 const sim = {
   soot: 1.0,
   ash: 0.03,
   Tbed: 45,
   regenActive: false,
   lastT: -1,
-  samples: [],
   lastSample: 0
 };
 
@@ -251,7 +213,7 @@ function resetModel() {
   sim.Tbed = S.ambient + 25;
   sim.regenActive = false;
   sim.lastT = -1;
-  sim.samples.length = 0;
+  traceClear = true;                  /* Monitor trace is cleared on the next update */
   sim.lastSample = 0;
   S.regenCmd = false;
 }
@@ -263,39 +225,6 @@ function resetAll() {
   S.speed = 1;
   resetModel();
   controls.resetAll();                 /* every axis back to its default (store -> onChange -> S) */
-}
-
-/* ── rolling graph ───────────────────────────────────────────────── */
-function drawGraph() {
-  const W = gcv.width, Hh = gcv.height;
-  gctx.clearRect(0, 0, W, Hh);
-  gctx.strokeStyle = 'rgba(148,163,184,0.16)';
-  gctx.lineWidth = 1;
-  for (let i = 1; i < 4; i++) {
-    const y = Math.round(Hh * i / 4) + 0.5;
-    gctx.beginPath(); gctx.moveTo(0, y); gctx.lineTo(W, y); gctx.stroke();
-  }
-  const n = sim.samples.length;
-  if (n < 2) return;
-  const xAt = (i) => ((i + (GRAPH_N - n)) / (GRAPH_N - 1)) * W;
-  const ySoot = (v) => Hh - clampN(v / 12, 0, 1) * (Hh - 6) - 3;
-  const yTemp = (v) => Hh - clampN(v / 800, 0, 1) * (Hh - 6) - 3;
-
-  gctx.beginPath();
-  gctx.moveTo(xAt(0), Hh);
-  for (let i = 0; i < n; i++) gctx.lineTo(xAt(i), ySoot(sim.samples[i].s));
-  gctx.lineTo(xAt(n - 1), Hh);
-  gctx.closePath();
-  gctx.fillStyle = 'rgba(226,232,240,0.16)';
-  gctx.fill();
-
-  gctx.beginPath();
-  for (let i = 0; i < n; i++) { const x = xAt(i), y = ySoot(sim.samples[i].s); if (i) gctx.lineTo(x, y); else gctx.moveTo(x, y); }
-  gctx.strokeStyle = '#e2e8f0'; gctx.lineWidth = 1.6; gctx.stroke();
-
-  gctx.beginPath();
-  for (let i = 0; i < n; i++) { const x = xAt(i), y = yTemp(sim.samples[i].T); if (i) gctx.lineTo(x, y); else gctx.moveTo(x, y); }
-  gctx.strokeStyle = '#f97316'; gctx.lineWidth = 1.6; gctx.stroke();
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -489,11 +418,7 @@ function build(H){
    const now = performance.now();
    if (now - lastDom > 140) {
      lastDom = now;
-     if (dt > 0) {
-       sim.samples.push({ s: sim.soot, T: sim.Tbed });
-       if (sim.samples.length > GRAPH_N) sim.samples.shift();
-       drawGraph();
-     }
+     if (dt > 0) traceSample = [traceN(sim.soot, 0, 12), traceN(sim.Tbed, 0, 800)];
      let warn = FAULT_INFO[fault] ? FAULT_INFO[fault].warn : '';
      if (!warn) {
        if (sim.soot > SOOT_LIMIT)      warn = 'Soot load critical (' + sim.soot.toFixed(1) + ' g/L). Power derate is active - a forced workshop regeneration or a replacement filter is required.';
@@ -501,8 +426,7 @@ function build(H){
        else if (sim.soot > REGEN_ON)   warn = 'Soot load high - the ECU is requesting an active regeneration.';
        else if (sim.ash > 1.2)         warn = 'Ash load ' + sim.ash.toFixed(2) + ' g/L - the filter is approaching the end of its service life.';
      }
-     elWarn.textContent = warn;
-     elWarn.classList.toggle('show', !!warn);
+     warnText = warn;
    }
 
    /* ── 10. readouts ──────────────────────────────────────────── */
@@ -511,6 +435,10 @@ function build(H){
    const effState  = eff < 0.80 ? 'crit' : (eff < 0.95 ? 'warn' : 'ok');
    const ashState  = sim.ash > 1.6 ? 'crit' : (sim.ash > 1.0 ? 'warn' : 'ok');
    const regState  = sim.regenActive ? ((fault === 'regeninhibited') ? 'crit' : 'warn') : 'ok';
+
+   let tr;
+   if (traceClear) { traceClear = false; traceSample = null; tr = { hist: null }; }
+   else if (traceSample) { tr = { hist: traceSample }; traceSample = null; }
 
    return {
      big: bp.toFixed(1),
@@ -531,7 +459,8 @@ function build(H){
        flow:  [(flowNorm * 100).toFixed(0) + ' %', ''],
        regen: [rstat, regState]
      },
-     status: [rstat, true],
+     status: [warnText || rstat, true, warnText ? 'warn' : ''],
+      traces: tr,
      ctl: (L * 100).toFixed(0) + ' %'
    };
   }
@@ -551,6 +480,12 @@ CFG.options = [
     onChange: (on) => { S.regenCmd = on; } }
 ];
 CFG.onReset = resetAll;      /* the dock Reset runs the module reset (model + every control) */
+/* Phase 7a: the old history canvas is a Monitor trace. Both series are drawn as 0..100 % of their old axis ranges. */
+CFG.traces = [{ id: 'hist', label: 'Soot load and bed temperature history (% of full scale)', min: 0, max: 100, length: 150,
+  series: [
+    { id: 'a', label: 'Soot g/L', color: 'var(--accent)' },
+    { id: 'b', label: 'Bed \u00B0C', color: 'var(--warn)' }
+  ] }];
 runGuidedModule(CFG, build);
 </script>
 </body>

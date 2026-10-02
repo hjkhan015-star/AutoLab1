@@ -936,7 +936,8 @@
       unit: ' : 1',
       rows: [
         { id: 'thr',   label: 'Throttle', value: '0%' },
-        { id: 'phase', label: 'Phase',    value: 'Idle' }
+        { id: 'phase', label: 'Phase',    value: 'Idle' },
+        { id: 'rpm', label: 'Engine speed', value: '—' }
       ]
     },
 
@@ -1073,9 +1074,7 @@
     const ratio = afrRatio(accelPos);
     setMixtureUI(accelPos, ratio);
 
-    ui.toolbar.setRpmLabel(
-      '~' + Math.round(RPM_AT_DEFAULT_SPEED * (state.speedMul / DEFAULT_SPEED_MUL)) + ' rpm'
-    );
+    ui.monitor.update({ rows: { rpm: '~' + Math.round(RPM_AT_DEFAULT_SPEED * (state.speedMul / DEFAULT_SPEED_MUL)) + ' rpm' } });
 
     const active = configs[activeConfigIdx];
     if (state.playing) {

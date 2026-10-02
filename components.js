@@ -190,7 +190,13 @@ const TABS = {
   faults: () => Widgets.faults(CFG),
   quiz: () => Widgets.quiz(CFG)
 };
-const readoutHTML = () => Widgets.readout(CFG);
+/* Phase 7a — the old panel `ro-*` grid is now Monitor rows. A row whose label equals the big-value label (chipLabel)
+   would print the same number twice, so it is dropped here (its id is simply ignored by apply()); chip rows that
+   duplicate a `ro` id share the one row. See MONITOR-MAP.md. */
+const _lbl = (t) => String(t || '').trim().toLowerCase();
+const _roIds = new Set(CFG.ro.map((r) => r[0]));
+const MON_ROWS = CFG.ro.filter((r) => _lbl(r[1]) !== _lbl(CFG.chipLabel)).map((r) => [r[0], r[1]]);
+CFG.rows.forEach((r) => { if (!_roIds.has(r[0]) && _lbl(r[1]) !== _lbl(CFG.chipLabel)) MON_ROWS.push([r[0], r[1]]); });
 
 const ui = Base.UI.create({
   moduleId: CFG.moduleId,
@@ -198,10 +204,12 @@ const ui = Base.UI.create({
     kicker: CFG.kicker, title: CFG.title,
     tabs: [{ id: 'overview', label: 'Overview' }, { id: 'faults', label: 'Faults' }, { id: 'quiz', label: 'Self-check' }],
     onTab: renderTab,
-    badge: { text: CFG.badge, color: CFG.accent },
-    readout: readoutHTML()
+    badge: { text: CFG.badge, color: CFG.accent }
   },
-  chip: { label: CFG.chipLabel, value: '', unit: '', bar: true, rows: CFG.rows.map(r => ({ id: r[0], label: r[1], value: '' })), status: { text: 'Running' } },
+  monitor: {
+    config: { label: CFG.chipLabel, value: { label: CFG.chipLabel, unit: '', max: 100, bar: true }, rows: MON_ROWS, traces: CFG.traces || [], status: { text: 'Running' } },
+    initial: { value: { text: '', unit: '', barColor: 'var(--al-accent)' }, status: ['Running', false] }
+  },
   toolbar: { play: true, reset: true, speed: { label: 'Sim speed', min: 0.15, max: 2.5, step: 0.05, value: 0.85 }, labels: true },
   axes: CTLS.map((c, i) => Object.assign({ side: i % 2 ? 'right' : 'left' }, c)),
   options: CFG.options || [],                      /* Phase 6: choice / toggle / action (dock options row) */
@@ -216,7 +224,6 @@ Widgets.wireQuiz(tabHost);
 function renderTab(id) { tabHost.innerHTML = (TABS[id] || TABS.overview)(); }
 renderTab('overview');
 
-const ROE = {}; CFG.ro.forEach(r => { ROE[r[0]] = document.getElementById('ro-' + r[0]); });
 const mainAxis = ui.axis('ctl');                  /* the 0-100 % control the simulation reads as k */
 let k = mainAxis ? mainAxis.get() : 0;
 if (mainAxis) mainAxis.on((n) => { k = n; refresh(0); });
@@ -224,14 +231,25 @@ if (mainAxis) mainAxis.on((n) => { k = n; refresh(0); });
 let simT = 0;
 function apply(o) {
   if (!o) return;
-  if (o.big != null) ui.chip.setBig(o.big, o.unit || '');
-  if (o.bar != null) ui.chip.setBar(o.bar, 'var(--al-accent)');
-  if (o.rows) for (const id in o.rows) ui.chip.set(id, o.rows[id]);
-  if (o.ro) for (const id in o.ro) { const el = ROE[id]; if (el) { el.textContent = o.ro[id][0]; el.className = 'v ' + (o.ro[id][1] || ''); } }
-  if (o.status) ui.chip.setStatus(o.status[0], o.status[1]);
+  const p = {};
+  if (o.big != null || o.bar != null) {
+    p.value = {};
+    if (o.big != null) { p.value.text = String(o.big); p.value.unit = o.unit || ''; }
+    if (o.bar != null) { p.value.bar = o.bar; p.value.barColor = 'var(--al-accent)'; }
+  }
+  if (o.rows || o.ro) {
+    p.rows = {};
+    if (o.rows) for (const id in o.rows) p.rows[id] = o.rows[id];
+    if (o.ro) for (const id in o.ro) p.rows[id] = [o.ro[id][0], o.ro[id][1] || ''];
+  }
+  if (o.status) p.status = [o.status[0], o.status[1], o.status[2] || ''];
+  ui.monitor.update(p);
   if (o.ctl != null && mainAxis) mainAxis.setText(o.ctl);
 }
-function refresh(dt) { apply(mod.update({ t: simT, dt, k, sp: state.playing ? state.speedMul : 0 })); }
+/* Phase 7a: `traces: { id: [v…] | null }` from mod.update() goes straight to the Monitor on every call (a sample is
+   returned only when one is due; null clears the trace on Reset). Text rows stay on the ~8 Hz apply() cadence. */
+function pushTraces(o) { if (o && o.traces) ui.monitor.update({ traces: o.traces }); }
+function refresh(dt) { const o = mod.update({ t: simT, dt, k, sp: state.playing ? state.speedMul : 0 }); pushTraces(o); apply(o); }
 
 const bridge = ui.wireBridge({
   viewManager, state,
@@ -253,6 +271,7 @@ function frame(now) {
   simT += dt * sp;
   const o = mod.update({ t: simT, dt: dt * sp, k, sp });
   roClock += dt;
+  pushTraces(o);
   if (roClock > 0.12) { roClock = 0; apply(o); }
   labels.hideAll();
   if (state.showLabels) lpos.forEach((p, i) => labels.project('l' + i, p, camera, wrap));

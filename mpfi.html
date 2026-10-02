@@ -1719,7 +1719,8 @@
       bar:   true,
       rows: [
         { id: 'afr', label: 'AFR',   value: '14.7 : 1' },
-        { id: 'pw',  label: 'Pulse', value: '2.4 ms' }
+        { id: 'pw',  label: 'Pulse', value: '2.4 ms' },
+        { id: 'rpm', label: 'Engine speed', value: '—' }
       ],
       status: { text: 'Balanced · Stoich' }
     },
@@ -1933,7 +1934,7 @@
   /** Update the toolbar's live RPM hint. */
   function updateRpmLabelFromLoad() {
     const rpm = rpmFromLoad(loadFrac());
-    ui.toolbar.setRpmLabel('~' + Math.round(rpm) + ' rpm');
+    ui.monitor.update({ rows: { rpm: '~' + Math.round(rpm) + ' rpm' } });
   }
 
   /* ══════════════════════════════════════════════════════════════

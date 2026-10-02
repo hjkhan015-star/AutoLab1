@@ -983,7 +983,8 @@ import { Parts } from './components.js';
       bar:   true,
       rows: [
         { id: 'key', label: 'Key',      value: 'OFF' },
-        { id: 'bat', label: 'Battery',  value: '12.6 V' }
+        { id: 'bat', label: 'Battery',  value: '12.6 V' },
+        { id: 'rpm', label: 'Engine speed', value: '—' }
       ],
       status: { text: 'Off', on: false }
     },
@@ -1489,8 +1490,7 @@ import { Parts } from './components.js';
 
   function updateLivePanel() {
     const rpm = Math.round(sys.engineRpm);
-    ui.toolbar.setRpmLabel(`~${Math.round(sys.engineRpm / 50) * 50} rpm`);
-
+    ui.monitor.update({ rows: { rpm: `~${Math.round(sys.engineRpm / 50) * 50} rpm` } });
     if (mode === 'circuit') {
       if (ssR1l) ssR1l.textContent = 'Key';
       if (ssR2l) ssR2l.textContent = 'Battery';

@@ -816,7 +816,8 @@ import { Parts } from './components.js';
       bar:   true,
       rows: [
         { id: 'fw',  label: 'Flywheel',     value: '— rpm' },
-        { id: 'out', label: 'Output shaft', value: '— rpm' }
+        { id: 'out', label: 'Output shaft', value: '— rpm' },
+        { id: 'rpm', label: 'Engine speed', value: '—' }
       ],
       status: { text: 'Engaged' }
     },
@@ -974,7 +975,7 @@ import { Parts } from './components.js';
     ui.chip.setBar(Math.round(engagement * 100),
       engagement > 0.95 ? '#22c55e' : engagement > 0.05 ? '#f59e0b' : '#ef4444');
 
-    ui.toolbar.setRpmLabel(`~${Math.round(OMEGA_BASE * state.speedMul * RPM_PER_UNIT)} rpm`);
+    ui.monitor.update({ rows: { rpm: `~${Math.round(OMEGA_BASE * state.speedMul * RPM_PER_UNIT)} rpm` } });
 
     let s;
     if (engagement < 0.02) s = 'Disengaged';

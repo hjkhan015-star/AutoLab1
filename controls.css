@@ -865,3 +865,102 @@ body.al-sheet-open .al-sheet-scrim { display: block; }
 .al-dock[data-mode="landscape"] .al-dock-options .ctl { flex-direction: column; align-items: stretch; }
 
 .ctl[hidden] { display: none; }
+
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Monitor (Phase 7a) — monitor.js. Tokens only. ONE readout surface: value · rows · gauge · traces · status.
+   Desktop: a card. Phone (same breakpoint as the dock): one-line strip (--monitor-strip-h) + card that slides down
+   (max --monitor-max). The old .ui-chip rules above stay until 7b deletes the chip wrappers.
+   ═══════════════════════════════════════════════════════════════════════ */
+.ui-monitor {
+  position: relative; min-width: 176px; max-width: 280px;
+  padding: var(--s-3);
+  font-family: var(--font-mono);
+  pointer-events: auto;
+}
+.ui-monitor .mon-label {
+  margin-bottom: 3px;
+  font: 700 11px/1.2 var(--font-sans); letter-spacing: .11em; text-transform: uppercase; color: var(--text-mute);
+}
+.ui-monitor .mon-value { font-size: 22px; font-weight: 800; line-height: 1; color: var(--al-accent, var(--accent)); font-variant-numeric: tabular-nums; }
+.ui-monitor .mon-value-unit { margin-left: 3px; font-size: 11px; font-weight: 700; opacity: .65; }
+.ui-monitor .mon-value[data-tone="ok"]   { color: var(--ok); }
+.ui-monitor .mon-value[data-tone="warn"] { color: var(--warn); }
+.ui-monitor .mon-value[data-tone="crit"] { color: var(--crit); }
+.ui-monitor .mon-status {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: var(--s-2); padding: 2px 8px;
+  border-radius: var(--r-pill); background: var(--surface-2); color: var(--text-mute);
+  font: 800 11px/1.4 var(--font-sans); letter-spacing: .07em; text-transform: uppercase;
+}
+.ui-monitor .mon-status i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
+.ui-monitor .mon-status.on { color: var(--ok); background: color-mix(in oklch, var(--ok) 16%, transparent); }
+.ui-monitor .mon-toggle { display: none; }
+.ui-monitor:not(.has-card) .mon-card { display: none; }
+.ui-monitor .mon-bar { height: 5px; margin-top: var(--s-2); background: var(--surface-3); border-radius: var(--r-pill); overflow: hidden; }
+.ui-monitor .mon-bar-fill { height: 100%; width: 0; background: var(--al-accent, var(--accent)); border-radius: var(--r-pill); transition: width var(--dur-fast) linear; }
+.ui-monitor .mon-rows { display: grid; gap: 5px; margin-top: var(--s-2); }
+.ui-monitor .mon-row { display: flex; justify-content: space-between; gap: var(--s-3); font-size: 11px; color: var(--text-dim); }
+.ui-monitor .mon-row-v { color: var(--text); font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+.ui-monitor .mon-row-v[data-tone="hi"]   { color: var(--al-accent, var(--accent)); }
+.ui-monitor .mon-row-v[data-tone="ok"]   { color: var(--ok); }
+.ui-monitor .mon-row-v[data-tone="warn"] { color: var(--warn); }
+.ui-monitor .mon-row-v[data-tone="crit"] { color: var(--crit); }
+.ui-monitor .mon-gauge { margin-top: var(--s-2); text-align: center; }
+.ui-monitor .mon-gauge-svg { display: block; width: 100%; max-width: 140px; margin: 0 auto; }
+.ui-monitor .mon-gauge-track { fill: none; stroke: var(--surface-3); stroke-width: 6; stroke-linecap: round; }
+.ui-monitor .mon-gauge-needle { stroke: var(--al-accent, var(--accent)); stroke-width: 2.5; stroke-linecap: round; }
+.ui-monitor .mon-gauge-hub { fill: var(--text-dim); }
+.ui-monitor .mon-gauge-cap { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); }
+.ui-monitor .mon-gauge-v { color: var(--text); font-variant-numeric: tabular-nums; }
+.ui-monitor .mon-traces { display: grid; gap: var(--s-2); margin-top: var(--s-2); }
+.ui-monitor .mon-trace-cap { font: 700 11px/1.2 var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--text-mute); margin-bottom: 2px; }
+.ui-monitor .mon-trace-cv { display: block; width: 100%; height: 56px; border: 1px solid var(--border); border-radius: var(--r-xs, 8px); }
+.ui-monitor .mon-trace-key { display: flex; flex-wrap: wrap; gap: 2px var(--s-3); margin-bottom: 3px; font-size: 11px; color: var(--text-mute); }
+.ui-monitor .mon-key-i { display: inline-flex; align-items: center; gap: 4px; }
+.ui-monitor .mon-key-i i { width: 8px; height: 8px; border-radius: 2px; }
+.ui-monitor .mon-status { max-width: 100%; white-space: normal; }
+.ui-monitor .mon-status[data-tone="warn"] { color: var(--warn); background: color-mix(in oklch, var(--warn) 16%, transparent); }
+.ui-monitor .mon-status[data-tone="crit"] { color: var(--crit); background: color-mix(in oklch, var(--crit) 16%, transparent); }
+.ui-monitor .mon-status[data-tone] { align-items: flex-start; border-radius: var(--r-sm, 12px); padding: 4px 9px; }
+.ui-monitor .mon-status[data-tone] .mon-status-text { text-transform: none; letter-spacing: 0; font-weight: 600; }
+.ui-monitor .mon-footer { margin-top: var(--s-2); font-size: 11px; color: var(--text-mute); }
+
+@media (max-width: 720px), (max-height: 540px) {
+  .ui-monitor { width: 100%; min-width: 0; max-width: none; height: var(--monitor-strip-h); padding: 0; border-radius: var(--r-pill); overflow: visible; }
+  .ui-monitor .mon-head {
+    display: flex; align-items: center; gap: var(--s-3);
+    height: 100%; padding: 0 var(--s-3); white-space: nowrap; overflow: hidden;
+  }
+  .ui-monitor .mon-label { margin: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
+  .ui-monitor .mon-value { flex: 0 0 auto; font-size: 14px; }
+  .ui-monitor .mon-status { margin: 0 0 0 auto; padding: 0; background: none; flex: 0 1 auto; min-width: 0; }
+  .ui-monitor .mon-status-text { overflow: hidden; text-overflow: ellipsis; }
+  .ui-monitor .mon-toggle { position: absolute; inset: 0; display: block; width: 100%; padding: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
+  .ui-monitor.has-card .mon-toggle::after { content: ""; position: absolute; right: var(--s-2); top: 50%; width: 6px; height: 6px; margin-top: -4px; border: solid var(--text-mute); border-width: 0 2px 2px 0; transform: rotate(45deg); transition: transform var(--dur-base) var(--ease-out); }
+  .ui-monitor[data-open="true"] .mon-toggle::after { transform: rotate(-135deg); margin-top: -1px; }
+  .ui-monitor .mon-card {
+    position: absolute; left: 0; right: 0; top: calc(100% + var(--s-1));
+    max-height: var(--monitor-max); overflow: auto; overscroll-behavior: contain;
+    padding: var(--s-3); border-radius: var(--r-md);
+    background: var(--surface); border: 1px solid var(--border); -webkit-backdrop-filter: blur(var(--blur)); backdrop-filter: blur(var(--blur));
+    opacity: 0; visibility: hidden; transform: translateY(-8px);
+    transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), visibility 0s linear var(--dur-base);
+  }
+  .ui-monitor[data-open="true"] .mon-card { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+  .ui-monitor .mon-bar:first-child { margin-top: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-monitor .mon-card, .ui-monitor .mon-bar-fill, .ui-monitor .mon-toggle::after { transition: none; }
+}
+
+/* Phase 7a-2: a fault sentence rides in the status. Desktop: the status wraps in the card. Phone: the strip stays one line
+   (ellipsis) and the card shows the full sentence (aria-hidden copy; the strip stays the one live region). */
+.ui-monitor .mon-status-full { display: none; }
+@media (max-width: 720px), (max-height: 540px) {
+  .ui-monitor .mon-status[data-tone] { padding: 0; background: none; border-radius: 0; align-items: center; white-space: nowrap; }
+  .ui-monitor .mon-status[data-tone] .mon-status-text { font-weight: 800; }
+  .ui-monitor .mon-status-full:not(:empty) { display: block; margin-bottom: var(--s-2); font: 600 12px/1.35 var(--font-sans); color: var(--warn); }
+  .ui-monitor .mon-status-full[data-tone="crit"] { color: var(--crit); }
+}

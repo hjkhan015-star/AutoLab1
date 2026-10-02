@@ -1516,8 +1516,6 @@ import { Parts } from './components.js';
     const sm = SND_MODES[sndMode];
     const noise = Math.round(sm.dB + 10 * Math.log2(Math.max(0.3, rpm / 2880)) + (isCold() ? 3 : 0));
     const rpmTxt = Math.round(rpm / 50) * 50;
-    ui.toolbar.setRpmLabel(`~${rpmTxt} rpm`);
-
     ui.chip.set('eng', rpmTxt + ' rpm');
     ui.chip.set('bp', Math.round(backpressure()) + ' mbar');
 

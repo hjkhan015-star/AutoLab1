@@ -11,27 +11,6 @@
 :root { --al-accent: #22c55e; }
 html.light-theme { --al-accent: color-mix(in oklch, #22c55e 68%, black); }
 
-/* ── module-local UI: extra controls + rolling graph ─────────────── */
-#awd-panel{
-  position:fixed; left:12px; top:12px; z-index:30;
-  width:268px; max-width:46vw;
-  padding:10px 12px 12px;
-  border:1px solid var(--border,#333);
-  border-radius:10px;
-  background:color-mix(in oklab, var(--surface-2,#14181d) 88%, transparent);
-  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
-  box-shadow:0 8px 28px rgba(0,0,0,.38);
-  font:500 11px/1.35 var(--font-mono, ui-monospace, monospace);
-  color:var(--text-dim,#9aa4b2);
-  max-height:calc(100dvh - 24px); overflow:auto;
-}
-.awd-h{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
-.awd-h span{ font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--text-mute,#6b7280); font-weight:700; }
-#awd-graph{ width:100%; height:auto; display:block; border:1px solid var(--border,#333);
-  border-radius:6px; background:rgba(0,0,0,.28); }
-.awd-key{ display:flex; flex-wrap:wrap; gap:10px; margin-top:5px; font-size:10px; color:var(--text-mute,#6b7280); }
-.awd-key i{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; vertical-align:middle; }
-@media (max-width:700px){ #awd-panel{ width:212px; padding:8px 9px 10px; } }
 </style>
 </head>
 <body>
@@ -206,36 +185,20 @@ const S = {
   speed: 1
 };
 
-const panel = document.createElement('div');
-panel.id = 'awd-panel';
-let faultOptions = '';
-for (const id in FAULT_INFO) {
-  faultOptions += '<option value="' + id + '"' + (id === 'none' ? ' selected' : '') + '>' + FAULT_INFO[id].label + '</option>';
-}
-panel.innerHTML =
-  '<div class="awd-h"><span>AWD simulation</span></div>' +
-  '<div class="awd-body">' +
-    '<div class="awd-warn" id="awd-warn"></div>' +
-    '<canvas id="awd-graph" width="480" height="150" aria-label="Rear torque split and coupling temperature history"></canvas>' +
-    '<div class="awd-key"><span><i style="background:#22c55e"></i>Rear %</span><span><i style="background:#fb923c"></i>Coupling &deg;C</span></div>' +
-  '</div>';
 
-document.body.appendChild(panel);
-
-const elWarn   = document.getElementById('awd-warn');
-const gcv      = document.getElementById('awd-graph');
-const gctx     = gcv.getContext('2d');
 
 /* ── simulation state (module level so Reset can reach it) ───────── */
-const GRAPH_N = 150;
+/* Phase 7a: the history lives in the Monitor (CFG.traces); the module only hands over one normalised sample
+   per ~140 ms while the sim runs (0..100 % of each old axis range) and the current warning sentence. */
+let traceSample = null, traceClear = false, warnText = '';
+const traceN = (v, lo, hi) => Math.round(clampN((v - lo) / (hi - lo), 0, 1) * 1000) / 10;
 const sim = {
   couplingTemp: AMBIENT,
   fluidTemp: AMBIENT,
   windup: 0,
   wheelSpinF: 0,
   wheelSpinR: 0,
-  lastT: -1,
-  samples: []
+  lastT: -1
 };
 
 function resetModel() {
@@ -245,7 +208,7 @@ function resetModel() {
   sim.wheelSpinF = 0;
   sim.wheelSpinR = 0;
   sim.lastT = -1;
-  sim.samples.length = 0;
+  traceClear = true;                  /* Monitor trace is cleared on the next update */
 }
 function resetAll() {
   S.rpm = 2400;
@@ -256,47 +219,6 @@ function resetAll() {
   S.speed = 1;
   resetModel();
   controls.resetAll();                 /* every axis back to its default (store -> onChange -> S) */
-}
-
-/* ── rolling graph ───────────────────────────────────────────────── */
-function drawGraph() {
-  const W = gcv.width, Hh = gcv.height;
-  gctx.clearRect(0, 0, W, Hh);
-  gctx.strokeStyle = 'rgba(148,163,184,0.16)';
-  gctx.lineWidth = 1;
-  for (let i = 1; i < 4; i++) {
-    const y = Math.round(Hh * i / 4) + 0.5;
-    gctx.beginPath(); gctx.moveTo(0, y); gctx.lineTo(W, y); gctx.stroke();
-  }
-  const n = sim.samples.length;
-  if (n < 2) return;
-  const xAt    = (i) => ((i + (GRAPH_N - n)) / (GRAPH_N - 1)) * W;
-  const yPct   = (v) => Hh - clampN(v, 0, 1) * (Hh - 6) - 3;
-  const yTemp  = (v) => Hh - clampN((v - 10) / 200, 0, 1) * (Hh - 6) - 3;
-
-  /* Rear torque split (filled area) */
-  gctx.beginPath();
-  gctx.moveTo(xAt(0), Hh);
-  for (let i = 0; i < n; i++) gctx.lineTo(xAt(i), yPct(sim.samples[i].r));
-  gctx.lineTo(xAt(n - 1), Hh);
-  gctx.closePath();
-  gctx.fillStyle = 'rgba(34,197,94,0.20)';
-  gctx.fill();
-
-  gctx.beginPath();
-  for (let i = 0; i < n; i++) {
-    const x = xAt(i), y = yPct(sim.samples[i].r);
-    if (i) gctx.lineTo(x, y); else gctx.moveTo(x, y);
-  }
-  gctx.strokeStyle = '#22c55e'; gctx.lineWidth = 1.8; gctx.stroke();
-
-  /* Coupling temperature */
-  gctx.beginPath();
-  for (let i = 0; i < n; i++) {
-    const x = xAt(i), y = yTemp(sim.samples[i].T);
-    if (i) gctx.lineTo(x, y); else gctx.moveTo(x, y);
-  }
-  gctx.strokeStyle = '#fb923c'; gctx.lineWidth = 1.6; gctx.stroke();
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -570,11 +492,7 @@ function build(H){
    const now = performance.now();
    if (now - lastDom > 140) {
      lastDom = now;
-     if (dt > 0) {
-       sim.samples.push({ r: rearShare, T: sim.couplingTemp });
-       if (sim.samples.length > SIM_GRAPH_CAP) sim.samples.shift();
-       drawGraph();
-     }
+     if (dt > 0) traceSample = [traceN(rearShare, 0, 1), traceN(sim.couplingTemp, 10, 210)];
 
      let warn = FAULT_INFO[fault] ? FAULT_INFO[fault].warn : '';
      if (!warn) {
@@ -596,8 +514,7 @@ function build(H){
          warn = 'Rear axle slipping ' + (rSlip * 100).toFixed(0) + ' % - the coupling is transferring torque forward.';
        }
      }
-     elWarn.textContent = warn;
-     elWarn.classList.toggle('show', !!warn);
+     warnText = warn;
    }
 
    /* ── 11. derived state ───────────────────────────────────── */
@@ -632,6 +549,10 @@ function build(H){
 
    const fluidPct = (1 - clampN((sim.fluidTemp - AMBIENT) / (FLUID_CRIT - AMBIENT), 0, 1)) * 100;
 
+   let tr;
+   if (traceClear) { traceClear = false; traceSample = null; tr = { hist: null }; }
+   else if (traceSample) { tr = { hist: traceSample }; traceSample = null; }
+
    return {
      big: rearPct.toFixed(0),
      unit: ' %',
@@ -653,15 +574,14 @@ function build(H){
        mu:     [surfaceMu.toFixed(2), surfaceMu < 0.4 ? 'warn' : 'ok'],
        state:  [stateTxt, stState]
      },
-     status: [stateTxt, true],
+     status: [warnText || stateTxt, true, warnText ? 'warn' : ''],
+      traces: tr,
      ctl: (load * 100).toFixed(0) + ' %'
    };
   }
  };
 }
 
-/* SIM_GRAPH_CAP is set below (constant hoisting) */
-const SIM_GRAPH_CAP = 150;
 
 /* Phase 6: every option / action lives in the dock (controls.js), nothing interactive is left in the panel.
    'Time scale' is the module's own physics time-compression (thermal warm-up); the menu's Sim speed is separate. */
@@ -678,6 +598,12 @@ CFG.options = [
     onAction: () => { sim.couplingTemp = AMBIENT; sim.fluidTemp = AMBIENT; } }
 ];
 CFG.onReset = resetAll;      /* the dock Reset runs the module reset (model + every control) */
+/* Phase 7a: the old history canvas is a Monitor trace. Both series are drawn as 0..100 % of their old axis ranges. */
+CFG.traces = [{ id: 'hist', label: 'Rear torque split and coupling temperature history (% of full scale)', min: 0, max: 100, length: 150,
+  series: [
+    { id: 'a', label: 'Rear %', color: 'var(--accent)' },
+    { id: 'b', label: 'Coupling \u00B0C', color: 'var(--warn)' }
+  ] }];
 runGuidedModule(CFG, build);
 </script>
 </body>
