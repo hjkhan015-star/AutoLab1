@@ -1130,7 +1130,7 @@ const ui = UI.create({
     value: 70,
     unit: '°C',
     bar: true,
-    rows: [],
+    rows: [ { id: 'rpm', label: 'Engine speed', value: '—' } ],
     status: { text: 'Normal operating range' }
   },
 
@@ -1197,7 +1197,7 @@ const alertChip       = document.getElementById('alert-chip');
 
 function updateReadout() {
   const rpm = Math.round((700 + 2100 * engLevel()) / 50) * 50;
-  ui.toolbar.setRpmLabel(rpm.toLocaleString() + ' RPM');
+  ui.monitor.update({ rows: { rpm: rpm.toLocaleString() + ' RPM' } });
 }
 
 function updateFinsUI() {

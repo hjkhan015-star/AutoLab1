@@ -82,3 +82,17 @@ One rotary primitive (`type:'dial'`), built by `controls.js` (`createDial`, `con
 - `toggle`: `role="switch"`; `action`: `onAction()`, `inst.trigger()`.
 - Host: `UI.create({options:[…]})`, `ui.addOptions([…])`, `CFG.options` (guided); `primary:true` + `side` for the primary zone. `controls.setDisabled / setHidden(id, bool)`.
 - Pure helpers in `controls-core.js`: `normalizeOptions`, `choiceIndex`, `stepChoice`, `gateKeyToIntent`, `toggleFlip`, …
+
+## Monitor (Phase 7a) — `ui.monitor`
+One readout surface per module. Modules never import `monitor.js`; they use the kit API.
+```js
+ui.monitor.set({ label, value:{label,unit,max,bar}, rows:[[id,label]], traces:[{id,label,series:[{id,color}],min,max}],
+                 gauge:{id,label,min,max,unit}, status:true, footer:'<html>' });
+ui.monitor.update({ value:{text,unit,bar,barColor,color,tone} | text, rows:{ id: 'text' | ['text','ok|warn|crit|hi'] },
+                    traces:{ id:[v, …] }, gauge: v | [v,'text'], status:['text', on] });
+```
+Text writes are limited to ≈ 9 Hz (the latest value always lands); trace samples are buffered at once and drawn ≈ 30 Hz. Unknown row ids are ignored. `ui.chip.*` still works (thin wrappers) until Phase 7b removes it.
+In `runGuidedModule`, keep returning `{ big, unit, bar, rows, ro, status, ctl }` from `mod.update()`; `ro` rows are Monitor rows.
+
+**Guided modules (7a-2):** declare `CFG.traces = [{ id:'hist', label, min:0, max:100, length:150, series:[{ id, label, color:'var(--accent)' }, …] }]` and return `traces: { hist: [a, b] }` (one sample, only when due; `null` clears on Reset) plus `status: [text, on, 'warn'|'crit'|'']` from `mod.update()`. A warning sentence is the status (`status: [warn || state, true, warn ? 'warn' : '']`). Keep one history: the Monitor's. Series colours are tokens (`var(--accent)`, `var(--warn)`, …), never hex.
+**Speed rows:** a module prints engine / vehicle speed as a Monitor row (`ui.monitor.update({ rows: { rpm: text } })`), never through `ui.toolbar.setRpmLabel`.

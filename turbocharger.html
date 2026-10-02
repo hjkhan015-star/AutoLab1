@@ -1225,7 +1225,8 @@ import { Parts } from './components.js';
       bar:   true,
       rows: [
         { id: 'drive', label: 'Speed', value: '0 rpm' },
-        { id: 'egt',   label: 'EGT',   value: '20 °C' }
+        { id: 'egt',   label: 'EGT',   value: '20 °C' },
+        { id: 'rpm', label: 'Engine speed', value: '—' }
       ],
       status: { text: 'Idle' }
     },
@@ -1695,7 +1696,7 @@ import { Parts } from './components.js';
     }
     ui.chip.setStatus(statusTxt, ok);
 
-    ui.toolbar.setRpmLabel('~' + Math.round(350 + state.speedMul * 850) + ' rpm');
+    ui.monitor.update({ rows: { rpm: '~' + Math.round(350 + state.speedMul * 850) + ' rpm' } });
   }
 
   /* ═══════════════════════════════════════════════════════════

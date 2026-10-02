@@ -17,6 +17,7 @@ import { createKeyRouter, installKeys } from './keys.js';
 import { nextDensity, isPhone, createHeader, createMenu, clampSpeed } from './chrome.js';
 import { createDock, modelShiftPx } from './dock.js';
 import { controls, createAxis, createMomentary, createDial, createChoice, createToggle, createAction } from './controls.js';
+import { createMonitor } from './monitor.js';
 export { controls };
 
 /* controls.css holds the header, ⋯ menu, dock and phone-sheet styles. Module pages link it; this is the
@@ -574,13 +575,29 @@ export const UI = {
 
 const HOME_URL = 'index.html';
 
+/* Phase 7a: legacy `chip: { label, value, unit, bar, rows:[{id,label,value}], status:{text} }` → Monitor config + initial values. */
+export function chipToMonitor(c) {
+  const hasValue = c.value !== undefined || !!c.bar;
+  const config = {
+    label: c.label || '',
+    value: hasValue ? { label: c.label || '', unit: c.unit || '', max: 100, bar: !!c.bar } : null,
+    rows: (c.rows || []).map((r) => [r.id, r.label]),
+    status: c.status ? { text: c.status.text || '' } : null,
+  };
+  const initial = {};
+  if (c.value !== undefined) initial.value = { text: String(c.value), unit: c.unit || '' };
+  const rows = {}; (c.rows || []).forEach((r) => { if (r.value !== undefined && r.value !== '') rows[r.id] = r.value; });
+  if (Object.keys(rows).length) initial.rows = rows;
+  if (c.status) initial.status = [c.status.text || '', false];
+  return { config, initial };
+}
+
 class UIKit {
   constructor(cfg) {
     this.cfg = cfg || {};
     this.moduleId = cfg.moduleId || 'module';
     this._slots = {};
-    this._chipEls = {};
-    this._chipRows = {};
+    this._monitor = null;
     this._axes = {};
     this._panelEls = {};
     this._embedded = !!(window.parent && window.parent !== window);
@@ -595,7 +612,8 @@ class UIKit {
     if (!this._embedded) this._buildStandaloneHeader();
 
     if (cfg.panel)   this._buildPanel(cfg.panel);
-    if (cfg.chip)    this._buildChip(cfg.chip);
+    if (cfg.monitor) this._buildMonitor(cfg.monitor);              /* Phase 7a: the Monitor is the one readout surface */
+    else if (cfg.chip) this._buildMonitor(chipToMonitor(cfg.chip)); /* legacy `chip:` configs are translated; ui.chip.* wrap the Monitor until 7b */
     if (cfg.toolbar) this._buildToolbar(cfg.toolbar);
     if (cfg.axes)    this._buildAxes(cfg.axes);      /* Phase 3: axis controls first, so legend widgets come last */
     if (cfg.options) this._buildOptions(cfg.options);   /* Phase 6: choice / toggle / action (options row, or primary when primary:true) */
@@ -753,15 +771,14 @@ class UIKit {
   }
 
   /* ═════════════════════════════════════════════════════════════════════
-     AUTO-COLLAPSE — every module's panel body is capped to a short,
+     AUTO-COLLAPSE (Phase 7a: measures on tab switch / ResizeObserver only) — every module's panel body is capped to a short,
      scrollable height by default (~a few lines past the badge/readout),
      with a "Show more / Show less" toggle appended automatically. This
      replaces long, uncappped tab content (Overview/Faults/Self-check —
      often 300px+ of text) with a compact "basic info" view; tapping the
      toggle reveals the full "advanced" content, still inside the panel's
-     own scroll area. No per-module changes needed — it watches the body
-     for content the module adds later (tabs render after UI.create()
-     returns) and re-measures automatically.
+     own scroll area. No per-module changes needed — it re-measures on tab switch,
+     on a ResizeObserver, and on panel.remeasure() (modules that add panel content after UI.create() call it).
      ═════════════════════════════════════════════════════════════════════ */
   _wireAutoCollapse(body) {
     const CAP = 220; // px of content visible before "Show more" appears
@@ -807,10 +824,14 @@ class UIKit {
       }
     };
 
-    const mo = new MutationObserver(() => requestAnimationFrame(measure));
-    mo.observe(body, { childList: true, subtree: true, characterData: true });
-    window.addEventListener('resize', () => requestAnimationFrame(measure));
-    requestAnimationFrame(measure);
+    /* Phase 7a: no DOM-mutation watching and no measuring on text writes (readouts live in the Monitor now).
+       Measure only on: tab switch (_selectTab), a ResizeObserver on the body, window resize, panel.remeasure(). */
+    let queued = 0;
+    const later = () => { if (queued) return; queued = requestAnimationFrame(() => { queued = 0; measure(); }); };
+    this._measurePanel = later;
+    if (typeof ResizeObserver === 'function') new ResizeObserver(later).observe(body);
+    window.addEventListener('resize', later);
+    later();
   }
 
   _selectTab(id) {
@@ -824,42 +845,20 @@ class UIKit {
       btn.style.background = on ? (c || '') : '';
     });
     if (this._onTab) this._onTab(id);
+    if (this._measurePanel) this._measurePanel();          /* tab content changed → re-measure once */
   }
 
-  _buildChip(c) {
-    const slot = this._slots.tr;
-    const el = document.createElement('div');
-    el.className = 'ui-chip ui-card';
-    el.id = 'ui-chip';
-
-    let html = `<div class="ui-chip-label">${c.label || ''}</div>`;
-    if (c.value !== undefined) {
-      html += `<div class="ui-chip-value" id="chip-value">${c.value}<span>${c.unit || ''}</span></div>`;
-    }
-    if (c.bar) html += `<div class="ui-chip-bar"><div class="ui-chip-fill" id="chip-fill"></div></div>`;
-    if (c.rows) c.rows.forEach(r => {
-      html += `<div class="ui-chip-row"><span>${r.label}</span><b id="chip-row-${r.id}">${r.value ?? ''}</b></div>`;
-    });
-    if (c.status) {
-      html += `<div class="ui-chip-status" id="chip-status"><i></i><span id="chip-status-text" role="status" aria-live="polite">${c.status.text || ''}</span></div>`;
-    }
-    el.innerHTML = html;
-    slot.appendChild(el);
-    /* Phones show the readout as a one-line strip (no orb); the orb is a desktop nicety. */
+  /* Phase 7a — the Monitor (monitor.js). `monitor` = { config, initial } | a plain config. Phones: one-line strip + card;
+     desktop: card with the collapse orb. Legacy `chip:` configs arrive here through chipToMonitor(). */
+  _buildMonitor(m) {
+    const config = m && m.config ? m.config : m, initial = (m && m.initial) || null;
+    this._monitor = createMonitor({ mount: this._slots.tr, doc: document, moduleId: this.moduleId });
+    this._monitor.set(config);
+    if (initial) { this._monitor.update(initial); this._monitor.flush(); }
+    /* Phones show the readout as a strip (the card slides down on tap); the orb is a desktop nicety. */
     if (!isPhone(window.innerWidth, window.innerHeight))
-      this._makeCollapsible(el, '<svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3zm4 0h2v-2H7zm4 0h2v-2h-2zm4 0h2v-2h-2zm4 0h2v-2h-2z"/></svg>');
-
-    this._chipEls = {
-      root: el,
-      value: el.querySelector('#chip-value'),
-      fill: el.querySelector('#chip-fill'),
-      status: el.querySelector('#chip-status'),
-      statusText: el.querySelector('#chip-status-text'),
-    };
-    if (c.rows) c.rows.forEach(r => {
-      this._chipRows[r.id] = el.querySelector('#chip-row-' + r.id);
-    });
-    return el;
+      this._makeCollapsible(this._monitor.root, '<svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3zm4 0h2v-2H7zm4 0h2v-2h-2zm4 0h2v-2h-2zm4 0h2v-2h-2z"/></svg>');
+    return this._monitor.root;
   }
 
   /* ── Toolbar → dock. play / reset go to the transport zone (built ONCE, embedded and standalone,
@@ -1010,31 +1009,35 @@ class UIKit {
       toggle()  { const r = self._panelEls.root; if (r) self._setPanelExpanded(!r.classList.contains('expanded')); },
       get isOpen() { return !!self._panelEls.root?.classList.contains('expanded'); },
       selectTab(id) { self._selectTab(id); },
+      remeasure() { if (self._measurePanel) self._measurePanel(); },     /* call after adding content to the panel body */
     };
   }
 
-  get chip() {
-    const self = this;
+  /* Phase 7a: the Monitor API. set(config) rebuilds the channels; update(patch) writes values (text ≤ 9 Hz, traces ≤ 30 Hz).
+       set({ value:{label,unit,max}, rows:[[id,label]], traces:[{id,series:[…]}], gauge, status:true, footer })
+       update({ value, rows:{id:text|[text,tone]}, traces:{id:[v…]}, gauge, status:[text,on] })  — see monitor-core.js */
+  get monitor() {
+    const self = this, M = () => self._monitor;
     return {
-      set(id, value) { const r = self._chipRows[id]; if (r) r.textContent = value; },
-      setBig(value, unit) {
-        const v = self._chipEls.value;
-        if (!v) return;
-        v.innerHTML = `${value}<span>${unit ?? ''}</span>`;
-      },
-      setColor(color) { if (self._chipEls.value) self._chipEls.value.style.color = color; },
-      setBar(pct, color) {
-        const f = self._chipEls.fill;
-        if (!f) return;
-        f.style.width = Math.max(0, Math.min(100, pct)) + '%';
-        if (color) f.style.background = color;
-      },
-      setStatus(text, on) {
-        if (!self._chipEls.status) return;
-        self._chipEls.statusText.textContent = text;
-        self._chipEls.status.classList.toggle('on', !!on);
-      },
-      get root() { return self._chipEls.root; },
+      set(cfg) { if (!M()) self._buildMonitor(cfg); else M().set(cfg); },
+      update(p) { if (M()) M().update(p); },
+      flush() { if (M()) M().flush(); },
+      open(on) { if (M()) M().open(on); },
+      get isOpen() { return !!M() && M().isOpen; },
+      get root() { return M() ? M().root : null; },
+    };
+  }
+
+  /* Thin wrappers over the Monitor — deleted in 7b once the last caller has moved to ui.monitor. */
+  get chip() {
+    const self = this, up = (p) => { if (self._monitor) self._monitor.update(p); };
+    return {
+      set(id, value) { up({ rows: { [id]: value } }); },
+      setBig(value, unit) { up({ value: { text: String(value), unit: unit ?? '' } }); },
+      setColor(color) { up({ value: { color: color || '' } }); },
+      setBar(pct, color) { up({ value: Object.assign({ bar: pct }, color ? { barColor: color } : {}) }); },
+      setStatus(text, on) { up({ status: [text, !!on] }); },
+      get root() { return self._monitor ? self._monitor.root : null; },
     };
   }
 

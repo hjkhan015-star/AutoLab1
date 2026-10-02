@@ -11,26 +11,6 @@
 :root { --al-accent: #a78bfa; }
 html.light-theme { --al-accent: color-mix(in oklch, #a78bfa 68%, black); }
 
-#egr-panel{
-  position:fixed; left:12px; top:12px; z-index:30;
-  width:264px; max-width:46vw;
-  padding:10px 12px 12px;
-  border:1px solid var(--border,#333);
-  border-radius:10px;
-  background:color-mix(in oklab, var(--surface-2,#14181d) 88%, transparent);
-  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
-  box-shadow:0 8px 28px rgba(0,0,0,.38);
-  font:500 11px/1.35 var(--font-mono, ui-monospace, monospace);
-  color:var(--text-dim,#9aa4b2);
-  max-height:calc(100dvh - 24px); overflow:auto;
-}
-.egr-h{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
-.egr-h span{ font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--text-mute,#6b7280); font-weight:700; }
-#egr-graph{ width:100%; height:auto; display:block; border:1px solid var(--border,#333);
-  border-radius:6px; background:rgba(0,0,0,.28); }
-.egr-key{ display:flex; flex-wrap:wrap; gap:10px; margin-top:5px; font-size:10px; color:var(--text-mute,#6b7280); }
-.egr-key i{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; vertical-align:middle; }
-@media (max-width:700px){ #egr-panel{ width:208px; padding:8px 9px 10px; } }
 </style>
 </head>
 <body>
@@ -209,34 +189,18 @@ const S = {
   speed: 1
 };
 
-const panel = document.createElement('div');
-panel.id = 'egr-panel';
-let faultOptions = '';
-for (const id in FAULT_INFO) {
-  faultOptions += '<option value="' + id + '"' + (id === 'none' ? ' selected' : '') + '>' + FAULT_INFO[id].label + '</option>';
-}
-panel.innerHTML =
-  '<div class="egr-h"><span>EGR simulation</span></div>' +
-  '<div class="egr-body">' +
-    '<div class="egr-warn" id="egr-warn"></div>' +
-    '<canvas id="egr-graph" width="480" height="150" aria-label="NOx and peak flame temperature history"></canvas>' +
-    '<div class="egr-key"><span><i style="background:#a78bfa"></i>NOx ppm</span><span><i style="background:#f97316"></i>Peak &deg;C</span></div>' +
-  '</div>';
 
-document.body.appendChild(panel);
-
-const elWarn   = document.getElementById('egr-warn');
-const gcv      = document.getElementById('egr-graph');
-const gctx     = gcv.getContext('2d');
 
 /* ── simulation state (module level so Reset can reach it) ───────── */
-const GRAPH_N = 150;
+/* Phase 7a: the history lives in the Monitor (CFG.traces); the module only hands over one normalised sample
+   per ~140 ms while the sim runs (0..100 % of each old axis range) and the current warning sentence. */
+let traceSample = null, traceClear = false, warnText = '';
+const traceN = (v, lo, hi) => Math.round(clampN((v - lo) / (hi - lo), 0, 1) * 1000) / 10;
 const sim = {
   valve: 0.0,
   carbon: 0.0,
   coolant: 1.0,
-  lastT: -1,
-  samples: []
+  lastT: -1
 };
 
 function resetModel() {
@@ -244,7 +208,7 @@ function resetModel() {
   sim.carbon = 0.0;
   sim.coolant = 1.0;
   sim.lastT = -1;
-  sim.samples.length = 0;
+  traceClear = true;                  /* Monitor trace is cleared on the next update */
 }
 function resetAll() {
   S.load = 0.45;
@@ -253,45 +217,6 @@ function resetAll() {
   S.speed = 1;
   resetModel();
   controls.resetAll();                 /* every axis back to its default (store -> onChange -> S) */
-}
-
-/* ── rolling graph ───────────────────────────────────────────────── */
-function drawGraph() {
-  const W = gcv.width, Hh = gcv.height;
-  gctx.clearRect(0, 0, W, Hh);
-  gctx.strokeStyle = 'rgba(148,163,184,0.16)';
-  gctx.lineWidth = 1;
-  for (let i = 1; i < 4; i++) {
-    const y = Math.round(Hh * i / 4) + 0.5;
-    gctx.beginPath(); gctx.moveTo(0, y); gctx.lineTo(W, y); gctx.stroke();
-  }
-  const n = sim.samples.length;
-  if (n < 2) return;
-  const xAt = (i) => ((i + (GRAPH_N - n)) / (GRAPH_N - 1)) * W;
-  const yN  = (v) => Hh - clampN(v / 1600, 0, 1) * (Hh - 6) - 3;
-  const yT  = (v) => Hh - clampN((v - 600) / 2000, 0, 1) * (Hh - 6) - 3;
-
-  gctx.beginPath();
-  gctx.moveTo(xAt(0), Hh);
-  for (let i = 0; i < n; i++) gctx.lineTo(xAt(i), yN(sim.samples[i].N));
-  gctx.lineTo(xAt(n - 1), Hh);
-  gctx.closePath();
-  gctx.fillStyle = 'rgba(167,139,250,0.16)';
-  gctx.fill();
-
-  gctx.beginPath();
-  for (let i = 0; i < n; i++) {
-    const x = xAt(i), y = yN(sim.samples[i].N);
-    if (i) gctx.lineTo(x, y); else gctx.moveTo(x, y);
-  }
-  gctx.strokeStyle = '#a78bfa'; gctx.lineWidth = 1.6; gctx.stroke();
-
-  gctx.beginPath();
-  for (let i = 0; i < n; i++) {
-    const x = xAt(i), y = yT(sim.samples[i].T);
-    if (i) gctx.lineTo(x, y); else gctx.moveTo(x, y);
-  }
-  gctx.strokeStyle = '#f97316'; gctx.lineWidth = 1.4; gctx.stroke();
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -477,11 +402,7 @@ function build(H){
    const now = performance.now();
    if (now - lastDom > 140) {
      lastDom = now;
-     if (dt > 0) {
-       sim.samples.push({ N: nox, T: Tpeak });
-       if (sim.samples.length > GRAPH_N) sim.samples.shift();
-       drawGraph();
-     }
+     if (dt > 0) traceSample = [traceN(nox, 0, 1600), traceN(Tpeak, 600, 2600)];
      let warn = FAULT_INFO[fault] ? FAULT_INFO[fault].warn : '';
      if (!warn) {
        if (sim.carbon > 0.55) {
@@ -494,8 +415,7 @@ function build(H){
          warn = 'NOx at ' + nox.toFixed(0) + ' ppm - very high. Add EGR to bring peak flame temperature down.';
        }
      }
-     elWarn.textContent = warn;
-     elWarn.classList.toggle('show', !!warn);
+     warnText = warn;
    }
 
    /* ── 10. readouts ─────────────────────────────────────────── */
@@ -509,6 +429,10 @@ function build(H){
    const stState     = (nox > 900 || sim.coolant < 0.35 || fault === 'coolerleak') ? 'crit'
                      : (soot > 0.55 || sim.carbon > 0.5 || fault === 'stuckopen') ? 'warn'
                      : 'ok';
+
+   let tr;
+   if (traceClear) { traceClear = false; traceSample = null; tr = { hist: null }; }
+   else if (traceSample) { tr = { hist: traceSample }; traceSample = null; }
 
    return {
      big: nox.toFixed(0),
@@ -529,7 +453,8 @@ function build(H){
        cool:   [(sim.coolant * 100).toFixed(0) + ' %', coolState],
        state:  [stateTxt, stState]
      },
-     status: [stateTxt, true],
+     status: [warnText || stateTxt, true, warnText ? 'warn' : ''],
+      traces: tr,
      ctl: (egrFrac / EGR_MAX * 100).toFixed(0) + ' % EGR'
    };
   }
@@ -547,6 +472,12 @@ CFG.options = [
     onAction: () => { sim.carbon = 0.0; } }
 ];
 CFG.onReset = resetAll;      /* the dock Reset runs the module reset (model + every control) */
+/* Phase 7a: the old history canvas is a Monitor trace. Both series are drawn as 0..100 % of their old axis ranges. */
+CFG.traces = [{ id: 'hist', label: 'NOx and peak flame temperature history (% of full scale)', min: 0, max: 100, length: 150,
+  series: [
+    { id: 'a', label: 'NOx ppm', color: 'var(--accent)' },
+    { id: 'b', label: 'Peak \u00B0C', color: 'var(--warn)' }
+  ] }];
 runGuidedModule(CFG, build);
 </script>
 </body>

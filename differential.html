@@ -1457,7 +1457,8 @@
       bar:   true,
       rows: [
         { id: 'rpmL', label: 'Rear L', value: '0 rpm' },
-        { id: 'rpmR', label: 'Rear R', value: '0 rpm' }
+        { id: 'rpmR', label: 'Rear R', value: '0 rpm' },
+        { id: 'rpm', label: 'Input speed', value: '—' }
       ],
       status: { text: 'Open' }
     },
@@ -1737,7 +1738,7 @@
     const rpmR = (omegaR / omega_c) * rpmBase;
     ui.chip.set('rpmL', Math.round(rpmL) + (slip && tractionMode === 'left' ? ' ⚠' : '') + ' rpm');
     ui.chip.set('rpmR', Math.round(rpmR) + (slip && tractionMode === 'right' ? ' ⚠' : '') + ' rpm');
-    ui.toolbar.setRpmLabel(`~${Math.round(rpmBase)} rpm`);
+    ui.monitor.update({ rows: { rpm: `~${Math.round(rpmBase)} rpm` } });
 
     if (elTurnR) {
       if (Math.abs(tanRoad) < 0.008) elTurnR.textContent = '∞ (straight)';

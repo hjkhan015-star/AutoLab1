@@ -1,5 +1,14 @@
 # Changelog
 
+## 8.7.0 - Control-system refactor, Phase 7a complete (Monitor traces + rpm rows)
+- Rebased onto the Phase 6 build (v8.6.2): Phase 7a part 1 was first built on Phase 5; it is now applied on top of Phase 6 and 6.5.
+- The ten guided modules (awd, catalytic, commonrail, dpf, driveshaft, egr, fuelpump, intercooler, oilpump, radiator): the panel graph canvas, `drawGraph()`, the history buffer, the `*-warn` element and their CSS are gone. Each module declares `CFG.traces` (one trace `hist`, two series, token colours) and returns `traces: { hist: [a, b] | null }` and a status that carries the warning sentence (warn tone). Samples are normalised to 0-100 % of the old axis ranges. Simulation maths unchanged.
+- `components.js`: `CFG.traces` -> the Monitor config; `traces` from `mod.update()` are forwarded every frame (`pushTraces`); `status` takes an optional third tone item.
+- `monitor.js` / `monitor-core.js`: status tone (`warn` / `crit`), `traces: { id: null }` clears a trace (module Reset), series colours may be `var(--token)` (resolved for the canvas), a colour key per labelled series, and on phones the card shows the full fault sentence (aria-hidden copy; the strip stays the one live region).
+- `setRpmLabel`: all 13 callers moved. Rows added: `speed` (automatic), `rpm` (carburetor, clutch, cooling, differential, mpfi, starting-system, turbocharger). Duplicates removed: abs-esc (static unit), electrical, exhaustsystem, ignition, suspension. `ui.toolbar.setRpmLabel` stays defined (no-op) until 7b.
+- Tests: `tests/monitor.test.mjs` +7 groups (no graph code / `*-warn` / `<canvas>` in the ten modules, `CFG.traces`, no `setRpmLabel` caller, rpm rows, status tone, trace clear). Cache `autolab-v8.7`.
+- Not verified (no browser): trace drawing and smoothness, the phone strip + card, nothing overlapping the dock, light theme, reduced motion.
+
 ## Phase 6 follow-up (v8.6.2)
 - lighting: dip switch is a 3-stop `choice` (id `dip`, Off / Low beam / High beam, default Low) in the primary zone; no slider. `guidedCtls` returns `[]` for `CFG.ctl === null`. Tests +2. Cache `autolab-v8.6.2`.
 
@@ -12,6 +21,14 @@
 - Behaviour notes: actions have no lit state (mpfi Cold start); the gearbox gate steps through N, 1–4, R in order; dock Reset now also resets the new toggles / choices; engine's stroke buttons are one `stroke` choice that follows the simulation and jumps `theta` when the user picks.
 - Left on purpose: sparkplug, thermostat, tyres, wiring author their own bespoke UI and never used the kit (`check.mjs` WARNs on them); the gearbox torque-chart chevron and the quiz option buttons are content, not controls.
 - Tests: `tests/choice.test.mjs` (option / index maths, registry index + 0/1 storage, listeners on change only, key intents, gate keys, static module checks, optional jsdom group); `tests/check.mjs` gained an advisory WARN for kit modules that author their own controls, retired toolbar extras or `window.__*Sync*` hooks. Existing `dock` / `dial` / `shell` tests adjusted for the removed sync hooks, the new CSS block and the new cache. Cache `autolab-v8.6`.
+
+## 8.6.0 - Control-system refactor, Phase 7a part 1 (Monitor core + guided-module `apply()`)
+- New `monitor-core.js` (pure, unit-tested: channel validation, rolling buffer, rate limiter, value → bar / gauge mapping, formatting, trace range) and `monitor.js` (channels: value + bar, rows with ok / warn / crit / hi tones, gauge, trace, status with the ONE polite `aria-live`, footer). Phone: one-line strip (`--monitor-strip-h`) with the primary value + status; tap opens a card (max `--monitor-max`). Desktop: a card with the collapse orb. Text refresh ≈ 9 Hz (trailing flush so the last value always lands), traces ≈ 30 Hz, no layout measuring on text writes.
+- `kit.js`: `ui.monitor.set / update / flush / open`; `UI.create({ monitor })`; legacy `chip:` configs are translated (`chipToMonitor`); `ui.chip.*` are thin wrappers over the Monitor (deleted in 7b). `_wireAutoCollapse` no longer watches DOM mutations: it measures on tab switch, a `ResizeObserver` and `ui.panel.remeasure()`.
+- `runGuidedModule`: `apply()` writes only through `ui.monitor.update`; the panel `ro-*` grid moved into Monitor rows (a ro row equal to the big-value label is dropped, chip rows sharing a ro id are one row). `mod.update()` return shape unchanged.
+- Styles: Monitor block in `controls.css` (tokens only, reduced-motion safe). `sw.js` precaches both new files; cache `autolab-v8.6`.
+- Tests: `tests/monitor.test.mjs` (rolling buffer, rate limiter, mapping, validation, merge regression, static acceptance). `check.mjs` syntax-checks the new files; version pins in `dock` / `shell` tests relaxed to `v8.[5-9]`; the dial CSS test now ends at the Monitor block.
+- Remaining 7a work (graph canvases → traces, `*-warn` → status, `setRpmLabel` → rows): see `PHASE-7a-PART2.md`. `MONITOR-MAP.md` is the inventory.
 
 ## 8.5.0 - Control-system refactor, Phase 5 (`dial`: wheel / crank / knob)
 - `controls.js`: new `dial` primitive (`createDial`, `controls.dial`, `controls.dragging`). `look:'wheel'|'crank'|'knob'`; drag anywhere with pointer capture (angle from the pointer, unwrapped across ±180°); `range` degrees, `wrap:true` (crank) or clamped (wheel); optional `spring:'return'` on the SHARED animation loop (still exactly one `requestAnimationFrame` call site); ←/→ 10° (→ = clockwise = right), `Enter` / `Home` = default, `role="slider"` with degree `aria-*`; `onGrab(active)`; reduced motion = no spring. `UI.create({axes})` and `CFG.ctls[]` host dials.

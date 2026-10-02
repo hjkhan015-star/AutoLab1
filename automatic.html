@@ -540,7 +540,8 @@
       rows: [
         { id: 'eng',  label: 'Engine',     value: '0 rpm' },
         { id: 'turb', label: 'Turbine',    value: '0 rpm' },
-        { id: 'mult', label: 'Multiplier', value: '1.0 ×' }
+        { id: 'mult', label: 'Multiplier', value: '1.0 ×' },
+        { id: 'speed', label: 'Vehicle speed', value: '—' }
       ],
       status: { text: 'Unlocked' }
     },
@@ -582,7 +583,7 @@
     const inp = document.getElementById('speed');
     if (inp && parseFloat(inp.value) !== state.speedMul) inp.value = state.speedMul;
     const kmh = Math.round(2.4 * state.speedMul * 16);
-    ui.toolbar.setRpmLabel(`~${kmh} km/h`);
+    ui.monitor.update({ rows: { speed: `~${kmh} km/h` } });
   }
 
   /* ============================================================

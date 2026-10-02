@@ -11,27 +11,6 @@
 :root { --al-accent: #38bdf8; }
 html.light-theme { --al-accent: color-mix(in oklch, #38bdf8 68%, black); }
 
-/* ── module-local UI: extra controls + rolling graph ─────────────── */
-#ds-panel{
-  position:fixed; left:12px; top:12px; z-index:30;
-  width:268px; max-width:46vw;
-  padding:10px 12px 12px;
-  border:1px solid var(--border,#333);
-  border-radius:10px;
-  background:color-mix(in oklab, var(--surface-2,#14181d) 88%, transparent);
-  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
-  box-shadow:0 8px 28px rgba(0,0,0,.38);
-  font:500 11px/1.35 var(--font-mono, ui-monospace, monospace);
-  color:var(--text-dim,#9aa4b2);
-  max-height:calc(100dvh - 24px); overflow:auto;
-}
-.ds-h{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
-.ds-h span{ font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--text-mute,#6b7280); font-weight:700; }
-#ds-graph{ width:100%; height:auto; display:block; border:1px solid var(--border,#333);
-  border-radius:6px; background:rgba(0,0,0,.28); }
-.ds-key{ display:flex; flex-wrap:wrap; gap:10px; margin-top:5px; font-size:10px; color:var(--text-mute,#6b7280); }
-.ds-key i{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; vertical-align:middle; }
-@media (max-width:700px){ #ds-panel{ width:212px; padding:8px 9px 10px; } }
 </style>
 </head>
 <body>
@@ -201,40 +180,24 @@ const S = {
   speed: 1
 };
 
-const panel = document.createElement('div');
-panel.id = 'ds-panel';
-let faultOptions = '';
-for (const id in FAULT_INFO) {
-  faultOptions += '<option value="' + id + '"' + (id === 'none' ? ' selected' : '') + '>' + FAULT_INFO[id].label + '</option>';
-}
-panel.innerHTML =
-  '<div class="ds-h"><span>Driveshaft simulation</span></div>' +
-  '<div class="ds-body">' +
-    '<div class="ds-warn" id="ds-warn"></div>' +
-    '<canvas id="ds-graph" width="480" height="150" aria-label="Speed swing and vibration history"></canvas>' +
-    '<div class="ds-key"><span><i style="background:#38bdf8"></i>Swing %</span><span><i style="background:#fb923c"></i>Vib mm/s</span></div>' +
-  '</div>';
 
-document.body.appendChild(panel);
-
-const elWarn  = document.getElementById('ds-warn');
-const gcv     = document.getElementById('ds-graph');
-const gctx    = gcv.getContext('2d');
 
 /* ── simulation state (module level so Reset can reach it) ───────── */
-const GRAPH_N = 150;
+/* Phase 7a: the history lives in the Monitor (CFG.traces); the module only hands over one normalised sample
+   per ~140 ms while the sim runs (0..100 % of each old axis range) and the current warning sentence. */
+let traceSample = null, traceClear = false, warnText = '';
+const traceN = (v, lo, hi) => Math.round(clampN((v - lo) / (hi - lo), 0, 1) * 1000) / 10;
 const sim = {
   thetaIn: 0,
   vibRms: 0,
-  lastT: -1,
-  samples: []
+  lastT: -1
 };
 
 function resetModel() {
   sim.thetaIn = 0;
   sim.vibRms = 0;
   sim.lastT = -1;
-  sim.samples.length = 0;
+  traceClear = true;                  /* Monitor trace is cleared on the next update */
 }
 function resetAll() {
   S.rpm = 2400;
@@ -246,47 +209,6 @@ function resetAll() {
   S.speed = 1;
   resetModel();
   controls.resetAll();                 /* every axis back to its default (store -> onChange -> S) */
-}
-
-/* ── rolling graph ───────────────────────────────────────────────── */
-function drawGraph() {
-  const W = gcv.width, Hh = gcv.height;
-  gctx.clearRect(0, 0, W, Hh);
-  gctx.strokeStyle = 'rgba(148,163,184,0.16)';
-  gctx.lineWidth = 1;
-  for (let i = 1; i < 4; i++) {
-    const y = Math.round(Hh * i / 4) + 0.5;
-    gctx.beginPath(); gctx.moveTo(0, y); gctx.lineTo(W, y); gctx.stroke();
-  }
-  const n = sim.samples.length;
-  if (n < 2) return;
-  const xAt   = (i) => ((i + (GRAPH_N - n)) / (GRAPH_N - 1)) * W;
-  const ySw   = (v) => Hh - clampN(v / 60, 0, 1) * (Hh - 6) - 3;
-  const yVib  = (v) => Hh - clampN(v / 100, 0, 1) * (Hh - 6) - 3;
-
-  /* speed swing filled area */
-  gctx.beginPath();
-  gctx.moveTo(xAt(0), Hh);
-  for (let i = 0; i < n; i++) gctx.lineTo(xAt(i), ySw(sim.samples[i].s));
-  gctx.lineTo(xAt(n - 1), Hh);
-  gctx.closePath();
-  gctx.fillStyle = 'rgba(56,189,248,0.20)';
-  gctx.fill();
-
-  gctx.beginPath();
-  for (let i = 0; i < n; i++) {
-    const x = xAt(i), y = ySw(sim.samples[i].s);
-    if (i) gctx.lineTo(x, y); else gctx.moveTo(x, y);
-  }
-  gctx.strokeStyle = '#38bdf8'; gctx.lineWidth = 1.6; gctx.stroke();
-
-  /* vibration line */
-  gctx.beginPath();
-  for (let i = 0; i < n; i++) {
-    const x = xAt(i), y = yVib(sim.samples[i].v);
-    if (i) gctx.lineTo(x, y); else gctx.moveTo(x, y);
-  }
-  gctx.strokeStyle = '#fb923c'; gctx.lineWidth = 1.6; gctx.stroke();
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -515,11 +437,7 @@ function build(H){
    const now = performance.now();
    if (now - lastDom > 140) {
      lastDom = now;
-     if (dt > 0) {
-       sim.samples.push({ s: swingPct, v: sim.vibRms });
-       if (sim.samples.length > GRAPH_N) sim.samples.shift();
-       drawGraph();
-     }
+     if (dt > 0) traceSample = [traceN(swingPct, 0, 60), traceN(sim.vibRms, 0, 100)];
      let warn = FAULT_INFO[fault] ? FAULT_INFO[fault].warn : '';
      if (!warn) {
        if (Math.abs(rpm - critRpm) < 0.10 * critRpm) {
@@ -536,8 +454,7 @@ function build(H){
          warn = 'Yoke phase error ' + phaseErr.toFixed(0) + ' \u00B0 - the two joints are not cancelling. Re-index the yoke one spline so the ears lie in the same plane.';
        }
      }
-     elWarn.textContent = warn;
-     elWarn.classList.toggle('show', !!warn);
+     warnText = warn;
    }
 
    /* ── 8. derived state ─────────────────────────────────────── */
@@ -570,6 +487,10 @@ function build(H){
    const rangeTxt = rpmLo.toFixed(0) + ' - ' + rpmHi.toFixed(0) + ' rpm';
    const typeTxt  = (jointType === 'cv') ? 'CV (constant velocity)' : 'Cardan (U-joint)';
 
+   let tr;
+   if (traceClear) { traceClear = false; traceSample = null; tr = { hist: null }; }
+   else if (traceSample) { tr = { hist: traceSample }; traceSample = null; }
+
    return {
      big: swingPct.toFixed(1),
      unit: ' %',
@@ -591,7 +512,8 @@ function build(H){
        type:   [typeTxt, ''],
        state:  [stateTxt, stState]
      },
-     status: [stateTxt, true],
+     status: [warnText || stateTxt, true, warnText ? 'warn' : ''],
+      traces: tr,
      ctl: angleDeg.toFixed(1) + ' \u00B0'
    };
   }
@@ -613,6 +535,12 @@ CFG.options = [
     onAction: () => { controls.set('ctl', 0); } }
 ];
 CFG.onReset = resetAll;      /* the dock Reset runs the module reset (model + every control) */
+/* Phase 7a: the old history canvas is a Monitor trace. Both series are drawn as 0..100 % of their old axis ranges. */
+CFG.traces = [{ id: 'hist', label: 'Speed swing and vibration history (% of full scale)', min: 0, max: 100, length: 150,
+  series: [
+    { id: 'a', label: 'Swing %', color: 'var(--accent)' },
+    { id: 'b', label: 'Vib mm/s', color: 'var(--warn)' }
+  ] }];
 runGuidedModule(CFG, build);
 </script>
 </body>

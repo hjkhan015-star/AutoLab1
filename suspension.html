@@ -971,10 +971,8 @@ import { Parts } from './components.js';
 
   function updateSpeedLabel() {
     if (slowMo) {
-      ui.toolbar.setRpmLabel('SLO-MO');
     } else {
       const kmh = Math.round(2.4 * state.speedMul * 16);
-      ui.toolbar.setRpmLabel(`~${kmh} km/h`);
     }
     ui.chip.set('speed', slowMo ? 'SLO-MO' : `~${Math.round(2.4 * state.speedMul * 16)} km/h`);
   }
