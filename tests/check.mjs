@@ -24,7 +24,7 @@ for (const f of html) {
     try { execFileSync('node', ['--check', p], { stdio: 'pipe' }); } catch (e) { fail(`${f}: syntax error in module script ${i}`); }
   });
 }
-for (const f of ['kit.js', 'labels.js', 'components.js', 'modules.js', 'guard.js', 'sw.js', 'controls-core.js', 'chrome.js', 'keys.js']) {
+for (const f of ['kit.js', 'labels.js', 'components.js', 'modules.js', 'guard.js', 'sw.js', 'controls-core.js', 'chrome.js', 'keys.js', 'dock.js']) {
   try { execFileSync('node', ['--check', root + f], { stdio: 'pipe' }); } catch (e) { fail(`${f}: syntax error`); }
 }
 JSON.parse(readFileSync(root + 'manifest.webmanifest', 'utf8'));
@@ -37,6 +37,12 @@ let warns = 0;
 const warn = (m) => { console.warn('WARN', m); warns++; };
 const coreBlock = (sw.match(/const CORE_ASSETS = \[([\s\S]*?)\n\];/) || [, ''])[1];
 const precached = new Set([...coreBlock.matchAll(/'\.\/([^']+)'/g)].map((m) => m[1]));
+/* Phase 6.5 (D6-8): lines allowed to contain <button / <select / <input on a kit page, and why. Not controls — content. */
+const AUTHORED_OK = [
+  [/class="al-opt"|al-opt/, 'quiz option buttons (components.js Widgets.wireQuiz owns the behaviour)'],
+  [/data-quiz|quiz/, 'quiz markup'],
+  [/tq-toggle/, 'gearbox torque-chart collapse chevron (panel chrome, not a control); revisit in Phase 7b']
+];
 const hexCounts = [];
 for (const f of html) {
   const s = readFileSync(root + f, 'utf8');
@@ -53,6 +59,17 @@ for (const f of html) {
   /* (c) module pages must not define the kit's own control ids */
   if (f !== 'index.html' && f !== '404.html')
     for (const id of ['btn-play', 'btn-reset', 'speed']) if (seen.has(id)) warn(`${f}: defines id="${id}" (owned by the kit/dock)`);
+  /* (e) Phase 6 / 6.5: kit modules author NO interactive controls of their own — they use options:[choice|toggle|action].
+         EXCLUSIONS (explicit, with reasons) live in AUTHORED_OK below; anything else on a kit page is a WARN. */
+  if (/from\s+['"]\.\/(kit|components)\.js['"]/.test(s)) {
+    const code = s.replace(/<style[\s\S]*?<\/style>/g, '');
+    for (const l of code.split('\n')) {
+      if (/^\s*(\/\/|\/\*|\*)/.test(l) || AUTHORED_OK.some(([re]) => re.test(l))) continue;
+      if (/<(button|select|input)\b|createElement\(['"`](button|select|input)['"`]\)/.test(l)) { warn(`${f}: authors its own control (use options:[...]): ${l.trim().slice(0, 70)}`); break; }
+    }
+    if (/extras:\s*\[\s*\{/.test(code)) warn(`${f}: toolbar extras are retired — use options:[...]`);
+    if (/window\.__\w*Sync\w*\s*=/.test(code)) warn(`${f}: window.__*Sync* hook (the kit syncs the play icons)`);
+  }
   /* (d) hard-coded colours inside <style> (report only) */
   const styles = [...s.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
   const c = (styles.match(/#[0-9a-fA-F]{3,8}\b|rgba?\(/g) || []).length;
