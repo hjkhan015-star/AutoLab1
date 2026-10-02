@@ -1160,7 +1160,7 @@ function createRadial5() {
 
     ui.chip.setBig(s.name, '');
     ui.chip.setColor(s.color);
-    ui.chip.root.querySelector('.ui-chip-value').style.color = s.color;
+    /* the stroke-name colour is applied by ui.chip.setColor above (Monitor value channel) */
 
     syncingStroke = true; ui.controls.set('stroke', idx); syncingStroke = false;      /* the dock choice follows the simulation */
     const strokeCtl = ui.axis('stroke'); if (strokeCtl) strokeCtl.el.style.setProperty('--ctl-accent', s.color);
