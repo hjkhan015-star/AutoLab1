@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="controls.css">
 <style>
   /* ═══════════════════════════════════════════════════════════
-     PANEL READOUT INTERIOR — live rows, timing curve, cycle bar
+     PANEL READOUT INTERIOR — firing order, 720° cycle bar, wire legend
      ═══════════════════════════════════════════════════════════ */
   #ign-readout { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
   #ign-readout .ig-rows {
@@ -1213,7 +1213,6 @@
     const rel   = (target - prev + 720) % 720;
     return delta > 0 && rel < delta;
   }
-
   /* ═══════════════════════════════════════════════════════════
      UI — kit chrome + readout with timing curve + cycle bar
      ═══════════════════════════════════════════════════════════ */
@@ -1227,9 +1226,6 @@
       readout: `
         <div id="ign-readout">
           <div class="ig-rows">
-            <div class="ig-row"><span>Engine speed</span><b data-ig="rpm">800 rpm</b></div>
-            <div class="ig-row"><span>Timing advance</span><b data-ig="adv">10° BTDC</b></div>
-            <div class="ig-row"><span>Coil dwell</span><b data-ig="dwell">3.2 ms</b></div>
             <div class="ig-row"><span>Firing order</span><b>1–3–4–2</b></div>
           </div>
           <div id="cycle-bar">
@@ -1262,27 +1258,45 @@
     },
 
     monitor: {
-      config: { label: 'Live firing', value: { label: 'Live firing', unit: '', max: 100, bar: true }, rows: [['adv', 'Advance'], ['rpm', 'RPM']], status: { text: 'Ready' } },
-      initial: { value: { text: 'Idle', unit: '' }, rows: { adv: '10° BTDC', rpm: '800' }, status: ['Ready', false] }
+      config: { label: 'Live firing', value: { label: 'Live firing', unit: '', max: 100, bar: true }, rows: [['adv', 'Advance'], ['dwell', 'Coil dwell'], ['rpm', 'Engine speed']], status: { text: 'Ready' } },
+      initial: { value: { text: 'Idle', unit: '' }, rows: { adv: '10° BTDC', dwell: '3.2 ms', rpm: '800 rpm' }, status: ['Ready', false] }
     },
 
     toolbar: {
       play: true, reset: true,
       labels: true, gas: true
     },
-    axes: [{ id: 'rpm', preset: 'rpm', max: 6000, def: 800, label: 'Engine speed', side: 'left' }]   /* Phase 3: its own axis, never state.speedMul */
+
+    /* Engine speed is its own axis (800–6000 rpm); sim speed (⋯ menu) only scales time. */
+    axes: [{ id: 'rpm', preset: 'rpm', min: 800, max: 6000, def: 800, step: 50, label: 'Engine speed', side: 'left' }],
+
+    /* The 3D key switch and this dock toggle are the same control. */
+    options: [
+      { id: 'ign', type: 'toggle', label: 'Ignition', ariaLabel: 'Ignition on', def: true,
+        onChange: (on) => { if (on !== ignitionOn) setIgnition(on); } }
+    ]
   });
 
   /* Panel readout refs */
   const panelBody = ui.panel.body;
-  const elRpm    = panelBody ? panelBody.querySelector('[data-ig="rpm"]')   : null;
-  const elAdv    = panelBody ? panelBody.querySelector('[data-ig="adv"]')   : null;
-  const elDwell  = panelBody ? panelBody.querySelector('[data-ig="dwell"]') : null;
   const cycleProgEl = panelBody ? panelBody.querySelector('#cycle-progress') : null;
-  /* 7b2: the advance curve (spark advance vs rpm + the live dot) is a picture, not a time series → a stage canvas */
-  const advCanvas = ui.stage.canvas({ id: 'advance', label: 'Spark advance vs rpm', width: 240, height: 110, corner: 'bl' });
+  /* Spark-advance curve: a picture, not a time series, so it is a stage canvas (bottom-left over the 3D view). */
+  const advCanvas = ui.stage.canvas({ id: 'advance', label: 'Spark advance · ° BTDC vs rpm', width: 360, height: 92, corner: 'bl' });
   const advCtx    = advCanvas ? advCanvas.getContext('2d') : null;
-  ui.panel.remeasure();                       /* the panel lost its canvas */
+  let advW = 360, advH = 92;
+  function sizeAdvCanvas() {
+    if (!advCanvas || !advCtx) return;
+    const r = advCanvas.getBoundingClientRect();
+    if (r.width < 4 || r.height < 4) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    advCanvas.width  = Math.round(r.width * dpr);
+    advCanvas.height = Math.round(r.height * dpr);
+    advCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    advW = r.width; advH = r.height;
+  }
+  if (advCanvas && window.ResizeObserver) new ResizeObserver(sizeAdvCanvas).observe(advCanvas);
+  sizeAdvCanvas();
+  ui.panel.remeasure();                       /* the panel lost its curve canvas (now a stage canvas) and three rows (now Monitor rows) */
   const markerEls = panelBody ? Array.from(panelBody.querySelectorAll('.cyc-marker')) : [];
   const strokeDescEl = document.getElementById('stroke-desc');
 
@@ -1292,8 +1306,8 @@
   const RPM_MAX = 6500, ADV_MAX = 35;
   function drawAdvanceCurve(rpm, advance) {
     if (!advCtx || !advCanvas) return;
-    const W = advCanvas.width, H = advCanvas.height;
-    const padL = 30, padR = 10, padT = 8, padB = 22;
+    const W = advW, H = advH;
+    const padL = 32, padR = 10, padT = 8, padB = 22;
     const plotW = W - padL - padR, plotH = H - padT - padB;
     advCtx.clearRect(0, 0, W, H);
 
@@ -1340,11 +1354,12 @@
     advCtx.fillStyle = 'rgba(148,163,184,.85)';
     advCtx.font = 'bold 9px ui-monospace, monospace';
     advCtx.textAlign = 'right'; advCtx.textBaseline = 'middle';
-    advCtx.fillText('32°', padL - 4, padT + 2);
+    advCtx.fillText(ADV_MAX + '°', padL - 4, padT + 2);
     advCtx.fillText('0°',  padL - 4, padT + plotH);
     advCtx.textAlign = 'center'; advCtx.textBaseline = 'top';
     advCtx.fillText('0', padL, padT + plotH + 3);
-    advCtx.fillText('6500', padL + plotW, padT + plotH + 3);
+    advCtx.fillText('3250', padL + plotW / 2, padT + plotH + 3);
+    advCtx.fillText(String(RPM_MAX), padL + plotW, padT + plotH + 3);
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -1502,8 +1517,8 @@
       wirePulseCyl.fill(0);
       wirePulseShared = 0;
       coilFlash = 0; rotorFlash = 0; ecuBlink = 0;
-      ui.monitor.update({ status: ['Off', false] });
     }
+    ui.controls.set('ign', on ? 1 : 0);                 /* keep the dock toggle in step with the 3D key */
   }
   canvasEl.addEventListener('pointerdown', e => { pdownX = e.clientX; pdownY = e.clientY; pdownT = performance.now(); });
   canvasEl.addEventListener('pointerup', e => {
@@ -1521,6 +1536,7 @@
      RESET
      ═══════════════════════════════════════════════════════════ */
   function resetSim() {
+    ui.controls.resetAll();                              /* rpm axis back to 800, ignition toggle back on */
     crankAngle = START_CRANK;
     prevCrankAngle = START_CRANK;
     currentRPM = 0;
@@ -1549,25 +1565,27 @@
     shownRpm = Math.max(0, Math.round(shownRpm));
     const a = Math.round(advNow);
 
-    if (elRpm)   elRpm.textContent   = `${shownRpm} rpm`;
-    if (elAdv)   elAdv.textContent   = `${a}° BTDC`;
-    if (elDwell) elDwell.textContent = `${dwellMs(currentRPM).toFixed(1)} ms`;
-
-    ui.monitor.update({
-      value: { text: String(ignitionOn ? `Cyl ${(lastFireCyl >= 0 ? lastFireCyl : nextFireCyl) + 1}` : 'OFF'), unit: '', color: (ignitionOn ? '#f59e0b' : '#ff5566') || '', bar: ignitionOn ? Math.max(0, Math.min(100, chargeLevel * 100)) : 0, barColor: '#f59e0b' },
-      rows: { adv: `${a}° BTDC`, rpm: String(shownRpm) }
-    });
-
+    let status;
     if (!ignitionOn) {
-      ui.monitor.update({ status: ['Ignition OFF', false] });
+      status = ['Ignition OFF', false];
     } else if (performance.now() - lastFireAt < 340 && lastFireCyl >= 0) {
-      ui.monitor.update({ status: [`Cyl ${lastFireCyl + 1} spark`, true] });
+      status = [`Cyl ${lastFireCyl + 1} spark`, true];
     } else if (chargeLevel > 0.03) {
-      ui.monitor.update({ status: [`Cyl ${nextFireCyl + 1} charging…`, false] });
+      status = [`Cyl ${nextFireCyl + 1} charging…`, false];
     } else {
-      ui.monitor.update({ status: [`Next: Cyl ${nextFireCyl + 1}`, false] });
+      status = [`Next: Cyl ${nextFireCyl + 1}`, false];
     }
 
+    ui.monitor.update({
+      value: {
+        text: ignitionOn ? `Cyl ${(lastFireCyl >= 0 ? lastFireCyl : nextFireCyl) + 1}` : 'OFF',
+        unit: '',
+        bar: ignitionOn ? Math.max(0, Math.min(100, chargeLevel * 100)) : 0,
+        barColor: ignitionOn ? '#f59e0b' : '#ff5566'
+      },
+      rows: { adv: `${a}° BTDC`, dwell: `${dwellMs(currentRPM).toFixed(1)} ms`, rpm: `${shownRpm} rpm` },
+      status
+    });
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -1578,7 +1596,7 @@
     state,
     onCommand: (d) => {
       switch (d.action) {
-        case 'reset':      ui.controls.resetAll(); resetSim(); break;
+        case 'reset':      resetSim(); break;
         case 'setIgnition': setIgnition(!!d.value); break;
       }
     }
