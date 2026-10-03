@@ -75,49 +75,6 @@
      WIDGET INTERIOR — ignition key selector (charging mode)
      ═══════════════════════════════════════════════════════════ */
 
-  /* ═══════════════════════════════════════════════════════════
-     WIDGET INTERIOR — 3-phase waveform canvas (alternator mode)
-     ═══════════════════════════════════════════════════════════ */
-  #waveform-panel {
-    display: flex; flex-direction: column; gap: 6px;
-    background: rgba(10,14,20,.86);
-    border: 1px solid var(--border, rgba(255,255,255,.10));
-    border-radius: 12px;
-    padding: 10px 12px;
-    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    min-width: 220px;
-    box-shadow: 0 6px 20px rgba(0,0,0,.5);
-  }
-  #waveform-panel .wf-label {
-    font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
-    color: #8d9aaa; font-weight: 700;
-    font-family: var(--font-sans);
-  }
-  #waveform-canvas {
-    display: block; width: 100%; height: 70px; border-radius: 6px;
-    background: rgba(0,0,0,.28);
-  }
-  #waveform-panel .wf-legend {
-    display: flex; gap: 12px; font-size: 10px;
-    color: var(--text-dim, #94a3b8);
-    font-weight: 700; letter-spacing: .03em;
-  }
-  #waveform-panel .wf-legend span { display: flex; align-items: center; gap: 4px; }
-  #waveform-panel .wf-legend i {
-    width: 8px; height: 8px; border-radius: 50%; display: inline-block;
-  }
-
-  html.light-theme #waveform-panel {
-    background: rgba(255,255,255,.94);
-    border-color: rgba(15,23,42,.14);
-  }
-  html.light-theme #waveform-panel .wf-label { color: #64748b; }
-  html.light-theme #waveform-canvas { background: rgba(15,23,42,.06); }
-
-  @media (max-width: 600px) {
-    #waveform-panel { min-width: 180px; padding: 8px 10px; }
-    #waveform-canvas { height: 56px; }
-  }
 </style>
 </head>
 <body>
@@ -938,6 +895,21 @@ import { Parts } from './components.js';
   };
 
   /* ============================================================
+     MONITOR CONFIGS (7b2): the 3-phase waveform is a Monitor trace, shown in alternator mode only.
+     Same shape and range as the old canvas: 3 cycles across the window, y = ±1.5625 amplitudes (the old ±H/2 at 0.32·H amplitude).
+     ============================================================ */
+  const WF_LEN = 240, WF_CYCLES = 3, WF_STEP = WF_CYCLES * TAU / (WF_LEN - 1);
+  const MON_BASE = {
+    label: 'Electrical', value: { label: 'Electrical', unit: '% SOC', max: 100, bar: true },
+    rows: [['eng', 'Engine'], ['net', 'Load']], status: { text: 'Ready' }
+  };
+  const MON_ALT = Object.assign({}, MON_BASE, {
+    traces: [{ id: 'wave', label: '3-phase AC → rectified DC', min: -1.5625, max: 1.5625, length: WF_LEN,
+      series: [{ id: 'a', label: 'Phase A', color: 'var(--crit)' }, { id: 'b', label: 'Phase B', color: 'var(--ok)' },
+               { id: 'c', label: 'Phase C', color: 'var(--accent)' }, { id: 'dc', label: 'DC out', color: 'var(--warn)' }] }]
+  });
+
+  /* ============================================================
      UI — kit-driven chrome + module widgets
      ============================================================ */
   const ui = UI.create({
@@ -987,7 +959,7 @@ import { Parts } from './components.js';
     },
 
     monitor: {
-      config: { label: 'Electrical', value: { label: 'Electrical', unit: '% SOC', max: 100, bar: true }, rows: [['eng', 'Engine'], ['net', 'Load']], status: { text: 'Ready' } },
+      config: MON_BASE,
       initial: { value: { text: '85', unit: '% SOC' }, rows: { eng: '~900 rpm', net: '0 A' }, status: ['Ready', false] }
     },
 
@@ -995,24 +967,6 @@ import { Parts } from './components.js';
       play: true, reset: true,
       speed: { label: 'Engine RPM', min: 0.15, max: 2.5, step: 0.05, value: 0.85 },
       labels: true, gas: true
-    },
-
-    widgets: {
-      bl: {
-        caption: '',
-        html: `
-          <div id="waveform-panel" style="display:none">
-            <div class="wf-label">3-phase AC → rectified DC</div>
-            <canvas id="waveform-canvas" width="480" height="160"></canvas>
-            <div class="wf-legend">
-              <span><i style="background:#ef4444"></i>Phase A</span>
-              <span><i style="background:#22c55e"></i>Phase B</span>
-              <span><i style="background:#38bdf8"></i>Phase C</span>
-              <span><i style="background:#f59e0b"></i>DC out</span>
-            </div>
-          </div>
-        `
-      }
     },
 
     /* Phase 6: charge / discharge and the ignition switch are controls.js choices (shown per mode) */
@@ -1043,10 +997,9 @@ import { Parts } from './components.js';
   const elR2         = panelBody ? panelBody.querySelector('[data-el="r2"]') : null;
   const elR3         = panelBody ? panelBody.querySelector('[data-el="r3"]') : null;
 
-  /* ── waveform canvas refs (widget built by kit) ── */
-  const waveCanvas  = document.getElementById('waveform-canvas');
-  const waveCtx     = waveCanvas ? waveCanvas.getContext('2d') : null;
-  let wavePhase = 0;
+  let wavePhase = 0;     /* advances with time (1.6 rad/s) */
+  let wfPhase = 0;       /* phase of the last sample pushed to the trace */
+  let monAlt = false;    /* which Monitor config is active */
 
   /* ============================================================
      MODE SWITCHING
@@ -1082,10 +1035,15 @@ import { Parts } from './components.js';
       if (elR3Label) elR3Label.textContent = 'Battery';
     }
 
-    const waveWrap = document.getElementById('waveform-panel');
     ui.controls.setHidden('direction', m !== 'battery');
     ui.controls.setHidden('key', m !== 'charging');
-    if (waveWrap) waveWrap.style.display = m === 'alternator' ? 'flex' : 'none';
+    if ((m === 'alternator') !== monAlt) {         /* the waveform trace exists only in alternator mode */
+      monAlt = !monAlt;
+      ui.monitor.set(monAlt ? MON_ALT : MON_BASE);
+      if (monAlt) primeWave();
+      updateReadouts();
+      ui.monitor.flush();
+    }
 
     labels.hideAll();
   }
@@ -1313,59 +1271,26 @@ import { Parts } from './components.js';
   }
 
   /* ============================================================
-     WAVEFORM CANVAS
+     WAVEFORM → Monitor trace 'wave'
+     The old canvas drew y = midY − v·amplitude over 3 cycles; the sample maths below is that formula, moved out of the draw function
+     unchanged: A/B/C = sin(θ − p·τ/3), DC = −0.85 − 0.08·sin(6θ) (the old canvas drew the DC line below the mid line; kept as it was).
+     Samples are taken at fixed PHASE steps (WF_STEP), so the picture always shows 3 cycles and scrolls as before.
      ============================================================ */
-  function drawWaveform() {
-    if (!waveCtx) return;
-    const W = waveCanvas.width;
-    const H = waveCanvas.height;
-    waveCtx.clearRect(0, 0, W, H);
-
-    const midY = H / 2;
-    const amplitude = H * 0.32;
-    const freqScale = 3.0;
-
-    waveCtx.strokeStyle = 'rgba(148,163,184,.12)';
-    waveCtx.lineWidth = 1;
-    for (let i = 1; i < 4; i++) {
-      waveCtx.beginPath();
-      waveCtx.moveTo(0, (H * i / 4));
-      waveCtx.lineTo(W, (H * i / 4));
-      waveCtx.stroke();
+  function waveSamples(th) {
+    return [Math.sin(th), Math.sin(th - TAU / 3), Math.sin(th - 2 * TAU / 3), -0.85 - 0.08 * Math.sin(th * 6)];
+  }
+  function primeWave() {                       /* fill the window at once, as the old canvas always showed 3 full cycles */
+    for (let k = WF_LEN - 1; k >= 0; k--) ui.monitor.update({ traces: { wave: waveSamples(wavePhase - k * WF_STEP) } });
+    wfPhase = wavePhase;
+  }
+  function pushWave() {
+    if (!monAlt) { wfPhase = wavePhase; return; }
+    let n = 0;
+    while (wfPhase + WF_STEP <= wavePhase && n++ < WF_LEN) {
+      wfPhase += WF_STEP;
+      ui.monitor.update({ traces: { wave: waveSamples(wfPhase) } });
     }
-    waveCtx.strokeStyle = 'rgba(148,163,184,.28)';
-    waveCtx.beginPath();
-    waveCtx.moveTo(0, midY);
-    waveCtx.lineTo(W, midY);
-    waveCtx.stroke();
-
-    const phaseColors = ['#ef4444', '#22c55e', '#38bdf8'];
-    for (let p = 0; p < 3; p++) {
-      waveCtx.strokeStyle = phaseColors[p];
-      waveCtx.lineWidth = 1.6;
-      waveCtx.beginPath();
-      for (let x = 0; x < W; x++) {
-        const t = x / W;
-        const angle = t * freqScale * TAU + wavePhase - p * TAU / 3;
-        const y = midY - Math.sin(angle) * amplitude;
-        if (x === 0) waveCtx.moveTo(x, y);
-        else waveCtx.lineTo(x, y);
-      }
-      waveCtx.stroke();
-    }
-
-    waveCtx.strokeStyle = '#f59e0b';
-    waveCtx.lineWidth = 2.2;
-    waveCtx.beginPath();
-    const dcLevel = -amplitude * 0.85;
-    for (let x = 0; x < W; x++) {
-      const t = x / W;
-      const ripple = Math.sin(t * freqScale * TAU * 6 + wavePhase * 6) * amplitude * 0.08;
-      const y = midY - dcLevel + ripple;
-      if (x === 0) waveCtx.moveTo(x, y);
-      else waveCtx.lineTo(x, y);
-    }
-    waveCtx.stroke();
+    if (n >= WF_LEN) wfPhase = wavePhase;
   }
 
   /* ============================================================
@@ -1427,7 +1352,7 @@ import { Parts } from './components.js';
     }
 
     wavePhase += dt * 1.6;
-    if (mode === 'alternator') drawWaveform();
+    pushWave();
 
     lastReadout += dt;
     if (lastReadout > 0.10) {

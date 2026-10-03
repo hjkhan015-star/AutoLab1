@@ -93,3 +93,24 @@ Special cases:
 - **carburetor**: `#ui-chip #chip-row-phase` became `#ui-monitor [data-row="phase"] .mon-row-v` (rows now carry `data-row`).
 - **exhaustsystem**: the head label changes with the mode, now `ui.monitor.update({ label })` (new Monitor label channel).
 - **ecu**: the `chip:` key of the 3D material table was renamed `pcbChip` (it was only a grep hit).
+
+## Phase 7b2 — canvases and meters (nine pages)
+Rule: time series → trace · a number → row (or gauge for one bounded quantity) · a picture that is not a time series → stage canvas (`ui.stage.canvas`, over the 3D stage, never in the dock or panel). Ranges are the old fixed ranges.
+
+| page | was | decision | now |
+|---|---|---|---|
+| gearbox | torque-by-gear canvas in the dock, with gear / rpm / SHIFT header and a collapse chevron | **stage canvas** (curves vs output speed + live dot: not a time series) | `torque` stage canvas, SHIFT drawn in it; header text was a duplicate of status and rows `in` / `out`; chevron gone |
+| starting-system | rpm strip chart (engine + starter ÷ 12) | **trace** `speed`, 0–redline rpm, 240 | same sample spacing (33 Hz) |
+| starting-system | Battery V meter | duplicate of row `bat` | removed |
+| starting-system | Current A meter | **row** `amps` | circuit mode's big value is also current (7b3: one value, one place) |
+| starting-system | strip note (idle / cranking / armed) | duplicate of status | removed |
+| electrical | 3-phase waveform canvas (alternator mode) | **trace** `wave`, 4 series, ±1.5625 amplitudes, 240 | second config `MON_ALT` via `ui.monitor.set` in alternator mode only; sampled at fixed phase steps (3 cycles always visible) |
+| exhaustsystem | spectrum canvas + sound-mode note | **stage canvas** (frequency bars) | `spectrum`; the mode name is the canvas caption |
+| ignition | advance-curve canvas in the panel | **stage canvas** (advance vs rpm + live dot) | `advance` |
+| crankshaft-piston | motion graph canvas in the Motion tab | **stage canvas** (curve over the 720° cycle) | `motion`, drawn with the readouts (was only while the tab was open); cylinder name in the corner |
+| lubrication | oil / bearing / wall temperature canvas in the panel | **trace** `temps`, 20–500 °C, 240, 4 Hz | zones and legend gone (series labels are the key) |
+| mpfi | STFT / LTFT canvas + trim-state word | **trace** `trimhist` ±20 %, 80, 5 Hz + **row** `trim` | target band gone |
+| cooling | temperature SVG + surface-area bar, both appended into `ui.monitor.root` | **trace** `temp` 55–125 °C, 180 + **row** `surface` | row name follows the mode (`rowLabels`); bar, temperature colour and area fill gone |
+| steering, braking | none (no canvas or meter) | nothing to migrate | their panel readout grids are 7b3 |
+
+Not touched (7b3): the other duplicates in info panels (rows `al-read`, mpfi's four trim bars, panel `r1..r3` rows), module legends, the guided-module panels.

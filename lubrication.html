@@ -93,29 +93,9 @@
     font-variant-numeric: tabular-nums;
   }
 
-  #graph-block {
-    margin-top: 10px; padding-top: 10px;
-    border-top: 1px solid var(--border, rgba(255,255,255,.08));
-  }
-  #graph-block .gp-legend {
-    display: flex; gap: 12px;
-    font-size: 10px; color: var(--text-dim, #94a3b8);
-    letter-spacing: .03em; font-weight: 600;
-    margin-bottom: 6px;
-  }
-  #graph-block .gp-legend span { display: flex; align-items: center; gap: 4px; }
-  #graph-block .gp-legend i {
-    width: 8px; height: 8px; border-radius: 50%; display: inline-block;
-  }
-  #temp-graph {
-    width: 100%; height: 110px; display: block;
-    border-radius: 6px; background: rgba(0,0,0,.28);
-  }
-  html.light-theme #temp-graph { background: rgba(15,23,42,.06); }
   html.light-theme .dm-bar,
   html.light-theme .kv-bar { background: rgba(15,23,42,.08); }
-  html.light-theme #damage-block,
-  html.light-theme #graph-block { border-color: rgba(15,23,42,.12); }
+  html.light-theme #damage-block { border-color: rgba(15,23,42,.12); }
 
   /* ═══════════════════════════════════════════════════════════
      OVERLAY — status flash
@@ -997,14 +977,6 @@ import { Parts } from './components.js';
           </div>
         </div>
 
-        <div id="graph-block">
-          <div class="gp-legend">
-            <span><i style="background:#38bdf8"></i>Oil</span>
-            <span><i style="background:#f87171"></i>Bearing</span>
-            <span><i style="background:#fb923c"></i>Wall</span>
-          </div>
-          <canvas id="temp-graph" width="620" height="220"></canvas>
-        </div>
       `,
       desc: `<strong>What happens without oil.</strong> Oil separates moving surfaces with a thin
              hydrodynamic film. Remove it and metal touches metal — friction rises,
@@ -1014,7 +986,10 @@ import { Parts } from './components.js';
     },
 
     monitor: {
-      config: { label: 'Bearing temperature', value: { label: 'Bearing temperature', unit: '°C', max: 100, bar: true }, rows: [['pres', 'Oil pressure'], ['fric', 'Friction']], status: { text: 'Normal' } },
+      config: { label: 'Bearing temperature', value: { label: 'Bearing temperature', unit: '°C', max: 100, bar: true }, rows: [['pres', 'Oil pressure'], ['fric', 'Friction']],
+        traces: [{ id: 'temps', label: 'Temperatures (°C)', min: 20, max: 500, length: 240,
+                   series: [{ id: 'oil', label: 'Oil', color: 'var(--accent)' }, { id: 'brg', label: 'Bearing', color: 'var(--crit)' }, { id: 'wall', label: 'Wall', color: 'var(--warn)' }] }],
+        status: { text: 'Normal' } },
       initial: { value: { text: '95', unit: '°C' }, rows: { pres: '3.50 bar', fric: '0.08 µ' }, status: ['Normal', true] }
     },
 
@@ -1064,8 +1039,7 @@ import { Parts } from './components.js';
     cam:  panelBody ? panelBody.querySelector('#dmg-cam-num')  : null,
     ring: panelBody ? panelBody.querySelector('#dmg-ring-num') : null
   };
-  const graphCanvas = panelBody ? panelBody.querySelector('#temp-graph') : null;
-  const gctx = graphCanvas ? graphCanvas.getContext('2d') : null;
+  ui.panel.remeasure();                       /* the panel lost its graph block (now the Monitor trace 'temps') */
   const flashEl = document.getElementById('status-flash');
 
   let flashTimer = 0;
@@ -1097,14 +1071,6 @@ import { Parts } from './components.js';
     time: 0,
     _critFlash: false
   };
-
-  const HIST_LEN = 240;
-  const hist = { oil: [], brg: [], wall: [] };
-  for (let i = 0; i < HIST_LEN; i++) {
-    hist.oil.push(90);
-    hist.brg.push(95);
-    hist.wall.push(95);
-  }
 
   /* ═══════════════════════════════════════════════════════════
      PHYSICS
@@ -1166,13 +1132,9 @@ import { Parts } from './components.js';
     }
   }
 
+  /* 7b2: the temperature graph is the Monitor trace 'temps' (same 4 Hz sampling, same 20–500 °C range, 240 samples) */
   function pushHistory() {
-    hist.oil.push(sim.oilTemp);
-    hist.brg.push(sim.bearingTemp);
-    hist.wall.push(sim.wallTemp);
-    if (hist.oil.length > HIST_LEN) {
-      hist.oil.shift(); hist.brg.shift(); hist.wall.shift();
-    }
+    ui.monitor.update({ traces: { temps: [sim.oilTemp, sim.bearingTemp, sim.wallTemp] } });
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -1325,74 +1287,6 @@ import { Parts } from './components.js';
     ui.monitor.update({ status: [statusTxt, !!(ok)] });
   }
 
-  function drawGraph() {
-    if (!gctx || !graphCanvas) return;
-    const W = graphCanvas.width, H = graphCanvas.height;
-    gctx.clearRect(0, 0, W, H);
-
-    const tempToY = temp => H - ((temp - 20) / 480) * H;
-
-    const bands = [
-      { y0: 20,  y1: 130, color: 'rgba(74,222,128,.05)'  },
-      { y0: 130, y1: 220, color: 'rgba(251,191,36,.08)'  },
-      { y0: 220, y1: 500, color: 'rgba(248,113,113,.10)' }
-    ];
-    bands.forEach(b => {
-      gctx.fillStyle = b.color;
-      gctx.fillRect(0, tempToY(b.y1), W, tempToY(b.y0) - tempToY(b.y1));
-    });
-
-    gctx.strokeStyle = 'rgba(255,255,255,.05)';
-    gctx.lineWidth = 1;
-    gctx.font = '10px ui-monospace,monospace';
-    for (let T = 100; T <= 500; T += 100) {
-      const y = tempToY(T);
-      gctx.beginPath(); gctx.moveTo(0, y); gctx.lineTo(W, y); gctx.stroke();
-      gctx.fillStyle = 'rgba(148,163,184,.38)';
-      gctx.fillText(T + '°', 5, y - 3);
-    }
-
-    for (let i = 0; i <= 6; i++) {
-      const x = (i / 6) * W;
-      gctx.strokeStyle = 'rgba(255,255,255,.04)';
-      gctx.beginPath(); gctx.moveTo(x, 0); gctx.lineTo(x, H); gctx.stroke();
-    }
-
-    function drawLine(arr, color, width) {
-      gctx.beginPath();
-      for (let i = 0; i < arr.length; i++) {
-        const x = (i / (HIST_LEN - 1)) * W;
-        const y = tempToY(arr[i]);
-        if (i === 0) gctx.moveTo(x, y);
-        else gctx.lineTo(x, y);
-      }
-      gctx.strokeStyle = color;
-      gctx.lineWidth = width;
-      gctx.lineJoin = 'round';
-      gctx.lineCap = 'round';
-      gctx.stroke();
-    }
-
-    drawLine(hist.wall, '#fb923c', 2);
-    drawLine(hist.brg, '#f87171', 2.5);
-    drawLine(hist.oil, '#38bdf8', 2);
-
-    const lastX = W - 3;
-    [
-      { arr: hist.wall, c: '#fb923c' },
-      { arr: hist.brg, c: '#f87171' },
-      { arr: hist.oil, c: '#38bdf8' }
-    ].forEach(({ arr, c }) => {
-      const y = tempToY(arr[arr.length - 1]);
-      gctx.beginPath();
-      gctx.arc(lastX, y, 3.5, 0, Math.PI * 2);
-      gctx.fillStyle = c;
-      gctx.shadowBlur = 10; gctx.shadowColor = c;
-      gctx.fill();
-      gctx.shadowBlur = 0;
-    });
-  }
-
   /* ═══════════════════════════════════════════════════════════
      KINEMATICS
      ═══════════════════════════════════════════════════════════ */
@@ -1471,9 +1365,7 @@ import { Parts } from './components.js';
     sim.seized = false;
     sim.time = 0;
     sim._critFlash = false;
-    for (let i = 0; i < HIST_LEN; i++) {
-      hist.oil[i] = 90; hist.brg[i] = 95; hist.wall[i] = 95;
-    }
+    ui.monitor.update({ traces: { temps: null } });
     if (flashEl) flashEl.classList.remove('on');
     flashTimer = 0;
     theta = 0;
@@ -1482,7 +1374,6 @@ import { Parts } from './components.js';
 
     updateAllVisuals();
     updateHUD();
-    drawGraph();
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -1503,7 +1394,6 @@ import { Parts } from './components.js';
   /* Initial paint */
   updateAllVisuals();
   updateHUD();
-  drawGraph();
 
   /* ═══════════════════════════════════════════════════════════
      RENDER LOOP
@@ -1589,7 +1479,6 @@ import { Parts } from './components.js';
     if (histTimer >= 0.25) {
       histTimer = 0;
       pushHistory();
-      drawGraph();
     }
 
     if (flashTimer > 0) {
