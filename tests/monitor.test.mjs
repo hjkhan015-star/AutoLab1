@@ -201,7 +201,7 @@ await t('7b1: no page calls ui.chip.* or declares a `chip:` config; no page reac
 await t('7b1: all 23 converted pages declare a monitor: block (config + initial), and call ui.monitor.update', () => {
   for (const m of CHIP23) {
     const s = rd(m + '.html');
-    assert.match(s, /\bmonitor:\s*\{\s*config:\s*\{ label:/, `${m}: monitor config`);
+    assert.match(s, /\bmonitor:\s*\{\s*config:\s*(\{ label:|MON_BASE\b)/, `${m}: monitor config`);   /* 7b2: electrical switches between two named configs */
     assert.match(s, /initial:\s*\{/, `${m}: monitor initial`);
     assert.match(s, /ui\.monitor\.update\(/, `${m}: ui.monitor.update`);
   }
@@ -223,6 +223,121 @@ await t('7b1: cooling uses the Monitor status tone (no class on the status node)
   const c = rd('cooling.html'), e = rd('engine.html');
   assert.match(c, /status: \[label, false, tone\]/); assert.ok(!/warn-status|crit-status/.test(c));
   assert.match(e, /ui\.monitor\.flush\(\)/);
+});
+
+/* ───────────── Phase 7b2: canvases and meters → trace / gauge / row / stage canvas ───────────── */
+const P7B2 = ['gearbox', 'starting-system', 'electrical', 'exhaustsystem', 'ignition', 'crankshaft-piston', 'lubrication', 'mpfi', 'cooling'];
+const STAGE = ['gearbox', 'exhaustsystem', 'ignition', 'crankshaft-piston'];            /* decision: stage canvas (a picture, not a time series) */
+const objAfter = (src, re) => {                                                          /* bracket-matched object literal that follows `re` */
+  const m = re.exec(src); assert.ok(m, 'marker not found: ' + re);
+  let i = m.index + m[0].length, d = 0, st = i, q = null;
+  for (; i < src.length; i++) {
+    const c = src[i];
+    if (q) { if (c === '\\') i++; else if (c === q) q = null; continue; }
+    if (c === "'" || c === '"' || c === '`') { q = c; continue; }
+    if (c === '{') d++; else if (c === '}') { d--; if (d === 0) return src.slice(st, i + 1); }
+  }
+  throw new Error('unbalanced');
+};
+const cfgLiteral = (page) => objAfter(rd(page + '.html'), /\bmonitor:\s*\{\s*config:\s*(?=\{)/);
+await t('7b2: no migrated page authors a <canvas> or <svg> chart in a template (stage canvases come from ui.stage.canvas)', () => {
+  for (const m of P7B2) { const s = rd(m + '.html'); assert.ok(!/<canvas/.test(s), `${m}: <canvas in a template`); assert.ok(!/id="temp-graph"|graphSvg/.test(s), `${m}: svg graph`); }
+});
+await t('7b2: the old charts, their draw functions, history buffers and CSS are gone', () => {
+  const gone = {
+    gearbox: /torque-panel|tq-toggle|tq-status|tq-gear|tq-rpm|\.tq-panel|\.tq-header/,
+    'starting-system': /drawStrip|sizeStrip|rpm-strip|key-meters|strip-label|HISTORY_LEN|histWrite|m-volts|m-amps/,
+    electrical: /drawWaveform|waveform-canvas|waveform-panel|wf-legend|waveCtx/,
+    exhaustsystem: /sound-panel|spectrum-strip|spectrum-label|spec-note|specNoteEl/,
+    ignition: /adv-curve/,
+    'crankshaft-piston': /cp-graph/,
+    lubrication: /drawGraph|hist\.(oil|brg|wall)|HIST_LEN|temp-graph|graph-block|gp-legend|gctx/,
+    mpfi: /drawTrimGraph|graphHistory|mp-graph|elGraph|gctx|elTrimState/,
+    cooling: /tempHistory|temp-line|temp-area|surface-row|surface-bar|surfaceMult|surfaceBarFill|monitor\.root/,
+  };
+  for (const m in gone) assert.ok(!gone[m].test(rd(m + '.html')), `${m}: leftover of the old chart (${gone[m]})`);
+});
+await t('7b2: nothing appends DOM into the Monitor (no page, no kit.js)', () => {
+  const all = readdirSync(new URL('../', import.meta.url)).filter((f) => f.endsWith('.html'));
+  for (const f of all) assert.ok(!/monitor\.root\.(appendChild|append|prepend|insertBefore|insertAdjacent|innerHTML)/.test(rd(f)), `${f}: writes into ui.monitor.root`);
+  assert.ok(!/monitor\.root\.(appendChild|append|prepend|insertBefore)/.test(rd('kit.js')));
+});
+await t('7b2: stage canvases — gearbox, exhaustsystem, ignition, crankshaft-piston use ui.stage.canvas; none of them puts a canvas in the dock or panel', () => {
+  for (const m of STAGE) {
+    const s = rd(m + '.html');
+    assert.match(s, /ui\.stage\.canvas\(\{/, `${m}: ui.stage.canvas`);
+    assert.ok(!/widgets:\s*\{[^]{0,400}<canvas/.test(s), `${m}: canvas inside widgets`);
+  }
+  assert.ok(!/ui\.stage\.canvas/.test(rd('lubrication.html') + rd('mpfi.html') + rd('cooling.html') + rd('electrical.html') + rd('starting-system.html')), 'time series stay Monitor traces, not stage canvases');
+});
+await t('7b2: kit.js ui.stage (canvas / caption / remove) exists; the stage layer ignores pointer events and has no module names in CSS', () => {
+  const k = rd('kit.js'), css = rd('app.css');
+  assert.match(k, /get stage\(\)/); assert.match(k, /canvas\(\{ id, label = '', width = 320, height = 120, corner = 'bl', size = 0 \} = \{\}\)/);
+  assert.match(k, /caption\(id, text\)/); assert.match(k, /remove\(id\)/);
+  const block = css.slice(css.indexOf('.ui-stage-layer'), css.indexOf('/* ---- Top stack'));
+  assert.match(block, /pointer-events:\s*none/); assert.match(block, /var\(--dock-h/); assert.match(block, /var\(--stage-top/);
+  assert.ok(!/[#.](gearbox|exhaust|ignition|crank|torque|spectrum)/i.test(block), 'module name in shared CSS');
+  assert.ok(!/#[0-9a-fA-F]{3,8}\b|rgba?\(/.test(block), 'stage CSS uses tokens only');
+});
+await t('7b2: each migrated page declares the decided channel and every config validates', () => {
+  const stub = { redlineRpm: 6200 };
+  const ev = (lit) => new Function('TUNING', 'WF_LEN', 'TAU', 'MON_BASE', 'return (' + lit + ')')(stub, 240, Math.PI * 2, {});
+  const want = { 'starting-system': ['speed', 2], lubrication: ['temps', 3], mpfi: ['trimhist', 2], cooling: ['temp', 1] };
+  for (const m in want) {
+    const cfg = ev(cfgLiteral(m)); const v = M.validateMonitorConfig(cfg);
+    assert.ok(v.ok, `${m}: ${v.errors.join('; ')}`);
+    const tr = v.config.traces.find((x) => x.id === want[m][0]); assert.ok(tr, `${m}: trace ${want[m][0]}`);
+    assert.equal(tr.series.length, want[m][1], `${m}: series count`);
+    assert.ok(tr.min != null && tr.max != null, `${m}: fixed axis range`);
+  }
+  const lub = M.validateMonitorConfig(ev(cfgLiteral('lubrication'))).config.traces[0]; assert.deepEqual([lub.min, lub.max, lub.length], [20, 500, 240]);
+  const ss = M.validateMonitorConfig(ev(cfgLiteral('starting-system'))).config; assert.equal(ss.traces[0].max, 6200); assert.ok(ss.rows.some((r) => r.id === 'amps'), 'starting-system: current is a row');
+  assert.ok(M.validateMonitorConfig(ev(cfgLiteral('mpfi'))).config.rows.some((r) => r.id === 'trim'));
+  assert.ok(M.validateMonitorConfig(ev(cfgLiteral('cooling'))).config.rows.some((r) => r.id === 'surface'));
+  const mpfi = M.validateMonitorConfig(ev(cfgLiteral('mpfi'))).config.traces[0]; assert.deepEqual([mpfi.min, mpfi.max, mpfi.length], [-20, 20, 80]);
+  const cool = M.validateMonitorConfig(ev(cfgLiteral('cooling'))).config.traces[0]; assert.deepEqual([cool.min, cool.max, cool.length], [55, 125, 180]);
+});
+await t('7b2: electrical — the waveform is the trace "wave" (4 series) in a second config used only in alternator mode', () => {
+  const s = rd('electrical.html');
+  const body = s.slice(s.indexOf('const WF_LEN'), s.indexOf('const ui = UI.create'));
+  const alt = new Function('TAU', body + '\nreturn { MON_BASE, MON_ALT };')(Math.PI * 2);
+  assert.equal(M.validateMonitorConfig(alt.MON_BASE).config.traces.length, 0);
+  const v = M.validateMonitorConfig(alt.MON_ALT); assert.ok(v.ok, v.errors.join('; '));
+  assert.equal(v.config.traces[0].series.length, 4); assert.equal(v.config.rows.length, 2);
+  assert.match(s, /ui\.monitor\.set\(monAlt \? MON_ALT : MON_BASE\)/); assert.match(s, /config: MON_BASE/);
+});
+await t('7b2: electrical — the sampled waveform equals the old canvas formula (3 cycles, same scroll, DC drawn as before)', () => {
+  const s = rd('electrical.html'); const TAU = Math.PI * 2;
+  const fn = new Function('TAU', s.slice(s.indexOf('function waveSamples'), s.indexOf('function primeWave')) + '\nreturn waveSamples;')(TAU);
+  const STEP = 3 * TAU / 239;
+  for (const W of [0, 0.37, 5.2, 41.9]) for (let k = 0; k < 240; k += 7) {
+    const tt = (239 - k) / 239, newest = fn(W - k * STEP);                       /* the sample k steps ago sits at old x/W = 1 − k/239 */
+    for (let p = 0; p < 3; p++) assert.ok(Math.abs(newest[p] - Math.sin(tt * 3 * TAU + W - p * TAU / 3)) < 1e-9, `phase ${p}`);
+    const ripple = Math.sin(tt * 3 * TAU * 6 + W * 6) * 0.08;                    /* old: y = midY − dcLevel + ripple·amp, dcLevel = −0.85·amp */
+    assert.ok(Math.abs(newest[3] - (-0.85 - ripple)) < 1e-9, 'dc');
+  }
+});
+await t('7b2: sample computations moved unchanged — starting-system (engine rpm, starter rpm ÷ 12, clamped), lubrication (4 Hz), mpfi (STFT + LTFT), cooling (55–125)', () => {
+  assert.match(rd('starting-system.html'), /traces: \{ speed: \[clamp\(sys\.engineRpm, 0, TUNING\.redlineRpm\), clamp\(sys\.starterRpm \/ 12, 0, TUNING\.redlineRpm\)\] \}/);
+  assert.match(rd('starting-system.html'), /histAccum < 0\.03/);
+  assert.match(rd('lubrication.html'), /traces: \{ temps: \[sim\.oilTemp, sim\.bearingTemp, sim\.wallTemp\] \}/); assert.match(rd('lubrication.html'), /histTimer >= 0\.25/);
+  assert.match(rd('mpfi.html'), /traces: \{ trimhist: \[stft, ecuTrim\] \}/); assert.match(rd('mpfi.html'), /graphClock > 0\.20/);
+  assert.match(rd('cooling.html'), /traces: \{ temp: THREE\.MathUtils\.clamp\(state\.temp, 55, 125\) \}/);
+});
+await t('7b2: Reset clears every migrated trace (null), starting-system / lubrication / mpfi / cooling', () => {
+  for (const [m, id] of [['starting-system', 'speed'], ['lubrication', 'temps'], ['mpfi', 'trimhist'], ['cooling', 'temp']])
+    assert.match(rd(m + '.html'), new RegExp(`traces: \\{ ${id}: null \\}`), `${m}: reset clears ${id}`);
+});
+await t('7b2: cooling — the surface-area meter is a Monitor row whose name follows the mode (rowLabels), the old bar is gone', () => {
+  const c = rd('cooling.html'), mon = rd('monitor.js');
+  assert.match(c, /rowLabels: \{ surface: 'Surface area' \}/); assert.match(c, /rowLabels: \{ surface: 'Thermostat status' \}/);
+  assert.match(mon, /p\.rowLabels/); assert.match(mon, /key: k \}/); assert.match(rd('kit.js'), /rowLabels:\{id:text\}/);
+});
+await t('7b2: pages that lost a panel canvas call ui.panel.remeasure() once (ignition, crankshaft-piston, lubrication, mpfi)', () => {
+  for (const m of ['ignition', 'crankshaft-piston', 'lubrication', 'mpfi']) assert.equal((rd(m + '.html').match(/ui\.panel\.remeasure\(\)/g) || []).length, 1, m);
+});
+await t('7b2: sw.js is autolab-v8.7.2 and no file was added (CORE_ASSETS unchanged)', () => {
+  assert.match(rd('sw.js'), /VERSION = 'autolab-v8\.7\.2'/);
 });
 
 let JSDOM = null;
@@ -261,6 +376,25 @@ if (!JSDOM) {
     assert.equal(mon.root.querySelector('.mon-value-text').textContent, '14.7');
     mon.update({ status: ['Normal', false, ''] }); mon.flush();
     assert.equal(mon.root.querySelector('.mon-status').dataset.tone, undefined);
+  });
+  await t('7b2 DOM: update({ rowLabels }) renames a row once (cooling: Surface area ↔ Thermostat status); set() resets the cache', () => {
+    const mon = mk();
+    mon.update({ rowLabels: { phase: 'Thermostat status' }, rows: { phase: 'Regulating' } }); mon.flush();
+    const k = () => mon.root.querySelector('[data-row="phase"] .mon-row-k').textContent;
+    assert.equal(k(), 'Thermostat status');
+    const w = mon.stats.textWrites; mon.update({ rowLabels: { phase: 'Thermostat status' } }); mon.flush();
+    assert.equal(mon.stats.textWrites, w, 'same label is not rewritten');
+    mon.update({ rowLabels: { phase: 'Surface area' } }); mon.flush(); assert.equal(k(), 'Surface area');
+    mon.update({ rowLabels: { nope: 'x' } }); mon.flush();            /* unknown id: ignored */
+  });
+  await t('7b2 DOM: a trace takes pushed samples (one per update call), null clears it, a second set() with traces rebuilds (electrical)', () => {
+    const mon = createMonitor({ mount: document.body, doc: document, moduleId: 't2' });
+    mon.set({ rows: [['a', 'A']], traces: [{ id: 'wave', label: 'W', min: -1.5, max: 1.5, length: 240, series: [{ id: 'a' }, { id: 'b' }] }] });
+    for (let i = 0; i < 5; i++) mon.update({ traces: { wave: [i, -i] } });
+    assert.equal(mon._traceNodes.wave.bufs[0].length, 5); assert.equal(mon._traceNodes.wave.bufs[1].at(4), -4);
+    mon.update({ traces: { wave: null } }); assert.equal(mon._traceNodes.wave.bufs[0].length, 0);
+    mon.set({ rows: [['a', 'A']] }); assert.equal(Object.keys(mon._traceNodes).length, 0);
+    mon.update({ traces: { wave: [1, 1] } });                             /* no such trace any more: ignored, no throw */
   });
 }
 
