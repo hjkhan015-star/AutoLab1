@@ -8,74 +8,6 @@
 <link rel="stylesheet" href="app.css">
 <link rel="stylesheet" href="controls.css">
 <style>
-  /* ═══════════════════════════════════════════════════════════
-     WIDGET INTERIOR — Torque visualizer (bottom-left)
-     ═══════════════════════════════════════════════════════════ */
-  .tq-panel {
-    width: 220px;
-    background: rgba(11, 14, 20, 0.92);
-    border: 1px solid var(--border, rgba(255,255,255,.10));
-    border-radius: 12px;
-    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-    overflow: hidden;
-    color: var(--text, #e6e9ef);
-    font: 11px/1.35 system-ui, -apple-system, sans-serif;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.45);
-    user-select: none;
-  }
-  html.light-theme .tq-panel {
-    background: rgba(255,255,255,.95);
-    border-color: rgba(15,23,42,.14);
-    color: #0a0d13;
-    box-shadow: 0 8px 32px rgba(15,23,42,.15);
-  }
-
-  .tq-header {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--border, rgba(255,255,255,.07));
-    gap: 8px;
-  }
-  html.light-theme .tq-header { border-bottom-color: rgba(15,23,42,.08); }
-
-  .tq-live { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
-  .tq-gear {
-    font-size: 12px; font-weight: 800; letter-spacing: .02em;
-    color: #22c55e; line-height: 1;
-    transition: color .2s;
-  }
-  .tq-gear.shifting { color: #38bdf8; }
-  .tq-rpm {
-    font-size: 10px;
-    font-family: var(--font-mono);
-    color: var(--text-dim, #94a3b8);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  html.light-theme .tq-rpm { color: #64748b; }
-
-  .tq-status {
-    font-weight: 700; font-size: 10px; letter-spacing: .06em;
-    color: #38bdf8; opacity: 0; transition: opacity .15s;
-    padding: 2px 6px; border-radius: 4px;
-    background: rgba(56,189,248,.15);
-    text-transform: uppercase; flex: 0 0 auto;
-  }
-  .tq-status.on { opacity: 1; }
-
-  .tq-toggle {
-    background: none; border: none;
-    color: var(--text-dim, #9aa3b2);
-    cursor: pointer; font-size: 14px; line-height: 1;
-    padding: 0 2px; border-radius: 4px; flex: 0 0 auto;
-  }
-  .tq-toggle:hover { color: #fff; background: rgba(255,255,255,0.08); }
-  html.light-theme .tq-toggle { color: #64748b; }
-  html.light-theme .tq-toggle:hover { color: #0a0d13; background: rgba(15,23,42,.08); }
-
-  .tq-canvas { display: block; width: 100%; height: 110px; }
-  .tq-panel.collapsed .tq-canvas { display: none; }
-
   .ratio-badge {
     display: inline-block;
     background: rgba(56, 189, 248, 0.14);
@@ -845,25 +777,6 @@
       labels: true, gas: true
     },
 
-    widgets: {
-      bl: {
-        caption: '',
-        html: `
-          <div class="tq-panel" id="torque-panel">
-            <div class="tq-header">
-              <div class="tq-live">
-                <div class="tq-gear" id="tq-gear">Neutral</div>
-                <div class="tq-rpm" id="tq-rpm">900 → 0 rpm</div>
-              </div>
-              <span class="tq-status" id="tq-status">SHIFT</span>
-              <button class="tq-toggle" id="torque-toggle" aria-label="Toggle chart">−</button>
-            </div>
-            <canvas class="tq-canvas" id="torque-canvas"></canvas>
-          </div>
-        `
-      }
-    },
-
     /* Phase 6: the H-pattern stick is a controls.js gate (primary zone) and the gearbox type a dock choice.
        Gate order = gear number (0 N, 1-4, 5 R); stop positions draw the H. */
     options: [
@@ -1003,9 +916,6 @@
   /* ═══════════════════════════════════════════════════════════
      READOUTS
      ═══════════════════════════════════════════════════════════ */
-  const tqGearEl = document.getElementById('tq-gear');
-  const tqRpmEl  = document.getElementById('tq-rpm');
-
   function syncReadout() {
     const rpmIn = Math.round(400 + state.speedMul * 900);
     let speedRatio = 0;
@@ -1024,12 +934,6 @@
     if (elRatio)  elRatio.textContent  = displayRatio;
     if (elCurrentGear) elCurrentGear.textContent = GEAR_NAMES[gbCurrentGear];
 
-    if (tqGearEl) {
-      tqGearEl.textContent = GEAR_NAMES[gbCurrentGear];
-      const activeColors = ['#22c55e', '#38bdf8', '#22c55e', '#f59e0b', '#a855f7', '#ef4444'];
-      tqGearEl.style.color = activeColors[gbCurrentGear] || '#22c55e';
-    }
-    if (tqRpmEl) tqRpmEl.textContent = rpmIn + ' → ' + rpmOut + ' rpm';
 
     /* Chip */
     ui.monitor.update({
@@ -1042,11 +946,9 @@
   /* ═══════════════════════════════════════════════════════════
      TORQUE VISUALIZER
      ═══════════════════════════════════════════════════════════ */
-  const tqPanel  = document.getElementById('torque-panel');
-  const tqCanvas = document.getElementById('torque-canvas');
+  /* 7b2: a torque-vs-output-speed map is a picture, not a time series: it stays a canvas, on the stage (not in the dock) */
+  const tqCanvas = ui.stage.canvas({ id: 'torque', label: 'Torque by gear', width: 440, height: 220, corner: 'bl' });
   const tqCtx    = tqCanvas ? tqCanvas.getContext('2d') : null;
-  const tqToggle = document.getElementById('torque-toggle');
-  const tqStatus = document.getElementById('tq-status');
   let tqW = 0, tqH = 0;
 
   function resizeTorqueCanvas() {
@@ -1062,15 +964,6 @@
   if (tqCanvas && window.ResizeObserver) new ResizeObserver(resizeTorqueCanvas).observe(tqCanvas);
   else window.addEventListener('resize', resizeTorqueCanvas);
   resizeTorqueCanvas();
-
-  if (tqToggle) {
-    tqToggle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const collapsed = tqPanel.classList.toggle('collapsed');
-      tqToggle.textContent = collapsed ? '+' : '−';
-      if (!collapsed) requestAnimationFrame(resizeTorqueCanvas);
-    });
-  }
 
   const ENGINE_MIN_RPM   = 800;
   const ENGINE_MAX_RPM   = 6500;
@@ -1148,13 +1041,9 @@
         pA[0] + (pB[0] - pA[0]) * e,
         (pA[1] + (pB[1] - pA[1]) * e) * torqueScale
       ];
-      if (tqStatus) tqStatus.classList.add('on');
-      if (tqGearEl) tqGearEl.classList.add('shifting');
     } else {
       displayDip = 0;
       displayPoint = target || [ inRpm * 0.15, 0 ];
-      if (tqStatus) tqStatus.classList.remove('on');
-      if (tqGearEl) tqGearEl.classList.remove('shifting');
     }
   }
 
@@ -1227,6 +1116,12 @@
       ctx.fillText(GEAR_SHORT[i], X(last[0]), Y(last[1]) - 2);
     });
     ctx.globalAlpha = 1;
+
+    if (shiftAnim) {
+      ctx.fillStyle = '#38bdf8'; ctx.font = 'bold 9px system-ui, sans-serif';
+      ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+      ctx.fillText('SHIFT', padL + plotW - 2, padT + 2);
+    }
 
     if (displayPoint[0] > 0 || displayPoint[1] > 0) {
       const px = X(Math.min(displayPoint[0], MAX_X));

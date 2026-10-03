@@ -98,6 +98,12 @@ In `runGuidedModule`, keep returning `{ big, unit, bar, rows, ro, status, ctl }`
 **Speed rows:** a module prints engine / vehicle speed as a Monitor row (`ui.monitor.update({ rows: { rpm: text } })`), never through `ui.toolbar.setRpmLabel`.
 
 
+### Monitor, Phase 7b2 additions
+- A canvas that shows a **time series** becomes a Monitor trace: `monitor: { config: { traces:[{ id, label, min, max, length, series:[{ id, label, color:'var(--accent)' }] }] } }`, then `ui.monitor.update({ traces:{ id:[v…] } })` from the existing update path (one sample per call; no second history buffer) and `traces:{ id:null }` on Reset. Keep real units and the old fixed `min` / `max`; put the unit in the trace `label`. Trace, row and gauge ids share one namespace (a trace may not reuse a row id).
+- A number is a **row**; a bounded single quantity may be a **gauge**. `ui.monitor.update({ rowLabels:{ id:'New name' } })` renames a row when the module's mode changes (cooling: Surface area ↔ Thermostat status).
+- A **picture that is not a time series** (a spectrum, an advance curve, a torque map, a curve over a 720° cycle) stays a canvas, on the stage: `const cv = ui.stage.canvas({ id, label, width, height, corner:'bl'|'br', size })` (logical size `width × height`, CSS width `size` px, never wider than 60 vw), `ui.stage.caption(id, text)` for a caption that changes with the mode. Draw into `cv` as before. The layer sits over the 3D stage above the dock, ignores pointer events and must not hold a control. Never put a canvas in the dock, the info panel or the Monitor.
+- A mode-specific channel: call `ui.monitor.set(otherConfig)` on the mode change, then `ui.monitor.update` the current values (electrical's alternator waveform). `set()` clears every trace.
+
 ### Monitor, Phase 7b1 additions
 - `ui.chip.*`, the `chip:` config and `ui.toolbar.setRpmLabel` no longer exist. Use `UI.create({ monitor: { config, initial } })` and `ui.monitor.update({ ... })`.
 - `ui.monitor.update({ label })` changes the head label at runtime (the one label channel). `status` is `[text, on, tone?]`, tone `'' | 'warn' | 'crit'`.

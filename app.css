@@ -642,6 +642,31 @@
     border-color: color-mix(in oklch, var(--accent) 45%, transparent);
   }
 
+  /* ---- Stage canvases (Phase 7b2): a non-time-series picture drawn over the 3D stage, bottom corner, above the dock.
+     Never in the dock or the info panel. Ignores pointer events so orbit controls keep working. ---- */
+  .ui-stage-layer {
+    position: fixed;
+    inset: var(--stage-top, 0px) var(--dock-rail, 0px) var(--dock-h, 0px) var(--dock-rail, 0px);
+    z-index: var(--z-labels, 2);
+    display: flex; align-items: flex-end; gap: var(--s-2);
+    padding: var(--s-2);
+    pointer-events: none;
+  }
+  .ui-stage-cv {
+    width: min(var(--stage-cv-w, 224px), 60vw);
+    padding: var(--s-1) var(--s-2) var(--s-2);
+    border-radius: var(--r-sm);
+    box-shadow: var(--shadow-sm);
+    opacity: .94;
+  }
+  .ui-stage-cv[data-corner="br"] { margin-left: auto; }
+  .ui-stage-cap {
+    font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text-mute); padding-bottom: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ui-stage-cv canvas { display: block; width: 100%; height: auto; }
+
   /* ---- Top stack: merges tl (info panel) + tr (readout chip) into one
      responsive row that WRAPS instead of overlapping on narrow screens.
      No media query needed — flex-wrap does the job at any width. ---- */

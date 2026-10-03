@@ -85,35 +85,8 @@
     background: currentColor;
   }
 
-  /* ═══════ WIDGET — sound panel (bottom-left) ═══════ */
-  #sound-panel {
-    display: flex; flex-direction: column; gap: 8px;
-    background: rgba(10,14,20,.88);
-    border: 1px solid var(--border, rgba(255,255,255,.10));
-    border-radius: 14px; padding: 10px 12px;
-    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-    box-shadow: 0 10px 28px rgba(0,0,0,.5);
-    min-width: 210px; color: var(--text, #e5e7eb);
-  }
-  html.light-theme #sound-panel {
-    background: rgba(255,255,255,.95);
-    border-color: rgba(15,23,42,.14); color: #0a0d13;
-  }
-  #spectrum-strip {
-    width: 100%; height: 46px; border-radius: 6px;
-    background: rgba(0,0,0,.35); display: block;
-  }
-  html.light-theme #spectrum-strip { background: rgba(15,23,42,.06); }
-  #spectrum-label {
-    display: flex; justify-content: space-between;
-    font-size: 10px; letter-spacing: .08em; color: #64748b;
-    text-transform: uppercase; font-weight: 800;
-  }
-
   /* ═══════ Toolbar extras config switcher ═══════ */
   html.light-theme  html.light-theme  @media (max-width: 600px) {
-    #sound-panel { min-width: 180px; padding: 8px 10px; gap: 6px; }
-    #spectrum-strip { height: 38px; }
   }
 </style>
 </head>
@@ -844,9 +817,8 @@ import { Parts } from './components.js';
   const backpressure = () => sndMode === 'silencer' ? 95 : 18;
   const bpLossFactor = () => sndMode === 'silencer' ? 0.035 : 0.0;
 
-  /* Sound widget refs */
+  /* Spectrum (7b2): a frequency picture, not a time series → a stage canvas */
   let specCanvas = null, specCtx = null, specW = 0, specH = 0;
-  let specNoteEl = null;
 
   const ui = UI.create({
     moduleId: 'exhaustsystem',
@@ -874,21 +846,6 @@ import { Parts } from './components.js';
       play: true, reset: true,
       speed: { label: 'Engine RPM', min: 0.15, max: 2.5, step: 0.05, value: 1.00 },
       labels: true, gas: true
-    },
-
-    widgets: {
-      bl: {
-        caption: 'Acoustic',
-        html: `
-          <div id="sound-panel">
-            <div>
-              <div id="spectrum-label"><span>Acoustic spectrum</span><span id="spec-note">Silencer</span></div>
-              <canvas id="spectrum-strip" aria-label="Live acoustic spectrum"></canvas>
-            </div>
-          </div>
-        `,
-        onMount: (el) => wireSoundWidget(el)
-      }
     },
 
     /* Phase 6: sound, muffler, mixture and view are controls.js controls in the dock options row */
@@ -1054,14 +1011,14 @@ import { Parts } from './components.js';
   }
 
 
-  function wireSoundWidget(root) {
-    specNoteEl    = root.querySelector('#spec-note');
-    specCanvas    = root.querySelector('#spectrum-strip');
-    specCtx       = specCanvas ? specCanvas.getContext('2d') : null;
+  function wireSoundWidget() {
+    specCanvas = ui.stage.canvas({ id: 'spectrum', label: 'Acoustic spectrum · Silencer', width: 440, height: 92, corner: 'bl' });
+    specCtx    = specCanvas ? specCanvas.getContext('2d') : null;
 
     if (window.ResizeObserver) new ResizeObserver(sizeSpectrum).observe(specCanvas);
     sizeSpectrum();
   }
+  wireSoundWidget();
 
   const CONFIG_ORDER = ['principle', 'compare', 'catalyst', 'full'];
   const CONFIG_LABELS = {
@@ -1119,7 +1076,7 @@ import { Parts } from './components.js';
     sndMode = m;
     SND.mode = m;
     ctl.set('muffler', m === 'straight' ? 1 : 0);        /* keep the dock choice in step (bridge setMuffler) */
-    if (specNoteEl) specNoteEl.textContent = SND_MODES[m].name;
+    ui.stage.caption('spectrum', 'Acoustic spectrum · ' + SND_MODES[m].name);
     principleTube.group.traverse(o => {
       if (o === principleTube.group) return;
       if (o.material === M.packing) o.visible = (m === 'silencer');

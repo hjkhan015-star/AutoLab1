@@ -49,7 +49,7 @@ export function createMonitor({ mount, doc = document, moduleId = 'module' } = {
   const rowNodes = {};                 /* id → { row, val }                       (cached nodes) */
   const traceNodes = {};               /* id → { wrap, canvas, ctx, bufs[], w, h, dirty, cfg } */
   let gaugeNodes = null;
-  const last = { label: null, value: null, unit: null, bar: null, barColor: null, color: null, rows: {}, status: null, gauge: null, tone: null };
+  const last = { label: null, value: null, unit: null, bar: null, barColor: null, color: null, rows: {}, rowLabels: {}, status: null, gauge: null, tone: null };
   let pending = null;                  /* latest text-channel values waiting for the next ≤ 9 Hz flush */
   const limiter = createRateLimiter(TEXT_HZ);
   const traceLimiter = createRateLimiter(reduced ? TEXT_HZ : TRACE_HZ);
@@ -85,7 +85,7 @@ export function createMonitor({ mount, doc = document, moduleId = 'module' } = {
     rowsEl.textContent = ''; for (const k in rowNodes) delete rowNodes[k];
     cfg.rows.forEach((r) => {
       const row = el('div', 'mon-row'); row.dataset.row = r.id; const k = el('span', 'mon-row-k', r.label); const val = el('b', 'mon-row-v');
-      row.append(k, val); rowsEl.appendChild(row); rowNodes[r.id] = { row, val };
+      row.append(k, val); rowsEl.appendChild(row); rowNodes[r.id] = { row, val, key: k };
     });
     rowsEl.style.display = cfg.rows.length ? '' : 'none';
 
@@ -112,7 +112,7 @@ export function createMonitor({ mount, doc = document, moduleId = 'module' } = {
       ro = new win.ResizeObserver(() => { for (const id in traceNodes) sizeCanvas(traceNodes[id]); schedule(); });
       for (const id in traceNodes) ro.observe(traceNodes[id].wrap);
     }
-    for (const k in last) last[k] = k === 'rows' ? {} : null;
+    for (const k in last) last[k] = (k === 'rows' || k === 'rowLabels') ? {} : null;
     root.classList.toggle('has-card', !!(cfg.rows.length || cfg.traces.length || cfg.gauge || (cfg.value && cfg.value.bar) || cfg.footer));
     return v;
   }
@@ -157,13 +157,14 @@ export function createMonitor({ mount, doc = document, moduleId = 'module' } = {
         t.dirty = true;
       }
     }
-    if (p.value !== undefined || p.rows || p.gauge !== undefined || p.status !== undefined || p.label !== undefined) {
+    if (p.value !== undefined || p.rows || p.rowLabels || p.gauge !== undefined || p.status !== undefined || p.label !== undefined) {
       pending = pending || {};
       if (p.label !== undefined) pending.label = p.label;
       if (p.value !== undefined) pending.value = mergeValue(pending.value, p.value);
       if (p.gauge !== undefined) pending.gauge = p.gauge;
       if (p.status !== undefined) pending.status = p.status;
       if (p.rows) pending.rows = Object.assign(pending.rows || {}, p.rows);
+      if (p.rowLabels) pending.rowLabels = Object.assign(pending.rowLabels || {}, p.rowLabels);   /* 7b2: a row's name may change with the module's mode (cooling) */
     }
     if (pending && limiter.due(now())) flushText();
     else if (pending && !timer) timer = win.setTimeout(() => { timer = 0; if (pending) { limiter.reset(); limiter.due(now()); flushText(); } }, limiter.gap);
@@ -189,6 +190,11 @@ export function createMonitor({ mount, doc = document, moduleId = 'module' } = {
       if (o.barColor !== undefined && o.barColor !== last.barColor) { barFill.style.background = o.barColor || ''; last.barColor = o.barColor; }
       if (o.color !== undefined && o.color !== last.color) { valueWrap.style.color = o.color || ''; last.color = o.color; }
       if (o.tone !== undefined && o.tone !== last.tone) { valueWrap.dataset.tone = o.tone || ''; last.tone = o.tone; }
+    }
+    if (p.rowLabels) for (const id in p.rowLabels) {
+      const n = rowNodes[id]; if (!n) continue;
+      const t = p.rowLabels[id] == null ? '' : String(p.rowLabels[id]);
+      if (last.rowLabels[id] !== t) { n.key.textContent = t; last.rowLabels[id] = t; stats.textWrites++; }
     }
     if (p.rows) for (const id in p.rows) {
       const n = rowNodes[id]; if (!n) continue;

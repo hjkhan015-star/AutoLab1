@@ -30,14 +30,6 @@
   }
   html.light-theme #ign-readout .ig-row b { color: #0a0d13; }
 
-  #adv-curve {
-    display: block; width: 100%; height: 78px;
-    margin-top: 4px;
-    border-radius: 6px;
-    background: rgba(0,0,0,.28);
-  }
-  html.light-theme #adv-curve { background: rgba(15,23,42,.05); }
-
   #cycle-bar {
     position: relative; height: 12px;
     margin-top: 8px;
@@ -1240,7 +1232,6 @@
             <div class="ig-row"><span>Coil dwell</span><b data-ig="dwell">3.2 ms</b></div>
             <div class="ig-row"><span>Firing order</span><b>1–3–4–2</b></div>
           </div>
-          <canvas id="adv-curve" width="360" height="78"></canvas>
           <div id="cycle-bar">
             <div id="cycle-progress"></div>
             <div class="cyc-marker" data-marker="0" style="left:0%"><span>1</span></div>
@@ -1288,8 +1279,10 @@
   const elAdv    = panelBody ? panelBody.querySelector('[data-ig="adv"]')   : null;
   const elDwell  = panelBody ? panelBody.querySelector('[data-ig="dwell"]') : null;
   const cycleProgEl = panelBody ? panelBody.querySelector('#cycle-progress') : null;
-  const advCanvas = panelBody ? panelBody.querySelector('#adv-curve') : null;
+  /* 7b2: the advance curve (spark advance vs rpm + the live dot) is a picture, not a time series → a stage canvas */
+  const advCanvas = ui.stage.canvas({ id: 'advance', label: 'Spark advance vs rpm', width: 240, height: 110, corner: 'bl' });
   const advCtx    = advCanvas ? advCanvas.getContext('2d') : null;
+  ui.panel.remeasure();                       /* the panel lost its canvas */
   const markerEls = panelBody ? Array.from(panelBody.querySelectorAll('.cyc-marker')) : [];
   const strokeDescEl = document.getElementById('stroke-desc');
 

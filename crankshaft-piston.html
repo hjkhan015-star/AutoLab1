@@ -11,7 +11,6 @@
 :root { --al-accent: #ca8a04; }
 html.light-theme { --al-accent: #a16207; }
 .ui-tb-btn.active{outline:2px solid var(--al-accent);color:var(--al-accent);}
-#cp-graph{width:100%;height:auto;display:block;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);}
 .cp-note{margin:8px 0 0;font-size:11px;line-height:1.45;color:var(--text-mute);}
 
 </style>
@@ -513,10 +512,10 @@ const TABS = {
     </div>`,
   motion: () => `
     <div class="al-sec">
-      <h4>Live curves · Cyl ${CYLINDERS[focus].id}</h4>
-      <canvas id="cp-graph" width="320" height="200" aria-label="Piston motion graph"></canvas>
-      <p class="cp-note">X axis is the 720° engine cycle (Cyl 1 fires at 0°). The coloured bands are the
-      strokes of the selected cylinder; the line marks where the engine is now. Use the <b>Cylinder</b> control to change cylinder.</p>
+      <h4>Live curves</h4>
+      <p class="cp-note">The graph on the stage plots the 720° engine cycle (Cyl 1 fires at 0°). The coloured bands are the
+      strokes of the selected cylinder; the line marks where the engine is now. Use the <b>Cylinder</b> control to change cylinder
+      and the <b>Graph</b> control to change the quantity.</p>
     </div>
     <div class="al-sec">
       <h4>What to look for</h4>
@@ -670,6 +669,10 @@ const ui = Base.UI.create({
   }
 });
 
+/* 7b2: the motion graph (a curve over the 720° cycle with stroke bands and a now-marker) is a picture, not a time series → a stage canvas */
+const cpGraph = ui.stage.canvas({ id: 'motion', label: 'Piston motion', width: 260, height: 170, corner: 'bl', size: 260 });
+ui.panel.remeasure();                       /* the Motion tab lost its canvas */
+
 const tabHost = document.createElement('div');
 tabHost.id = 'al-tabs';
 tabHost.className = 'al-tabs';
@@ -679,7 +682,6 @@ Widgets.wireQuiz(tabHost);
 function renderTab(id) {
   currentTab = TABS[id] ? id : 'overview';
   tabHost.innerHTML = TABS[currentTab]();
-  if (currentTab === 'motion') drawGraph();
 }
 renderTab('overview');
 
@@ -687,7 +689,6 @@ function setFocusButton() {
   ui.controls.set('cyl', focus);                           /* keep the dock choice in step */
   const l = document.getElementById('ro-lbl');
   if (l) l.textContent = 'Cyl ' + CYLINDERS[focus].id + ' piston';
-  if (currentTab === 'motion') renderTab('motion');
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -701,8 +702,8 @@ const GRAPH = {
   torque: { unit: 'N·m',         f: (e) => e.T }
 };
 function drawGraph() {
-  const cv = document.getElementById('cp-graph');
-  if (!cv || cv.isConnected === false) return;
+  const cv = cpGraph;
+  if (!cv) return;
   const g = cv.getContext('2d'); if (!g) return;
   const W = cv.width, Hh = cv.height;
   const light = document.documentElement.classList.contains('light-theme');
@@ -748,6 +749,7 @@ function drawGraph() {
   g.fillText(hi.toFixed(Math.abs(hi) < 10 ? 1 : 0), padL - 4, padT + 8);
   g.fillText(lo.toFixed(Math.abs(lo) < 10 ? 1 : 0), padL - 4, padT + ph);
   g.textAlign = 'left'; g.fillStyle = ink; g.fillText(def.unit, 4, 12);
+  g.textAlign = 'right'; g.fillText('Cyl ' + fc.id, W - padR, 12);
 
   const line = (arr, color, w, alpha) => {
     g.strokeStyle = color; g.lineWidth = w; g.globalAlpha = alpha; g.beginPath();
@@ -816,7 +818,7 @@ function updateReadouts() {
     status: ['Power stroke: cylinder ' + fid, true]
   });
 
-  if (currentTab === 'motion') drawGraph();
+  drawGraph();
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

@@ -995,9 +995,41 @@ class UIKit {
     };
   }
 
+  /* Phase 7b2: stage canvases. A picture that is not a time series (a spectrum, an advance curve, a torque map) stays a canvas,
+     but it lives over the 3D stage (bottom corner, above the dock), never in the dock or the info panel.
+       const cv = ui.stage.canvas({ id, label, width, height, corner:'bl'|'br', size })  → the <canvas> (logical size width × height, CSS scales it)
+       ui.stage.caption(id, text)   (a changing caption, e.g. the mode name)   ·   ui.stage.remove(id)
+     The layer ignores pointer events (orbit controls keep working). Modules draw into the returned canvas as before. */
+  get stage() {
+    const self = this;
+    return {
+      canvas({ id, label = '', width = 320, height = 120, corner = 'bl', size = 0 } = {}) {
+        if (!self._stageLayer) {
+          self._stageLayer = document.createElement('div');
+          self._stageLayer.id = 'ui-stage-layer'; self._stageLayer.className = 'ui-stage-layer';
+          document.body.appendChild(self._stageLayer);
+        }
+        const wrap = document.createElement('div');
+        wrap.className = 'ui-stage-cv ui-card'; wrap.dataset.corner = corner === 'br' ? 'br' : 'bl';
+        if (id) wrap.dataset.stage = id;
+        if (size) wrap.style.setProperty('--stage-cv-w', size + 'px');      /* CSS width in px (default 224; never wider than 60 vw) */
+        if (label) { const cap = document.createElement('div'); cap.className = 'ui-stage-cap'; cap.textContent = label; wrap.appendChild(cap); }
+        const cv = document.createElement('canvas');
+        cv.width = width; cv.height = height; cv.style.aspectRatio = width + ' / ' + height;
+        cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', label || 'Live chart');
+        wrap.appendChild(cv);
+        self._stageLayer.appendChild(wrap);
+        return cv;
+      },
+      caption(id, text) { const n = self._stageLayer && self._stageLayer.querySelector('[data-stage="' + id + '"] .ui-stage-cap'); if (n && n.textContent !== text) n.textContent = text; },
+      remove(id) { const n = self._stageLayer && self._stageLayer.querySelector('[data-stage="' + id + '"]'); if (n) n.remove(); },
+      get root() { return self._stageLayer || null; },
+    };
+  }
+
   /* Phase 7a: the Monitor API. set(config) rebuilds the channels; update(patch) writes values (text ≤ 9 Hz, traces ≤ 30 Hz).
        set({ value:{label,unit,max}, rows:[[id,label]], traces:[{id,series:[…]}], gauge, status:true, footer })
-       update({ label, value, rows:{id:text|[text,tone]}, traces:{id:[v…]}, gauge, status:[text,on,tone?] })  — see monitor-core.js */
+       update({ label, value, rows:{id:text|[text,tone]}, rowLabels:{id:text}, traces:{id:[v…]|null}, gauge, status:[text,on,tone?] })  — see monitor-core.js */
   get monitor() {
     const self = this, M = () => self._monitor;
     return {
